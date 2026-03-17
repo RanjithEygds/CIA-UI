@@ -5,7 +5,7 @@ import './InitiateInterview.css';
 const UPLOAD_SECTIONS = [
   { id: 'brief', label: 'Brief & Scope', desc: 'Programme objectives, case for change, timeline/waves, known constraints' },
   { id: 'context', label: 'Context Pack', desc: 'Org charts, role lists, process maps, programme materials, project uploads' },
-  { id: 'method', label: 'Method & Templates', desc: 'CIA structure/sections and CIA template workbook' },
+  { id: 'method', label: 'Method & Templates', desc: 'CIA structure/sections, CIA Questionnaire and CIA template workbook' },
   { id: 'stakeholder', label: 'Stakeholder List & Interview Plan', desc: 'Who, when, and intended depth (high-level vs detailed)' },
 ];
 

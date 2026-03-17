@@ -22,8 +22,6 @@ const EDITABLE_CARDS: { id: EditableCardId; title: string; initialContent: strin
   { id: 'brief', title: 'Change Brief & Summary', initialContent: 'High-level description and scope of the change initiative.' },
   { id: 'type', title: 'Type Of Change', initialContent: 'Classification of the change (e.g. process, technology, operating model).' },
   { id: 'groups', title: 'Groups Impacted By The Change', initialContent: 'Teams, functions, or business units affected by the change.' },
-  { id: 'stakeholders', title: 'Key Stakeholders That Need To Be Engaged & Consulted', initialContent: 'Individuals or roles requiring engagement and consultation.' },
-  { id: 'research', title: 'Areas That Require Further Research', initialContent: 'Topics or gaps to be explored before or during the change.' },
 ];
 
 const SECTION_LABELS: Record<string, string> = {
