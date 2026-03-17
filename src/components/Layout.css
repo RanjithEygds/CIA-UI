@@ -1,0 +1,75 @@
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  margin-left: 200px;
+  transition: margin-left 0.25s ease;
+}
+
+.app-body[data-sidebar-collapsed="true"] {
+  margin-left: 64px;
+}
+
+.app-header {
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  padding: 0.6rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: var(--shadow-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-header-logo {
+  height: 2.2rem;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
+  object-fit: contain;
+  margin-left: auto;
+}
+
+.app-header-menu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.app-header-menu:hover {
+  background: rgba(13, 115, 119, 0.1);
+}
+
+.app-header-menu-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+@media (min-width: 900px) {
+  .app-header-menu {
+    display: none;
+  }
+}
+
+.app-main {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}

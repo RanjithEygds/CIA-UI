@@ -1,0 +1,239 @@
+.preview-page {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  background: linear-gradient(180deg, #ffffff, #f8fcff);
+}
+
+.preview-kicker {
+  margin: 0;
+  color: var(--color-secondary);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.preview-header h1 {
+  margin: 0.25rem 0;
+  font-size: clamp(1rem, 2.2vw, 1.35rem);
+  line-height: 1.15;
+  color: var(--color-secondary);
+}
+
+.preview-header p {
+  margin: 0;
+  max-width: 720px;
+  color: var(--ink-500);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.preview-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  flex-direction: column;
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+/* Upload Artifacts card – unique gradient */
+.preview-grid > .card.preview-block {
+  background: linear-gradient(160deg, #f8fafc 0%, #eef6fb 40%, #e8f2f8 100%);
+}
+
+/* Five extracted cards – bluish 3D gradient matching left nav (--color-secondary), slightly prominent border */
+.preview-extracted .card.preview-block {
+  background: linear-gradient(165deg, #eef2f9 0%, #e2e8f4 28%, #dce2ef 55%, #e0e6f2 82%, #e6eaf5 100%);
+  border: 1px solid rgba(45, 53, 97, 0.16);
+}
+
+.preview-extracted {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.preview-block h2 {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+  color: var(--color-secondary);
+}
+
+.preview-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.preview-block-header h2 {
+  margin: 0;
+}
+
+.preview-block-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.preview-block-edit {
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--ink-700);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  resize: vertical;
+}
+
+.preview-block-edit:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.upload-group {
+  margin-bottom: 0.4rem;
+}
+
+.upload-group h3 {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-secondary);
+}
+
+.upload-group ul {
+  margin: 0.3rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upload-group li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink-700);
+  font-size: 0.72rem;
+}
+
+.empty-row {
+  margin: 0.2rem 0 0;
+  color: var(--ink-300);
+  font-size: 0.68rem;
+}
+
+.summary-points p {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--ink-700);
+}
+
+.preview-stakeholders-wrap {
+  margin: 0;
+}
+
+.preview-stakeholders-list {
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.preview-stakeholders-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink-700);
+  font-size: 0.72rem;
+}
+
+.preview-stakeholders-item-readonly {
+  justify-content: space-between;
+}
+
+.preview-stakeholders-name {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.preview-stakeholders-email {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink-500);
+}
+
+.preview-stakeholders-item:not(.preview-stakeholders-item-readonly) .preview-stakeholders-email {
+  flex: 1;
+  min-width: 0;
+}
+
+.preview-stakeholders-remove {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.68rem;
+}
+
+.preview-stakeholders-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+.preview-stakeholders-input {
+  flex: 1;
+  min-width: 100px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.72rem;
+  color: var(--ink-700);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.preview-stakeholders-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+@media (max-width: 920px) {
+  .preview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .preview-actions {
+    flex-direction: column;
+  }
+
+  .preview-actions .btn {
+    width: 100%;
+  }
+}

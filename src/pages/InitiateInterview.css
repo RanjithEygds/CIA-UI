@@ -1,0 +1,153 @@
+.initiate-page {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 900px;
+}
+
+.initiate-page h1 {
+  margin: 0;
+  font-size: clamp(1rem, 2.2vw, 1.35rem);
+  font-weight: 700;
+  color: var(--color-secondary);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.page-desc {
+  margin: 0;
+  color: var(--ink-500);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.initiate-engagement {
+  margin: 0;
+}
+
+.initiate-engagement label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+  margin-bottom: 0.3rem;
+}
+
+.initiate-input {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.initiate-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.upload-sections {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+  margin: 0;
+  align-items: stretch;
+}
+
+.upload-section {
+  padding: 0.5rem 0.75rem;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* Card gradient and border – Initiate CIA cards only */
+  background: linear-gradient(165deg, #fafbfd 0%, #f2f5f9 50%, #eef2f7 100%);
+  border: 1.5px solid rgba(45, 53, 97, 0.18);
+  transition: border-color 0.2s;
+}
+.upload-section:hover {
+  border-color: var(--color-primary);
+}
+
+.upload-section h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+  letter-spacing: -0.01em;
+}
+
+.upload-section-desc {
+  margin: 0 0 0.4rem 0;
+  color: var(--ink-500);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.upload-section .upload-zone {
+  position: relative;
+  flex: 0 0 72px;
+  height: 72px;
+  min-height: 72px;
+}
+
+.upload-section .upload-zone p {
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.upload-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-section .file-list {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.file-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.3rem 0;
+  color: var(--ink-700);
+  font-size: 0.72rem;
+}
+
+.file-remove {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.68rem;
+}
+
+.initiate-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0;
+  padding-top: 0.25rem;
+}
+
+@media (max-width: 640px) {
+  .initiate-page h1 {
+    font-size: 1rem;
+  }
+
+  .upload-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .initiate-actions {
+    justify-content: stretch;
+  }
+
+  .initiate-actions .btn {
+    width: 100%;
+  }
+}

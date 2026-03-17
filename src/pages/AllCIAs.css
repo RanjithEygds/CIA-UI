@@ -1,0 +1,79 @@
+.all-cias-page {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.all-cias-page h1 {
+  margin: 0;
+  font-size: clamp(1rem, 2.2vw, 1.35rem);
+  font-weight: 700;
+  color: var(--color-secondary);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.all-cias-page .page-desc {
+  margin: 0;
+  color: var(--ink-500);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+/* 2×2 grid on all breakpoints; no single-column stacking — consistent card size and spacing */
+.all-cias-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* Card: medium-contrast border, gradient 135deg (top-left → bottom-right), ~12–18% intensity, UI palette */
+.engagement-tile {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  text-align: left;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  background: linear-gradient(135deg, rgba(13, 115, 119, 0.14) 0%, #ffffff 100%);
+  border: 1px solid #CBD5E1;
+  min-height: 0;
+}
+
+/* Deeper teal, muted blue, soft green, slate — aligned with base UI palette */
+.all-cias-grid .engagement-tile:nth-child(4n + 1) {
+  background: linear-gradient(135deg, rgba(13, 115, 119, 0.15) 0%, #ffffff 100%);
+  border-color: #B8C5D4;
+}
+.all-cias-grid .engagement-tile:nth-child(4n + 2) {
+  background: linear-gradient(135deg, rgba(71, 85, 105, 0.14) 0%, #ffffff 100%);
+  border-color: #CBD5E1;
+}
+.all-cias-grid .engagement-tile:nth-child(4n + 3) {
+  background: linear-gradient(135deg, rgba(46, 157, 100, 0.13) 0%, #ffffff 100%);
+  border-color: #B8C5D4;
+}
+.all-cias-grid .engagement-tile:nth-child(4n + 4) {
+  background: linear-gradient(135deg, rgba(100, 116, 139, 0.15) 0%, #ffffff 100%);
+  border-color: #CBD5E1;
+}
+
+.engagement-tile:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+}
+
+/* Dark, accessible text — #1E293B for readability and contrast */
+.engagement-tile-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.0rem;
+  font-weight: 600;
+  color: #1E293B;
+  line-height: 1.2;
+}
+
+.engagement-tile-summary {
+  margin: 0;
+  font-size: 0.7rem;
+  color: #475569;
+  line-height: 1.45;
+}

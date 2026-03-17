@@ -1,0 +1,172 @@
+.launch-page {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.launch-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  background:
+    radial-gradient(circle at right top, rgba(238, 155, 0, 0.18), transparent 34%),
+    linear-gradient(180deg, #ffffff, #f9fcff);
+}
+
+.launch-kicker {
+  margin: 0;
+  color: var(--color-secondary);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.launch-header h1 {
+  margin: 0.25rem 0;
+  font-size: clamp(1rem, 2.2vw, 1.35rem);
+  line-height: 1.15;
+  color: var(--color-secondary);
+}
+
+.launch-header p {
+  margin: 0;
+  max-width: 760px;
+  color: var(--ink-500);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.launch-header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.stakeholder-header-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.stakeholder-header-row h2 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-secondary);
+}
+
+.stakeholder-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.4rem;
+}
+
+.stakeholder-table th,
+.stakeholder-table td {
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  vertical-align: top;
+  font-size: 0.72rem;
+}
+
+.stakeholder-table th {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-700);
+}
+
+.stakeholder-table .compact {
+  padding: 0.19rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  border-radius: 999px;
+  min-height: auto;
+  line-height: 1.3;
+}
+
+/* Copy feedback: soft teal/green highlight only; no size/typography/layout changes */
+.stakeholder-table .btn.copy-copied {
+  background-color: rgba(42, 157, 143, 0.45);
+}
+
+/* Toast: temporary popup (GitHub/Figma/Notion style) */
+.copy-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 1rem;
+  background: var(--ink-800, #2d3748);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: copy-toast-in 0.2s ease-out;
+}
+
+@keyframes copy-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.status-chip {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.status-queued {
+  color: #425470;
+  background: rgba(147, 169, 199, 0.22);
+}
+
+.status-invited {
+  color: #8f5200;
+  background: rgba(238, 155, 0, 0.22);
+}
+
+.status-in-progress {
+  color: #0c5672;
+  background: rgba(39, 159, 217, 0.2);
+}
+
+.status-completed {
+  color: #156c60;
+  background: rgba(42, 157, 143, 0.21);
+}
+
+@media (max-width: 980px) {
+  .launch-header-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 720px) {
+  .stakeholder-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .launch-header-actions {
+    width: 100%;
+  }
+
+  .launch-header-actions .btn {
+    flex: 1;
+  }
+}

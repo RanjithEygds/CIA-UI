@@ -1,0 +1,338 @@
+.cimmie-page {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.cimmie-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background:
+    radial-gradient(circle at right top, rgba(34, 184, 168, 0.18), transparent 34%),
+    linear-gradient(180deg, #ffffff, #f8fcff);
+}
+
+.cimmie-header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cimmie-page-robot-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.cimmie-header-top {
+  width: 100%;
+}
+
+.cimmie-header-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.cimmie-kicker {
+  margin: 0;
+  color: var(--brand-700);
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.cimmie-header h1 {
+  margin: 0.25rem 0;
+  font-size: clamp(0.9rem, 2vw, 1.2rem);
+  line-height: 1.15;
+}
+
+.cimmie-header p {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--ink-500);
+  max-width: 760px;
+}
+
+.cimmie-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 240px;
+  flex-shrink: 0;
+}
+
+.interview-progress-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.interview-progress-card-title {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-500);
+}
+
+/* Vertical progress pipe (stepper) inside Interview Progress card */
+.interview-progress-card .progress-pipe-vertical {
+  flex: 1;
+  min-height: 80px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  list-style: none;
+  padding: 0;
+}
+
+.progress-pipe-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.progress-pipe-step-track {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 14px;
+}
+
+.progress-pipe-connector {
+  width: 3px;
+  height: 6px;
+  background: var(--border);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.progress-pipe-connector-above {
+  height: 4px;
+}
+
+.progress-pipe-connector-below {
+  height: 8px;
+}
+
+.progress-pipe-connector-completed {
+  background: var(--color-success);
+}
+
+.progress-pipe-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.progress-pipe-dot-completed {
+  background: var(--color-success);
+  border: none;
+}
+
+.progress-pipe-dot-active {
+  background: var(--color-success);
+  border: none;
+}
+
+.progress-pipe-active-inner {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: white;
+}
+
+.progress-pipe-dot-upcoming {
+  background: transparent;
+  border: 2px solid var(--border);
+  color: var(--ink-400);
+}
+
+.progress-pipe-dot-number {
+  font-size: 0.55rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.progress-pipe-label {
+  font-size: 0.65rem;
+  line-height: 1.2;
+  color: var(--ink-500);
+  flex: 1;
+  min-width: 0;
+}
+
+.progress-pipe-label-completed {
+  color: var(--ink-500);
+}
+
+.progress-pipe-label-active {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.progress-pipe-label-upcoming {
+  color: var(--ink-400);
+}
+
+.session-panel {
+  display: grid;
+  gap: 0.35rem;
+  background: rgba(10, 147, 150, 0.08);
+  border: 1px solid rgba(10, 147, 150, 0.2);
+  border-radius: 14px;
+  padding: 0.5rem 0.65rem;
+}
+
+.btn-extend-session {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-success) 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(13, 115, 119, 0.3);
+  transition: box-shadow 0.2s, filter 0.2s;
+}
+
+.btn-extend-session:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 4px 12px rgba(13, 115, 119, 0.4);
+}
+
+/* End Interview: red-themed gradient only; layout/size/animation unchanged */
+.btn-end-interview {
+  background: linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #ef4444 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(185, 28, 28, 0.35);
+}
+.btn-end-interview:hover {
+  box-shadow: 0 4px 12px rgba(185, 28, 28, 0.45);
+}
+
+.session-panel .label {
+  display: block;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-500);
+}
+
+.session-panel strong {
+  font-size: 0.7rem;
+  color: var(--ink-700);
+}
+
+.session-time-banner {
+  padding: 0.5rem 0.65rem 0.5rem 2rem;
+  font-size: 0.68rem;
+  position: relative;
+  border-left: 4px solid var(--color-warning);
+  background: rgba(230, 162, 60, 0.14);
+  color: var(--color-text);
+}
+
+.session-time-banner-text {
+  margin: 0;
+  font-weight: 500;
+}
+
+.session-time-banner-dismiss {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.session-time-banner-dismiss:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--color-text);
+}
+
+.restriction-banner {
+  border-left: 4px solid var(--signal-500);
+  background: rgba(238, 155, 0, 0.14);
+  color: #6f4700;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.68rem;
+}
+
+.chat-shell {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.chat-log {
+  max-height: 320px;
+  overflow-y: auto;
+  display: grid;
+  gap: 0.4rem;
+  padding-right: 0.2rem;
+}
+
+.chat-bubble {
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.chat-compose {
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.chat-compose textarea {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.72rem;
+  resize: vertical;
+}
+
+.chat-compose textarea:focus {
+  outline: 2px solid rgba(10, 147, 150, 0.22);
+  border-color: var(--brand-500);
+}
+
+.chat-compose .btn {
+  justify-self: end;
+}
+
+@media (max-width: 700px) {
+  .chat-compose .btn {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
