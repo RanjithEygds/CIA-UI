@@ -4,8 +4,11 @@ import "./Preview.css";
 import {
   getEngagementContext,
   getEngagementSummary,
+  updateEngagementContext,
   type EngagementSummaryResponse,
+  type ImpactGroup,
   type Stakeholder,
+  type TypeOfChange,
 } from "../api/engagements";
 
 type UploadSection = {
@@ -119,6 +122,22 @@ export default function Preview() {
   const navigate = useNavigate();
   const uploads = useMemo(() => readUploadState(), []);
   const engagementId = useEngagementId();
+  const [rawContext, setRawContext] = useState<{
+    change_brief: string;
+    change_summary: string[];
+    impacted_groups: ImpactGroup[];
+    type_of_change: TypeOfChange;
+  }>({
+    change_brief: "",
+    change_summary: [],
+    impacted_groups: [],
+    type_of_change: {
+      current: "",
+      future: "",
+      description: "",
+      confidence: "Low",
+    },
+  });
 
   const [summary, setSummary] = useState<EngagementSummaryResponse | null>(
     null,
@@ -174,14 +193,55 @@ export default function Preview() {
     setEditingId(null);
   };
 
-  const handlePublish = (id: EditableCardId) => {
-    if (id === "stakeholders") {
-      setEditingId(null);
-    } else {
-      setContent((prev) => ({ ...prev, [id]: draft }));
-      setEditingId(null);
+  const handlePublish = async (id: EditableCardId) => {
+    if (!engagementId) return;
+
+    let payload: any = {};
+
+    if (id === "brief") {
+      // draft contains plain text of brief only
+      rawContext.change_brief = draft;
+      payload.change_brief = rawContext.change_brief;
     }
-    // TODO: call existing save handler when available
+
+    if (id === "type") {
+      // Currently only editing description — adjust when UI supports full editing
+      rawContext.type_of_change = {
+        ...rawContext.type_of_change,
+        description: draft,
+      };
+      payload.type_of_change = rawContext.type_of_change;
+    }
+
+    if (id === "groups") {
+      // Convert drafted text into ImpactGroup[]
+      rawContext.impacted_groups = draft
+        .split("\n")
+        .filter((line) => line.trim())
+        .map((line) => ({
+          name: line.replace("•", "").trim(),
+          description: null,
+          confidence: "Low",
+        }));
+
+      payload.impacted_groups = rawContext.impacted_groups;
+    }
+
+    if (id === "stakeholders") {
+      // stakeholdersList already holds the updated list
+      payload.stakeholders = stakeholdersList.map((s) => ({
+        name: s.name,
+        email: s.email,
+      }));
+    }
+
+    // ✅ SEND UPDATE TO BACKEND
+    await updateEngagementContext(engagementId, payload);
+
+    // ✅ UPDATE PRETTY UI CONTENT
+    setContent((prev) => ({ ...prev, [id]: draft }));
+
+    setEditingId(null);
   };
 
   const addStakeholder = () => {
@@ -206,7 +266,6 @@ export default function Preview() {
       `Current: ${t.current || "Unknown"}`,
       `Future: ${t.future || "Unknown"}`,
       `Description: ${t.description || "Unknown"}`,
-      `Confidence: ${t.confidence || "Low"}`,
     ].join("<br />");
   }
 
@@ -219,6 +278,21 @@ export default function Preview() {
           `• ${g.name}${g.description ? ` — ${g.description}` : ""} (${g.confidence})`,
       )
       .join("<br />");
+  }
+
+  function formatBriefAndSummary(brief: string, summaryList: string[]): string {
+    const bullets = (summaryList || [])
+      .map((point) => `• ${point}`)
+      .join("<br/>");
+
+    return `
+    <div>
+      <p>${brief}</p>
+      <br/>
+      <strong>Summary:</strong><br/>
+      ${bullets}
+    </div>
+  `;
   }
 
   useEffect(() => {
@@ -236,10 +310,19 @@ export default function Preview() {
         const contextData = await getEngagementContext(engagementId);
         if (!mounted) return;
         setSummary(summaryData);
+        setRawContext({
+          change_brief: contextData.change_brief,
+          change_summary: contextData.change_summary,
+          impacted_groups: contextData.impacted_groups,
+          type_of_change: contextData.type_of_change,
+        });
 
         setContent((prev) => ({
           ...prev,
-          brief: `${contextData.change_brief}\n\n${contextData.change_summary}`,
+          brief: formatBriefAndSummary(
+            contextData.change_brief,
+            contextData.change_summary,
+          ),
           type: prettyPrintTypeOfChange(contextData.type_of_change),
           groups: prettyPrintGroups(contextData.impacted_groups),
           stakeholders: "", // stakeholders use separate UI list

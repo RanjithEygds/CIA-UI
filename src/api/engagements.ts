@@ -215,6 +215,27 @@ export async function getEngagementContext(engagementId: string) {
   return res.json();
 }
 
+export async function updateEngagementContext(
+  engagementId: string,
+  payload: Partial<{
+    change_brief: string;
+    change_summary: string[];
+    impacted_groups: ImpactGroup[];
+    type_of_change: TypeOfChange;
+    stakeholders: { name: string; email: string }[];
+  }>
+) {
+  const res = await okOrThrow(
+    await fetch(`${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/context`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+
+  return res.json();
+}
+
 
 export async function getEngagementDetails(
   engagementId: string
