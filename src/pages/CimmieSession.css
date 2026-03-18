@@ -290,11 +290,23 @@
   font-size: 0.68rem;
 }
 
+/* Mode toggle card: premium surface (gradient, elevation, rounded, inner border) */
 .mode-toggle-card {
   padding: 0.6rem 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 10px;
+  background: linear-gradient(
+    165deg,
+    #ffffff 0%,
+    #f8fcff 35%,
+    rgba(34, 184, 168, 0.06) 100%
+  );
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(13, 115, 119, 0.08);
+  border: 1px solid rgba(10, 147, 150, 0.12);
 }
 
 .mode-toggle-card .interview-mode-toggle {
@@ -332,37 +344,84 @@
   gap: 0.5rem;
 }
 
-/* Mode toggle: Text | Voice */
+/* Mode toggle: pill-style segmented control (Text | Voice) */
 .interview-mode-toggle {
   display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 2px;
-  background: var(--surface, #f5f5f5);
+  border: 1px solid rgba(10, 147, 150, 0.2);
+  border-radius: 9999px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   width: fit-content;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .interview-mode-btn {
-  padding: 0.35rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
   font-size: 0.7rem;
   font-weight: 600;
   border: none;
-  border-radius: 8px;
+  border-radius: 9999px;
   background: transparent;
-  color: var(--ink-500);
+  color: var(--brand-700);
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.2s ease;
 }
 
 .interview-mode-btn:hover {
   color: var(--ink-700);
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(10, 147, 150, 0.08);
+  box-shadow: 0 2px 6px rgba(13, 115, 119, 0.12);
+}
+
+.interview-mode-btn:active {
+  transform: translateY(-1px);
+  transition-duration: 0.15s;
+}
+
+.interview-mode-btn:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
 }
 
 .interview-mode-btn-active {
-  background: #fff;
-  color: var(--brand-700);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: linear-gradient(
+    135deg,
+    var(--color-primary) 0%,
+    var(--brand-500) 50%,
+    var(--color-success) 100%
+  );
+  color: #fff;
+  box-shadow:
+    0 2px 8px rgba(13, 115, 119, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+}
+
+.interview-mode-btn-active:hover {
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary) 0%,
+    var(--brand-500) 50%,
+    var(--color-success) 100%
+  );
+  filter: brightness(1.05);
+  box-shadow:
+    0 4px 12px rgba(13, 115, 119, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.25) inset;
+}
+
+.interview-mode-btn-active:active {
+  transform: translateY(-1px);
 }
 
 /* Voice UI panel (dark card, orb, status, mic) */
@@ -567,10 +626,14 @@
 }
 
 .chat-compose-mic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.6rem;
   color: var(--color-text-muted);
   background: transparent;
   border: 1px solid var(--border);
+  border-radius: var(--radius);
   min-width: 2.5rem;
   min-height: 2.5rem;
 }

@@ -1,5 +1,53 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './CimmieSession.css';
+
+/** Minimal type for Web Speech API SpeechRecognition. */
+interface SpeechRecognitionLike {
+  start(): void;
+  stop(): void;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+}
+
+interface SpeechRecognitionEvent {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  length: number;
+  item(index: number): SpeechRecognitionResultItem;
+  [index: number]: SpeechRecognitionResultItem;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionResultItem {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+  message?: string;
+}
+
+/** Browser Speech Recognition (Web Speech API); may be prefixed. */
+function getSpeechRecognitionConstructor(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === 'undefined') return null;
+  const w = window as unknown as {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
 
 type Message = {
   id: string;
@@ -70,6 +118,24 @@ function StepCheckmark() {
 
 function StepActiveDot() {
   return <span className="progress-pipe-active-inner" aria-hidden="true" />;
+}
+
+function TextMessageIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  );
 }
 
 function MicIcon() {
@@ -148,10 +214,75 @@ export default function CimmieSession() {
   const [timeBannerDismissed, setTimeBannerDismissed] = useState(false);
   const [interviewMode, setInterviewMode] = useState<InterviewMode>(() => getStoredInterviewMode());
   const [voicePanelListening, setVoicePanelListening] = useState(false);
+  const [composerListening, setComposerListening] = useState(false);
+  const [composerSpeechError, setComposerSpeechError] = useState<string | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const sessionTranscriptRef = useRef('');
 
   function setInterviewModeAndPersist(mode: InterviewMode) {
     setInterviewMode(mode);
     if (typeof window !== 'undefined') window.localStorage.setItem(INTERVIEW_MODE_KEY, mode);
+  }
+
+  function startComposerListening() {
+    const Ctor = getSpeechRecognitionConstructor();
+    if (!Ctor) {
+      setComposerSpeechError('Speech recognition is not supported in this browser.');
+      return;
+    }
+    setComposerSpeechError(null);
+    sessionTranscriptRef.current = '';
+    const recognition = new Ctor();
+    recognitionRef.current = recognition;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal && result.length > 0) {
+          const text = result[0].transcript?.trim?.() ?? '';
+          if (text) sessionTranscriptRef.current += (sessionTranscriptRef.current ? ' ' : '') + text;
+        }
+      }
+    };
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      const msg = event.message ?? event.error;
+      if (event.error === 'not-allowed') setComposerSpeechError('Microphone access denied.');
+      else if (event.error === 'no-speech') setComposerSpeechError('No speech detected. Try again.');
+      else if (event.error === 'network') setComposerSpeechError('Network error. Check your connection.');
+      else if (msg) setComposerSpeechError(msg);
+      else setComposerSpeechError('Speech recognition error.');
+      setComposerListening(false);
+    };
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      setComposerListening(false);
+      const text = sessionTranscriptRef.current.trim();
+      if (text) setDraft((prev) => (prev ? `${prev} ${text}` : text));
+    };
+    try {
+      recognition.start();
+      setComposerListening(true);
+    } catch (e) {
+      setComposerSpeechError('Could not start microphone.');
+    }
+  }
+
+  function stopComposerListening() {
+    const recognition = recognitionRef.current;
+    if (recognition) {
+      try {
+        recognition.stop();
+      } catch {
+        recognitionRef.current = null;
+        setComposerListening(false);
+      }
+    }
+  }
+
+  function toggleComposerListening() {
+    if (composerListening) stopComposerListening();
+    else startComposerListening();
   }
 
   useEffect(() => {
@@ -163,6 +294,19 @@ export default function CimmieSession() {
 
     return () => window.clearInterval(timer);
   }, [remainingSeconds]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          /* ignore */
+        }
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
 
   const sessionExpired = remainingSeconds <= 0;
   const countdown = useMemo(() => formatRemaining(remainingSeconds), [remainingSeconds]);
@@ -310,7 +454,8 @@ export default function CimmieSession() {
             onClick={() => setInterviewModeAndPersist('text')}
             aria-pressed={interviewMode === 'text'}
           >
-            Text
+            <TextMessageIcon />
+            <span>Text</span>
           </button>
           <button
             type="button"
@@ -318,7 +463,8 @@ export default function CimmieSession() {
             onClick={() => setInterviewModeAndPersist('voice')}
             aria-pressed={interviewMode === 'voice'}
           >
-            Voice
+            <MicIcon />
+            <span>Voice</span>
           </button>
         </div>
       </section>
@@ -349,7 +495,27 @@ export default function CimmieSession() {
                 rows={3}
                 disabled={sessionExpired}
               />
+              <p
+                className={`chat-compose-status ${composerListening ? 'chat-compose-status-listening' : ''} ${composerSpeechError ? 'chat-compose-status-error' : ''}`}
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {composerListening && 'Speak now – I am listening'}
+                {!composerListening && composerSpeechError && composerSpeechError}
+                {!composerListening && !composerSpeechError && '\u00A0'}
+              </p>
               <div className="chat-compose-actions">
+                <button
+                  type="button"
+                  className={`chat-compose-mic ${composerListening ? 'chat-compose-mic-active' : ''}`}
+                  onClick={toggleComposerListening}
+                  disabled={sessionExpired}
+                  aria-label={composerListening ? 'Stop listening' : 'Dictate message'}
+                  aria-pressed={composerListening}
+                >
+                  <MicIcon />
+                </button>
                 <button className="btn btn-primary" type="submit" disabled={sessionExpired || !draft.trim()}>
                   Submit response
                 </button>
