@@ -72,6 +72,26 @@ function StepActiveDot() {
   return <span className="progress-pipe-active-inner" aria-hidden="true" />;
 }
 
+function MicIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3Z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" x2="12" y1="19" y2="22" />
+    </svg>
+  );
+}
+
 const seedMessages: Message[] = [
   {
     id: 'm1',
@@ -101,6 +121,15 @@ const seedMessages: Message[] = [
 ];
 
 const SESSION_MINUTES = 30;
+const INTERVIEW_MODE_KEY = 'cimmie-interview-mode';
+
+type InterviewMode = 'text' | 'voice';
+
+function getStoredInterviewMode(): InterviewMode {
+  if (typeof window === 'undefined') return 'text';
+  const stored = window.localStorage.getItem(INTERVIEW_MODE_KEY);
+  return stored === 'voice' ? 'voice' : 'text';
+}
 
 function formatRemaining(seconds: number) {
   const mins = Math.floor(seconds / 60)
@@ -117,6 +146,13 @@ export default function CimmieSession() {
   const [draft, setDraft] = useState('');
   const [remainingSeconds, setRemainingSeconds] = useState(SESSION_MINUTES * 60);
   const [timeBannerDismissed, setTimeBannerDismissed] = useState(false);
+  const [interviewMode, setInterviewMode] = useState<InterviewMode>(() => getStoredInterviewMode());
+  const [voicePanelListening, setVoicePanelListening] = useState(false);
+
+  function setInterviewModeAndPersist(mode: InterviewMode) {
+    setInterviewMode(mode);
+    if (typeof window !== 'undefined') window.localStorage.setItem(INTERVIEW_MODE_KEY, mode);
+  }
 
   useEffect(() => {
     if (remainingSeconds <= 0) return;
@@ -266,35 +302,97 @@ export default function CimmieSession() {
         synthesis from other interviews, or internal knowledge repositories.
       </section>
 
-      <section className="chat-shell card">
-        <div className="chat-log">
-          {messages.map((message) => (
-            <div key={message.id} className={`chat-bubble ${message.from}`}>
-              {message.from === 'bot' ? (
-                <div className="chat-bubble-inner">
-                  <img src="/cimmie-robot.jpg" alt="" className="chat-bubble-avatar" aria-hidden="true" />
-                  <span className="chat-bubble-text">{message.text}</span>
-                </div>
-              ) : (
-                message.text
-              )}
-            </div>
-          ))}
-        </div>
-
-        <form className="chat-compose" onSubmit={submitMessage}>
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="Type your response..."
-            rows={3}
-            disabled={sessionExpired}
-          />
-          <button className="btn btn-primary" type="submit" disabled={sessionExpired || !draft.trim()}>
-            Submit response
+      <section className="mode-toggle-card card" aria-label="Input mode">
+        <div className="interview-mode-toggle" role="group" aria-label="Interview mode">
+          <button
+            type="button"
+            className={`interview-mode-btn ${interviewMode === 'text' ? 'interview-mode-btn-active' : ''}`}
+            onClick={() => setInterviewModeAndPersist('text')}
+            aria-pressed={interviewMode === 'text'}
+          >
+            Text
           </button>
-        </form>
+          <button
+            type="button"
+            className={`interview-mode-btn ${interviewMode === 'voice' ? 'interview-mode-btn-active' : ''}`}
+            onClick={() => setInterviewModeAndPersist('voice')}
+            aria-pressed={interviewMode === 'voice'}
+          >
+            Voice
+          </button>
+        </div>
       </section>
+
+      {/* Exclusive rendering: only one mode mounted—no text chat when voice, no voice UI when text. */}
+      {interviewMode === 'text' && (
+        <section className="chat-shell card">
+          <div className="chat-log">
+            {messages.map((message) => (
+              <div key={message.id} className={`chat-bubble ${message.from}`}>
+                {message.from === 'bot' ? (
+                  <div className="chat-bubble-inner">
+                    <img src="/cimmie-robot.jpg" alt="" className="chat-bubble-avatar" aria-hidden="true" />
+                    <span className="chat-bubble-text">{message.text}</span>
+                  </div>
+                ) : (
+                  message.text
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="chat-compose-wrap">
+            <form className="chat-compose" onSubmit={submitMessage}>
+              <textarea
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="Type your response..."
+                rows={3}
+                disabled={sessionExpired}
+              />
+              <div className="chat-compose-actions">
+                <button className="btn btn-primary" type="submit" disabled={sessionExpired || !draft.trim()}>
+                  Submit response
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      )}
+
+      {interviewMode === 'voice' && (
+        <section className="voice-fullscreen" aria-label="Voice interview">
+          <div className="voice-ui-panel voice-ui-panel-fullscreen" aria-label="Voice input">
+            <div className="voice-ui-orb">
+              <div className="voice-ui-orb-wave" aria-hidden="true">
+                <img
+                  src="/Designer_1.png"
+                  alt=""
+                  className="voice-ui-orb-wave-img"
+                />
+              </div>
+              <div className="voice-ui-orb-icon" aria-hidden="true">
+                <img src="/cimmie-robot.jpg" alt="" className="voice-ui-orb-icon-img" />
+              </div>
+            </div>
+            <p className="voice-ui-prompt" aria-hidden="true">
+              What's the price of hoverboard …
+            </p>
+            <p className="voice-ui-status" role="status" aria-live="polite">
+              Speak now — I am listening
+            </p>
+            <button
+              type="button"
+              className={`voice-ui-mic ${voicePanelListening ? 'voice-ui-mic-active' : ''}`}
+              onClick={() => setVoicePanelListening((prev) => !prev)}
+              disabled={sessionExpired}
+              aria-label={voicePanelListening ? 'Stop listening' : 'Start listening'}
+              aria-pressed={voicePanelListening}
+            >
+              <MicIcon />
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

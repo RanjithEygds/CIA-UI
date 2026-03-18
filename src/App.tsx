@@ -4,9 +4,10 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Home from './pages/Home';
-import InitiateInterview from './pages/InitiateInterview';
+import UploadDocument from './pages/UploadDocument';
 import Preview from './pages/Preview';
 import PreviewInterviewQuestions from './pages/PreviewInterviewQuestions';
+import AddStakeholders from './pages/AddStakeholders';
 import LaunchInterview from './pages/LaunchInterview';
 import CimmieSession from './pages/CimmieSession';
 import AllCIAs from './pages/AllCIAs';
@@ -36,9 +37,10 @@ function AppRoutes() {
         }
       >
         <Route index element={<Home />} />
-        <Route path="initiate" element={<InitiateInterview />} />
+        <Route path="upload" element={<UploadDocument />} />
         <Route path="preview" element={<Preview />} />
         <Route path="preview-questions" element={<PreviewInterviewQuestions />} />
+        <Route path="add-stakeholders" element={<AddStakeholders />} />
         <Route path="launch" element={<LaunchInterview />} />
         <Route path="cimmie" element={<CimmieSession />} />
         <Route path="all-cias" element={<AllCIAs />} />

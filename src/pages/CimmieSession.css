@@ -1,6 +1,8 @@
 .cimmie-page {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.6rem;
+  min-height: 100vh;
 }
 
 .cimmie-header {
@@ -288,9 +290,238 @@
   font-size: 0.68rem;
 }
 
+.mode-toggle-card {
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mode-toggle-card .interview-mode-toggle {
+  margin: 0;
+}
+
+/* Full-screen voice layout: fills viewport below the toggle */
+/* Voice container: fill viewport below toggle; no global layout change */
+.voice-fullscreen {
+  flex: 1 1 0;
+  min-height: calc(100vh - 12rem); /* fill to bottom of viewport below header/toggle */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.voice-ui-panel-fullscreen {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border-radius: 0;
+  justify-content: center;
+  overflow-y: auto; /* scroll only when content overflows */
+}
+
 .chat-shell {
   display: grid;
   gap: 0.5rem;
+}
+
+.chat-compose-wrap {
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+/* Mode toggle: Text | Voice */
+.interview-mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px;
+  background: var(--surface, #f5f5f5);
+  width: fit-content;
+}
+
+.interview-mode-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-500);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.interview-mode-btn:hover {
+  color: var(--ink-700);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.interview-mode-btn-active {
+  background: #fff;
+  color: var(--brand-700);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Voice UI panel (dark card, orb, status, mic) */
+.voice-ui-panel {
+  --voice-bg: #1a1b2e;
+  --voice-cyan: #00f2ff;
+  --voice-teal: #00ced1;
+  background: var(--voice-bg);
+  border-radius: 16px;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  min-height: 400px;
+}
+
+/* Orb: perfect circle (1:1) at all breakpoints; neon-glow sphere */
+.voice-ui-orb {
+  --orb-size: min(130px, 52vmin);
+  width: var(--orb-size);
+  height: var(--orb-size);
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  border-radius: 50%;
+  /* Inner radial: dark center (depth), lighter translucent cyan at edges */
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(26, 27, 46, 0.95) 0%,
+    rgba(0, 242, 255, 0.12) 45%,
+    rgba(0, 242, 255, 0.35) 100%
+  );
+  box-shadow:
+    0 0 30px rgba(0, 242, 255, 0.4),
+    0 0 60px rgba(0, 242, 255, 0.2);
+  position: relative;
+  overflow: visible; /* allow wave to extend outside sphere */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: voice-ui-orb-glow-pulse 4s ease-in-out infinite;
+}
+
+/* Wave image overlay: horizontal midline, may extend outside orb; transparent so sphere glow shows */
+.voice-ui-orb-wave {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 220%;
+  min-width: 220%;
+  height: 200%;
+  pointer-events: none;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-ui-orb-wave-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  mix-blend-mode: screen; /* black → transparent, glow visible over sphere */
+  opacity: 0.9;
+  filter: brightness(1.3) contrast(1.15); /* make wave glow brighter */
+}
+
+@keyframes voice-ui-orb-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(0, 242, 255, 0.4), 0 0 60px rgba(0, 242, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(0, 242, 255, 0.55), 0 0 75px rgba(0, 242, 255, 0.28);
+  }
+}
+
+/* Icon placeholder: centered inside sphere, slightly inset (respects depth) */
+.voice-ui-orb-icon {
+  position: relative;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Neutral placeholder when no image: faint dotted circle */
+  border: 2px dashed rgba(0, 242, 255, 0.35);
+  background: rgba(26, 27, 46, 0.5);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.3);
+}
+
+.voice-ui-orb-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.voice-ui-prompt {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--voice-cyan);
+  opacity: 0.9;
+  text-align: center;
+}
+
+.voice-ui-status {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  text-align: center;
+}
+
+.voice-ui-mic {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 242, 255, 0.5);
+  background: rgba(0, 242, 255, 0.12);
+  color: var(--voice-cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: box-shadow 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.voice-ui-mic:hover:not(:disabled) {
+  background: rgba(0, 242, 255, 0.22);
+  border-color: var(--voice-cyan);
+}
+
+.voice-ui-mic:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Mic: gentle glow when active (listening) */
+.voice-ui-mic-active {
+  background: rgba(0, 242, 255, 0.25);
+  border-color: var(--voice-cyan);
+  color: #fff;
+  box-shadow:
+    0 0 18px rgba(0, 242, 255, 0.5),
+    0 0 36px rgba(0, 242, 255, 0.25);
+  animation: voice-ui-mic-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes voice-ui-mic-glow {
+  0%, 100% {
+    box-shadow: 0 0 18px rgba(0, 242, 255, 0.5), 0 0 36px rgba(0, 242, 255, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 26px rgba(0, 242, 255, 0.7), 0 0 48px rgba(0, 242, 255, 0.35);
+  }
 }
 
 .chat-log {
@@ -307,8 +538,6 @@
 }
 
 .chat-compose {
-  border-top: 1px solid var(--border);
-  padding-top: 0.5rem;
   display: grid;
   gap: 0.4rem;
 }
@@ -326,13 +555,85 @@
   border-color: var(--brand-500);
 }
 
+.chat-compose-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
 .chat-compose .btn {
   justify-self: end;
+}
+
+.chat-compose-mic {
+  padding: 0.6rem;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+}
+
+.chat-compose-mic:hover:not(:disabled) {
+  color: var(--color-primary);
+  border-color: var(--brand-500);
+  background: rgba(10, 147, 150, 0.06);
+}
+
+.chat-compose-mic:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chat-compose-mic-active,
+.chat-compose-mic[aria-pressed="true"] {
+  color: var(--color-primary);
+  border-color: var(--brand-500);
+  background: rgba(10, 147, 150, 0.1);
+  box-shadow: 0 0 0 2px rgba(10, 147, 150, 0.25);
+  animation: chat-compose-mic-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes chat-compose-mic-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(10, 147, 150, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(10, 147, 150, 0.15);
+  }
+}
+
+.chat-compose-status {
+  font-size: 0.68rem;
+  line-height: 1.3;
+  min-height: 1.25rem;
+}
+
+.chat-compose-status-listening {
+  color: var(--color-primary);
+}
+
+.chat-compose-status-error {
+  color: var(--color-warning);
 }
 
 @media (max-width: 700px) {
   .chat-compose .btn {
     width: 100%;
     justify-self: stretch;
+  }
+
+  .chat-compose-actions {
+    flex-wrap: wrap;
+  }
+
+  .chat-compose-actions .chat-compose-mic {
+    flex: 0 0 auto;
+  }
+
+  .chat-compose-actions .btn-primary {
+    flex: 1;
+    min-width: 0;
   }
 }

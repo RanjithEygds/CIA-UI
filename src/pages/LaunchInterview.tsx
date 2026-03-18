@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { loadStakeholders } from './AddStakeholders';
 import './LaunchInterview.css';
 
 type Stakeholder = {
   id: string;
   name: string;
+  email?: string;
   role: string;
   depth: 'High-level' | 'Detailed';
   slot: string;
@@ -53,9 +55,28 @@ function statusClass(status: Stakeholder['status']) {
 const COPY_FEEDBACK_MS = 2500;
 const TOAST_DURATION_MS = 2500;
 
+function useStakeholders(): { stakeholders: Stakeholder[]; fromSaved: boolean } {
+  return useMemo(() => {
+    const saved = loadStakeholders();
+    if (saved.length > 0) {
+      const mapped: Stakeholder[] = saved.map((s) => ({
+        id: s.id,
+        name: s.name,
+        email: s.email,
+        role: '—',
+        depth: 'Detailed',
+        slot: '—',
+        status: 'Queued' as const,
+      }));
+      return { stakeholders: mapped, fromSaved: true };
+    }
+    return { stakeholders: stakeholderSeed, fromSaved: false };
+  }, []);
+}
+
 export default function LaunchInterview() {
   const navigate = useNavigate();
-  const [stakeholders] = useState(stakeholderSeed);
+  const { stakeholders, fromSaved } = useStakeholders();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showCopyToast, setShowCopyToast] = useState(false);
 
@@ -83,6 +104,11 @@ export default function LaunchInterview() {
           <button className="btn btn-primary" type="button" onClick={() => navigate('/cimmie')}>
             Launch all sessions
           </button>
+          {fromSaved && (
+            <Link className="btn btn-outline" to="/add-stakeholders">
+              Edit stakeholders
+            </Link>
+          )}
           <Link className="btn btn-outline" to="/preview">
             View extracted preview
           </Link>
@@ -98,6 +124,7 @@ export default function LaunchInterview() {
           <thead>
             <tr>
               <th>Name</th>
+              {fromSaved && <th>Email</th>}
               <th>Role</th>
               <th>Depth</th>
               <th>Session slot</th>
@@ -110,6 +137,7 @@ export default function LaunchInterview() {
             {stakeholders.map((stakeholder) => (
               <tr key={stakeholder.id}>
                 <td>{stakeholder.name}</td>
+                {fromSaved && <td>{stakeholder.email ?? '—'}</td>}
                 <td>{stakeholder.role}</td>
                 <td>{stakeholder.depth}</td>
                 <td>{stakeholder.slot}</td>

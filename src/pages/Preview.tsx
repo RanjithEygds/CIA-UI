@@ -13,6 +13,7 @@ type EditableCardId =
   | 'brief'
   | 'type'
   | 'groups'
+  | 'rationale'
   | 'stakeholders'
   | 'research';
 
@@ -22,6 +23,7 @@ const EDITABLE_CARDS: { id: EditableCardId; title: string; initialContent: strin
   { id: 'brief', title: 'Change Brief & Summary', initialContent: 'High-level description and scope of the change initiative.' },
   { id: 'type', title: 'Type Of Change', initialContent: 'Classification of the change (e.g. process, technology, operating model).' },
   { id: 'groups', title: 'Groups Impacted By The Change', initialContent: 'Teams, functions, or business units affected by the change.' },
+  { id: 'rationale', title: 'Change Rationale', initialContent: 'Rationale and drivers for the change initiative.' },
 ];
 
 const SECTION_LABELS: Record<string, string> = {
@@ -294,7 +296,7 @@ export default function Preview() {
       </section>
 
       <footer className="preview-actions">
-        <Link className="btn btn-outline" to="/initiate">
+        <Link className="btn btn-outline" to="/upload">
           Back to uploads
         </Link>
         <button className="btn btn-primary" type="button" onClick={() => navigate('/preview-questions')}>

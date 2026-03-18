@@ -149,7 +149,7 @@ export default function PreviewInterviewQuestions() {
         </div>
         <div className="preview-questions-meta">
           <span className="badge">{questions.length} question{questions.length !== 1 ? 's' : ''}</span>
-          <button className="btn btn-primary" type="button" onClick={() => navigate('/launch')}>
+          <button className="btn btn-primary" type="button" onClick={() => navigate('/add-stakeholders')}>
             Proceed to launch
           </button>
         </div>
@@ -253,7 +253,7 @@ export default function PreviewInterviewQuestions() {
         <Link className="btn btn-outline" to="/preview">
           Back to extracted context
         </Link>
-        <button className="btn btn-primary" type="button" onClick={() => navigate('/launch')}>
+        <button className="btn btn-primary" type="button" onClick={() => navigate('/add-stakeholders')}>
           Continue to launch interview
         </button>
       </footer>

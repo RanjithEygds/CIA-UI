@@ -23,11 +23,6 @@ const agents = [
     description: 'Populates the CIA template with high-level and detailed outputs.',
     accent: 'CT',
   },
-  {
-    title: 'Questioner Agent',
-    description: 'Generates interview questions for stakeholders.',
-    accent: 'QA',
-  },
 ];
 
 const flowSteps = [
@@ -71,7 +66,7 @@ export default function Home() {
           Turns stakeholder interviews into delivery-ready CIA outputs. Built for Change Management teams, CIAssist accelerates the Change Impact Assessment process from document intake to structured findings, narrative drafting, and template population.
         </p>
         <div className="home-cta">
-          <Link to="/initiate" className="btn btn-primary">
+          <Link to="/upload" className="btn btn-primary">
             Initiate CIA
           </Link>
         </div>
