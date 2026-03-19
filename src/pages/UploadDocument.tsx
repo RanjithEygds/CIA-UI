@@ -6,7 +6,6 @@ const UPLOAD_SECTIONS = [
   { id: 'brief', label: 'Brief & Scope', desc: 'Programme objectives, case for change, timeline/waves, known constraints' },
   { id: 'context', label: 'Context Pack', desc: 'Org charts, role lists, process maps, programme materials, project uploads' },
   { id: 'method', label: 'Method & Templates', desc: 'CIA structure/sections, CIA Questionnaire and CIA template workbook' },
-  { id: 'stakeholder', label: 'Stakeholder List & Interview Plan', desc: 'Who, when, and intended depth (high-level vs detailed)' },
   { id: 'other', label: 'Other Documents', desc: 'Any additional change-related documents not covered above' },
 ];
 
@@ -16,7 +15,6 @@ export default function UploadDocument() {
     brief: [],
     context: [],
     method: [],
-    stakeholder: [],
     other: [],
   });
   const [dragging, setDragging] = useState<string | null>(null);
@@ -52,7 +50,6 @@ export default function UploadDocument() {
     files.brief.length > 0 ||
     files.context.length > 0 ||
     files.method.length > 0 ||
-    files.stakeholder.length > 0 ||
     files.other.length > 0;
 
   function handleExtract() {
@@ -113,7 +110,16 @@ export default function UploadDocument() {
                   }, 0);
                 }}
               />
-              <p>Drop files here or click to browse</p>
+              <div className="upload-zone-content">
+                <span className="upload-cloud-icon" aria-hidden="true">
+                  <svg width="40" height="32" viewBox="0 0 40 32" fill="none" xmlns="http://www.w3.org/2000/svg" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M28 22h2.5a5.5 5.5 0 0 0 0-11 6.5 6.5 0 0 0-12.5-2.5A5.5 5.5 0 0 0 10 16.5v.5H8a4 4 0 1 0 0 8h20" stroke="currentColor" />
+                    <path d="M20 12v12m0 0l-4-4m4 4l4-4" stroke="currentColor" />
+                  </svg>
+                </span>
+                <p>Drag and Drop files</p>
+                <label htmlFor={`file-${id}`} className="upload-browse-btn">Browse</label>
+              </div>
             </div>
             {files[id]?.length > 0 && (
               <ul className="file-list">

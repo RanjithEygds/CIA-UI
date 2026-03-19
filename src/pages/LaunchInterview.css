@@ -3,6 +3,19 @@
   gap: 0.6rem;
 }
 
+.launch-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.launch-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
 .launch-header {
   display: flex;
   justify-content: space-between;
@@ -168,5 +181,13 @@
 
   .launch-header-actions .btn {
     flex: 1;
+  }
+
+  .launch-actions-row {
+    flex-direction: column;
+  }
+
+  .launch-actions-row .btn {
+    width: 100%;
   }
 }

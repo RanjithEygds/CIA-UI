@@ -439,15 +439,15 @@
   min-height: 400px;
 }
 
-/* Orb: perfect circle (1:1) at all breakpoints; neon-glow sphere */
+/* Orb: perfect circle (1:1) at all breakpoints; static by default, no animation when idle */
 .voice-ui-orb {
   --orb-size: min(130px, 52vmin);
+  --voice-level: 0;
   width: var(--orb-size);
   height: var(--orb-size);
   aspect-ratio: 1 / 1;
   flex-shrink: 0;
   border-radius: 50%;
-  /* Inner radial: dark center (depth), lighter translucent cyan at edges */
   background: radial-gradient(
     circle at 50% 50%,
     rgba(26, 27, 46, 0.95) 0%,
@@ -458,11 +458,27 @@
     0 0 30px rgba(0, 242, 255, 0.4),
     0 0 60px rgba(0, 242, 255, 0.2);
   position: relative;
-  overflow: visible; /* allow wave to extend outside sphere */
+  overflow: visible;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: voice-ui-orb-glow-pulse 4s ease-in-out infinite;
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+/* Listening: sphere glows and scales with speech intensity */
+.voice-ui-orb-listening {
+  --voice-level: 0;
+  transform: scale(calc(1 + var(--voice-level) * 0.18));
+  animation: voice-ui-orb-listening-glow 2s ease-in-out infinite;
+}
+
+@keyframes voice-ui-orb-listening-glow {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(0, 242, 255, 0.4), 0 0 60px rgba(0, 242, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 45px rgba(0, 242, 255, 0.6), 0 0 80px rgba(0, 242, 255, 0.3);
+  }
 }
 
 /* Wave image overlay: horizontal midline, may extend outside orb; transparent so sphere glow shows */
@@ -486,17 +502,25 @@
   height: 100%;
   object-fit: contain;
   object-position: center;
-  mix-blend-mode: screen; /* black → transparent, glow visible over sphere */
+  mix-blend-mode: screen;
   opacity: 0.9;
-  filter: brightness(1.3) contrast(1.15); /* make wave glow brighter */
+  filter: brightness(1.3) contrast(1.15);
 }
 
-@keyframes voice-ui-orb-glow-pulse {
+/* Wave: static when idle/speak_now; expands/contracts with speech when listening */
+.voice-ui-orb-wave-listening {
+  --voice-level: 0;
+  transform: translate(-50%, -50%) scale(calc(0.95 + var(--voice-level) * 0.25));
+  transition: transform 0.1s ease;
+  animation: voice-ui-orb-wave-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes voice-ui-orb-wave-pulse {
   0%, 100% {
-    box-shadow: 0 0 30px rgba(0, 242, 255, 0.4), 0 0 60px rgba(0, 242, 255, 0.2);
+    opacity: 0.85;
   }
   50% {
-    box-shadow: 0 0 40px rgba(0, 242, 255, 0.55), 0 0 75px rgba(0, 242, 255, 0.28);
+    opacity: 1;
   }
 }
 
@@ -539,6 +563,21 @@
   text-align: center;
 }
 
+.voice-ui-transcript {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  max-width: min(420px, 90vw);
+  max-height: 6rem;
+  overflow-y: auto;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 242, 255, 0.08);
+  border: 1px solid rgba(0, 242, 255, 0.25);
+  border-radius: 10px;
+  text-align: left;
+}
+
 .voice-ui-mic {
   width: 44px;
   height: 44px;
@@ -563,7 +602,7 @@
   cursor: not-allowed;
 }
 
-/* Mic: gentle glow when active (listening) */
+/* Mic: bulb-like glow when recording (speak_now or listening); no scale until listening */
 .voice-ui-mic-active {
   background: rgba(0, 242, 255, 0.25);
   border-color: var(--voice-cyan);
@@ -581,6 +620,14 @@
   50% {
     box-shadow: 0 0 26px rgba(0, 242, 255, 0.7), 0 0 48px rgba(0, 242, 255, 0.35);
   }
+}
+
+/* Listening: scale 1.0 ↔ 1.15 driven by volume when available */
+.voice-ui-mic-listening {
+  --voice-level: 0;
+  transform: scale(calc(1 + var(--voice-level) * 0.15));
+  transition: transform 0.1s ease;
+  animation: voice-ui-mic-glow 1.5s ease-in-out infinite;
 }
 
 .chat-log {
@@ -649,21 +696,46 @@
   cursor: not-allowed;
 }
 
+/* Recording: soft pulsing bulb-like glow; size/placement unchanged */
 .chat-compose-mic-active,
 .chat-compose-mic[aria-pressed="true"] {
   color: var(--color-primary);
   border-color: var(--brand-500);
-  background: rgba(10, 147, 150, 0.1);
-  box-shadow: 0 0 0 2px rgba(10, 147, 150, 0.25);
-  animation: chat-compose-mic-pulse 1.5s ease-in-out infinite;
+  background: rgba(10, 147, 150, 0.12);
+  box-shadow:
+    0 0 0 2px rgba(10, 147, 150, 0.2),
+    0 0 12px rgba(10, 147, 150, 0.35),
+    0 0 24px rgba(10, 147, 150, 0.2);
+  animation: chat-compose-mic-glow 1.8s ease-in-out infinite;
 }
 
-@keyframes chat-compose-mic-pulse {
+@keyframes chat-compose-mic-glow {
   0%, 100% {
-    box-shadow: 0 0 0 2px rgba(10, 147, 150, 0.25);
+    box-shadow:
+      0 0 0 2px rgba(10, 147, 150, 0.2),
+      0 0 12px rgba(10, 147, 150, 0.35),
+      0 0 24px rgba(10, 147, 150, 0.2);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(10, 147, 150, 0.15);
+    box-shadow:
+      0 0 0 2px rgba(10, 147, 150, 0.3),
+      0 0 18px rgba(10, 147, 150, 0.5),
+      0 0 32px rgba(10, 147, 150, 0.28);
+  }
+}
+
+/* Listening: subtle scale in/out (1.0 ↔ 1.15) timed pulse; no other UI change */
+.chat-compose-mic-listening {
+  animation: chat-compose-mic-glow 1.8s ease-in-out infinite,
+             chat-compose-mic-scale-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes chat-compose-mic-scale-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
   }
 }
 

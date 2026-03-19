@@ -49,7 +49,7 @@ export default function Layout() {
             <span className="app-header-menu-icon">☰</span>
           </button>
           <img
-            src="/Ey-Logo-PNG-Image.png"
+            src="/Ey-Logo.png"
             alt="EY"
             className="app-header-logo"
           />

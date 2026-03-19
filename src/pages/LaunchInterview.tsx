@@ -7,6 +7,8 @@ type Stakeholder = {
   id: string;
   name: string;
   email?: string;
+  userGroup?: string;
+  subGroup?: string;
   role: string;
   depth: 'High-level' | 'Detailed';
   slot: string;
@@ -63,6 +65,8 @@ function useStakeholders(): { stakeholders: Stakeholder[]; fromSaved: boolean } 
         id: s.id,
         name: s.name,
         email: s.email,
+        userGroup: s.userGroup,
+        subGroup: s.subGroup,
         role: '—',
         depth: 'Detailed',
         slot: '—',
@@ -104,14 +108,6 @@ export default function LaunchInterview() {
           <button className="btn btn-primary" type="button" onClick={() => navigate('/cimmie')}>
             Launch all sessions
           </button>
-          {fromSaved && (
-            <Link className="btn btn-outline" to="/add-stakeholders">
-              Edit stakeholders
-            </Link>
-          )}
-          <Link className="btn btn-outline" to="/preview">
-            View extracted preview
-          </Link>
         </div>
       </header>
 
@@ -125,6 +121,8 @@ export default function LaunchInterview() {
             <tr>
               <th>Name</th>
               {fromSaved && <th>Email</th>}
+              {fromSaved && <th>User Group</th>}
+              {fromSaved && <th>Sub-Group</th>}
               <th>Role</th>
               <th>Depth</th>
               <th>Session slot</th>
@@ -138,6 +136,8 @@ export default function LaunchInterview() {
               <tr key={stakeholder.id}>
                 <td>{stakeholder.name}</td>
                 {fromSaved && <td>{stakeholder.email ?? '—'}</td>}
+                {fromSaved && <td>{stakeholder.userGroup ?? '—'}</td>}
+                {fromSaved && <td>{stakeholder.subGroup ?? '—'}</td>}
                 <td>{stakeholder.role}</td>
                 <td>{stakeholder.depth}</td>
                 <td>{stakeholder.slot}</td>
@@ -169,6 +169,21 @@ export default function LaunchInterview() {
           </tbody>
         </table>
       </section>
+
+      <footer className="launch-actions">
+        <div className="launch-actions-row">
+          <Link className="btn btn-outline" to="/add-stakeholders">
+            Back to add Stakeholders
+          </Link>
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => navigate('/cimmie')}
+          >
+            Continue to Launch Interview
+          </button>
+        </div>
+      </footer>
 
       {showCopyToast && (
         <div className="copy-toast" role="status" aria-live="polite">

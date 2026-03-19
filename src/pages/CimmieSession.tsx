@@ -188,8 +188,16 @@ const seedMessages: Message[] = [
 
 const SESSION_MINUTES = 30;
 const INTERVIEW_MODE_KEY = 'cimmie-interview-mode';
+const SILENCE_TIMEOUT_MS = 7000;
+const MIC_TOGGLE_DEBOUNCE_MS = 400;
 
 type InterviewMode = 'text' | 'voice';
+
+/** Mic status under Text mode: idle, just started (Speak Now), or user speaking (I am listening…) */
+type ComposerMicStatus = 'idle' | 'speak_now' | 'listening';
+
+/** Mic status under Voice mode: idle, recording (Speak Now), or speech detected (I am listening…) */
+type VoicePanelMicStatus = 'idle' | 'speak_now' | 'listening';
 
 function getStoredInterviewMode(): InterviewMode {
   if (typeof window === 'undefined') return 'text';
@@ -214,17 +222,49 @@ export default function CimmieSession() {
   const [timeBannerDismissed, setTimeBannerDismissed] = useState(false);
   const [interviewMode, setInterviewMode] = useState<InterviewMode>(() => getStoredInterviewMode());
   const [voicePanelListening, setVoicePanelListening] = useState(false);
+  const [voicePanelMicStatus, setVoicePanelMicStatus] = useState<VoicePanelMicStatus>('idle');
+  const [voicePanelTranscript, setVoicePanelTranscript] = useState('');
+  const [voiceVolume, setVoiceVolume] = useState(0);
   const [composerListening, setComposerListening] = useState(false);
+  const [composerMicStatus, setComposerMicStatus] = useState<ComposerMicStatus>('idle');
   const [composerSpeechError, setComposerSpeechError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const sessionTranscriptRef = useRef('');
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastMicToggleTimeRef = useRef(0);
+  /* Voice panel: recognition, stream, transcript, and audio analysis */
+  const voiceRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const voiceMediaStreamRef = useRef<MediaStream | null>(null);
+  const voiceTranscriptRef = useRef('');
+  const voiceAudioContextRef = useRef<AudioContext | null>(null);
+  const voiceAnalyserRef = useRef<AnalyserNode | null>(null);
+  const voiceAnimationFrameRef = useRef<number | null>(null);
 
   function setInterviewModeAndPersist(mode: InterviewMode) {
     setInterviewMode(mode);
     if (typeof window !== 'undefined') window.localStorage.setItem(INTERVIEW_MODE_KEY, mode);
   }
 
+  function clearSilenceTimeout() {
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+  }
+
+  function stopMediaTracks() {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+    }
+  }
+
   function startComposerListening() {
+    const now = Date.now();
+    if (now - lastMicToggleTimeRef.current < MIC_TOGGLE_DEBOUNCE_MS) return;
+    lastMicToggleTimeRef.current = now;
+
     const Ctor = getSpeechRecognitionConstructor();
     if (!Ctor) {
       setComposerSpeechError('Speech recognition is not supported in this browser.');
@@ -232,43 +272,86 @@ export default function CimmieSession() {
     }
     setComposerSpeechError(null);
     sessionTranscriptRef.current = '';
-    const recognition = new Ctor();
-    recognitionRef.current = recognition;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal && result.length > 0) {
-          const text = result[0].transcript?.trim?.() ?? '';
-          if (text) sessionTranscriptRef.current += (sessionTranscriptRef.current ? ' ' : '') + text;
+    clearSilenceTimeout();
+    stopMediaTracks();
+
+    const startRecognition = (stream: MediaStream) => {
+      mediaStreamRef.current = stream;
+      const recognition = new Ctor!();
+      recognitionRef.current = recognition;
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let hadSpeech = false;
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.length > 0) {
+            const text = result[0].transcript?.trim?.() ?? '';
+            if (text) {
+              hadSpeech = true;
+              setComposerMicStatus('listening');
+              if (result.isFinal) {
+                sessionTranscriptRef.current += (sessionTranscriptRef.current ? ' ' : '') + text;
+              }
+            }
+          }
         }
+        if (hadSpeech) {
+          clearSilenceTimeout();
+          silenceTimeoutRef.current = setTimeout(() => {
+            silenceTimeoutRef.current = null;
+            stopComposerListening();
+            setComposerSpeechError('No input detected.');
+          }, SILENCE_TIMEOUT_MS);
+        }
+      };
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        clearSilenceTimeout();
+        stopMediaTracks();
+        recognitionRef.current = null;
+        setComposerListening(false);
+        setComposerMicStatus('idle');
+        if (event.error === 'not-allowed') setComposerSpeechError('Microphone access denied.');
+        else if (event.error === 'no-speech') setComposerSpeechError('No speech detected.');
+        else if (event.error === 'network') setComposerSpeechError('Network error. Check your connection.');
+        else if (event.message) setComposerSpeechError(event.message);
+        else setComposerSpeechError('Speech recognition error.');
+      };
+      recognition.onend = () => {
+        clearSilenceTimeout();
+        stopMediaTracks();
+        recognitionRef.current = null;
+        setComposerListening(false);
+        setComposerMicStatus('idle');
+        const text = sessionTranscriptRef.current.trim();
+        if (text) setDraft((prev) => (prev ? `${prev} ${text}` : text));
+      };
+      try {
+        recognition.start();
+        setComposerListening(true);
+        setComposerMicStatus('speak_now');
+        silenceTimeoutRef.current = setTimeout(() => {
+          silenceTimeoutRef.current = null;
+          stopComposerListening();
+          setComposerSpeechError('No input detected.');
+        }, SILENCE_TIMEOUT_MS);
+      } catch {
+        stopMediaTracks();
+        setComposerSpeechError('Could not start microphone.');
       }
     };
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      const msg = event.message ?? event.error;
-      if (event.error === 'not-allowed') setComposerSpeechError('Microphone access denied.');
-      else if (event.error === 'no-speech') setComposerSpeechError('No speech detected. Try again.');
-      else if (event.error === 'network') setComposerSpeechError('Network error. Check your connection.');
-      else if (msg) setComposerSpeechError(msg);
-      else setComposerSpeechError('Speech recognition error.');
-      setComposerListening(false);
-    };
-    recognition.onend = () => {
-      recognitionRef.current = null;
-      setComposerListening(false);
-      const text = sessionTranscriptRef.current.trim();
-      if (text) setDraft((prev) => (prev ? `${prev} ${text}` : text));
-    };
-    try {
-      recognition.start();
-      setComposerListening(true);
-    } catch (e) {
-      setComposerSpeechError('Could not start microphone.');
-    }
+
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then(startRecognition)
+      .catch((err: Error) => {
+        setComposerSpeechError(err.name === 'NotAllowedError' ? 'Microphone access denied.' : 'Microphone unavailable.');
+      });
   }
 
   function stopComposerListening() {
+    clearSilenceTimeout();
+    stopMediaTracks();
     const recognition = recognitionRef.current;
     if (recognition) {
       try {
@@ -276,6 +359,7 @@ export default function CimmieSession() {
       } catch {
         recognitionRef.current = null;
         setComposerListening(false);
+        setComposerMicStatus('idle');
       }
     }
   }
@@ -283,6 +367,137 @@ export default function CimmieSession() {
   function toggleComposerListening() {
     if (composerListening) stopComposerListening();
     else startComposerListening();
+  }
+
+  function stopVoicePanelTracks() {
+    if (voiceMediaStreamRef.current) {
+      voiceMediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      voiceMediaStreamRef.current = null;
+    }
+    if (voiceAudioContextRef.current) {
+      voiceAudioContextRef.current.close().catch(() => {});
+      voiceAudioContextRef.current = null;
+    }
+    voiceAnalyserRef.current = null;
+    if (voiceAnimationFrameRef.current != null) {
+      cancelAnimationFrame(voiceAnimationFrameRef.current);
+      voiceAnimationFrameRef.current = null;
+    }
+  }
+
+  function startVoiceRecording() {
+    const Ctor = getSpeechRecognitionConstructor();
+    if (!Ctor) return;
+    voiceTranscriptRef.current = '';
+    setVoicePanelTranscript('');
+    stopVoicePanelTracks();
+
+    const startRecognition = (stream: MediaStream) => {
+      voiceMediaStreamRef.current = stream;
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      voiceAudioContextRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      source.connect(analyser);
+      voiceAnalyserRef.current = analyser;
+
+      const recognition = new Ctor();
+      voiceRecognitionRef.current = recognition;
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let display = '';
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.length > 0) {
+            const text = result[0].transcript?.trim?.() ?? '';
+            if (text) {
+              setVoicePanelMicStatus('listening');
+              if (result.isFinal) {
+                voiceTranscriptRef.current += (voiceTranscriptRef.current ? ' ' : '') + text;
+              }
+              display += (display ? ' ' : '') + text;
+            }
+          }
+        }
+        if (display) setVoicePanelTranscript(display);
+      };
+      recognition.onerror = () => {
+        stopVoicePanelTracks();
+        if (voiceRecognitionRef.current) {
+          try {
+            voiceRecognitionRef.current.stop();
+          } catch {
+            /* ignore */
+          }
+          voiceRecognitionRef.current = null;
+        }
+        setVoicePanelListening(false);
+        setVoicePanelMicStatus('idle');
+        setVoicePanelTranscript('');
+      };
+      recognition.onend = () => {
+        stopVoicePanelTracks();
+        voiceRecognitionRef.current = null;
+        setVoicePanelListening(false);
+        setVoicePanelMicStatus('idle');
+        setVoiceVolume(0);
+        setVoicePanelTranscript('');
+        const text = voiceTranscriptRef.current.trim();
+        if (text) setDraft((prev) => (prev ? `${prev} ${text}` : text));
+      };
+      try {
+        recognition.start();
+        setVoicePanelListening(true);
+        setVoicePanelMicStatus('speak_now');
+        voiceAnimationFrameRef.current = requestAnimationFrame(function tick() {
+          const analyserNode = voiceAnalyserRef.current;
+          if (!analyserNode) return;
+          const data = new Uint8Array(analyserNode.frequencyBinCount);
+          analyserNode.getByteFrequencyData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) sum += data[i];
+          const avg = data.length > 0 ? sum / data.length : 0;
+          setVoiceVolume(avg / 255);
+          voiceAnimationFrameRef.current = requestAnimationFrame(tick);
+        });
+      } catch {
+        stopVoicePanelTracks();
+        setVoicePanelListening(false);
+        setVoicePanelMicStatus('idle');
+      }
+    };
+
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then(startRecognition)
+      .catch(() => {
+        setVoicePanelListening(false);
+        setVoicePanelMicStatus('idle');
+      });
+  }
+
+  function stopVoiceRecording() {
+    stopVoicePanelTracks();
+    const recognition = voiceRecognitionRef.current;
+    if (recognition) {
+      try {
+        recognition.stop();
+      } catch {
+        voiceRecognitionRef.current = null;
+        setVoicePanelListening(false);
+        setVoicePanelMicStatus('idle');
+        setVoiceVolume(0);
+      }
+    }
+    /* Transcript is inserted in recognition.onend to avoid duplicate updates */
+  }
+
+  function toggleVoicePanelMic() {
+    if (voicePanelListening) stopVoiceRecording();
+    else startVoiceRecording();
   }
 
   useEffect(() => {
@@ -297,6 +512,8 @@ export default function CimmieSession() {
 
   useEffect(() => {
     return () => {
+      clearSilenceTimeout();
+      stopMediaTracks();
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -304,6 +521,15 @@ export default function CimmieSession() {
           /* ignore */
         }
         recognitionRef.current = null;
+      }
+      stopVoicePanelTracks();
+      if (voiceRecognitionRef.current) {
+        try {
+          voiceRecognitionRef.current.stop();
+        } catch {
+          /* ignore */
+        }
+        voiceRecognitionRef.current = null;
       }
     };
   }, []);
@@ -501,14 +727,15 @@ export default function CimmieSession() {
                 aria-live="polite"
                 aria-atomic="true"
               >
-                {composerListening && 'Speak now – I am listening'}
-                {!composerListening && composerSpeechError && composerSpeechError}
-                {!composerListening && !composerSpeechError && '\u00A0'}
+                {composerMicStatus === 'speak_now' && 'Speak Now'}
+                {composerMicStatus === 'listening' && 'I am listening…'}
+                {composerMicStatus === 'idle' && composerSpeechError && composerSpeechError}
+                {composerMicStatus === 'idle' && !composerSpeechError && '\u00A0'}
               </p>
               <div className="chat-compose-actions">
                 <button
                   type="button"
-                  className={`chat-compose-mic ${composerListening ? 'chat-compose-mic-active' : ''}`}
+                  className={`chat-compose-mic ${composerListening ? 'chat-compose-mic-active' : ''} ${composerMicStatus === 'listening' ? 'chat-compose-mic-listening' : ''}`}
                   onClick={toggleComposerListening}
                   disabled={sessionExpired}
                   aria-label={composerListening ? 'Stop listening' : 'Dictate message'}
@@ -528,10 +755,25 @@ export default function CimmieSession() {
       {interviewMode === 'voice' && (
         <section className="voice-fullscreen" aria-label="Voice interview">
           <div className="voice-ui-panel voice-ui-panel-fullscreen" aria-label="Voice input">
-            <div className="voice-ui-orb">
-              <div className="voice-ui-orb-wave" aria-hidden="true">
+            <div
+              className={`voice-ui-orb ${voicePanelMicStatus === 'speak_now' ? 'voice-ui-orb-speak-now' : ''} ${voicePanelMicStatus === 'listening' ? 'voice-ui-orb-listening' : ''}`}
+              style={
+                voicePanelMicStatus === 'listening'
+                  ? { ['--voice-level' as string]: voiceVolume }
+                  : undefined
+              }
+            >
+              <div
+                className={`voice-ui-orb-wave ${voicePanelMicStatus === 'listening' ? 'voice-ui-orb-wave-listening' : ''}`}
+                aria-hidden="true"
+                style={
+                  voicePanelMicStatus === 'listening'
+                    ? { ['--voice-level' as string]: voiceVolume }
+                    : undefined
+                }
+              >
                 <img
-                  src="/Designer_1.png"
+                  src="/voice-wave_2.png"
                   alt=""
                   className="voice-ui-orb-wave-img"
                 />
@@ -540,16 +782,25 @@ export default function CimmieSession() {
                 <img src="/cimmie-robot.jpg" alt="" className="voice-ui-orb-icon-img" />
               </div>
             </div>
-            <p className="voice-ui-prompt" aria-hidden="true">
-              What's the price of hoverboard …
-            </p>
             <p className="voice-ui-status" role="status" aria-live="polite">
-              Speak now — I am listening
+              {voicePanelMicStatus === 'idle' && '\u00A0'}
+              {voicePanelMicStatus === 'speak_now' && 'Speak Now'}
+              {voicePanelMicStatus === 'listening' && 'I am listening…'}
             </p>
+            {voicePanelTranscript && (
+              <div className="voice-ui-transcript" role="log" aria-live="polite">
+                {voicePanelTranscript}
+              </div>
+            )}
             <button
               type="button"
-              className={`voice-ui-mic ${voicePanelListening ? 'voice-ui-mic-active' : ''}`}
-              onClick={() => setVoicePanelListening((prev) => !prev)}
+              className={`voice-ui-mic ${voicePanelListening ? 'voice-ui-mic-active' : ''} ${voicePanelMicStatus === 'listening' ? 'voice-ui-mic-listening' : ''}`}
+              style={
+                voicePanelMicStatus === 'listening'
+                  ? { ['--voice-level' as string]: voiceVolume }
+                  : undefined
+              }
+              onClick={toggleVoicePanelMic}
               disabled={sessionExpired}
               aria-label={voicePanelListening ? 'Stop listening' : 'Start listening'}
               aria-pressed={voicePanelListening}

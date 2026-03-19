@@ -12,7 +12,6 @@ type UploadState = Record<string, UploadSection[]>;
 type EditableCardId =
   | 'brief'
   | 'type'
-  | 'groups'
   | 'rationale'
   | 'stakeholders'
   | 'research';
@@ -22,7 +21,6 @@ type StakeholderEntry = { name: string; email: string };
 const EDITABLE_CARDS: { id: EditableCardId; title: string; initialContent: string }[] = [
   { id: 'brief', title: 'Change Brief & Summary', initialContent: 'High-level description and scope of the change initiative.' },
   { id: 'type', title: 'Type Of Change', initialContent: 'Classification of the change (e.g. process, technology, operating model).' },
-  { id: 'groups', title: 'Groups Impacted By The Change', initialContent: 'Teams, functions, or business units affected by the change.' },
   { id: 'rationale', title: 'Change Rationale', initialContent: 'Rationale and drivers for the change initiative.' },
 ];
 
@@ -135,19 +133,14 @@ export default function Preview() {
   return (
     <div className="preview-page">
       <header className="preview-header card">
-        <div>
+        <div className="preview-header-content">
           <p className="preview-kicker">Data Extraction Agent Output</p>
           <h1>Preview of Extracted Change Context</h1>
           <p>
             Validate extracted context before interviews begin. This preview becomes the baseline
             context for CIMMIE interview prompts and downstream CIA outputs.
           </p>
-        </div>
-        <div className="preview-meta">
-          <span className="badge">Files uploaded: {totalFiles}</span>
-          <button className="btn btn-primary" type="button" onClick={() => navigate('/preview-questions')}>
-            Proceed to launch
-          </button>
+          <span className="badge preview-header-badge">Files uploaded: {totalFiles}</span>
         </div>
       </header>
 
@@ -300,7 +293,7 @@ export default function Preview() {
           Back to uploads
         </Link>
         <button className="btn btn-primary" type="button" onClick={() => navigate('/preview-questions')}>
-          Continue to launch interview
+          Next
         </button>
       </footer>
     </div>

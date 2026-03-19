@@ -80,14 +80,15 @@ export default function Home() {
         <div className="cimmie-card card">
           <div className="cimmie-card-inner">
             <div className="cimmie-card-icon cimmie-card-icon-themed" aria-hidden="true">
-              <img src="/cimmie-robo-icon2.jpg" alt="" className="cimmie-robo-img" />
+              <img src="/cimmie-robot.jpg" alt="" className="cimmie-robo-img" />
             </div>
             <div className="cimmie-card-text">
               <p>
-                <strong>CIMMIE</strong> is a text-based chatbot used in scheduled, time-boxed
-                interview sessions. Stakeholders join through one-time access links, complete
-                their interview, and receive a real-time conversational read-back of captured
-                evidence by topic.
+                <strong>CIMMIE</strong> is a conversational chatbot that supports 
+                both text and voice interactions within scheduled, 
+                time‑boxed interview sessions. Stakeholders join using one‑time access 
+                links, complete their interview, and receive a real‑time conversational 
+                read‑back of the captured evidence organized by topic.
               </p>
               {/* <p className="cimmie-note">
                 Access is session-scoped and time-limited. Stakeholders cannot request post-interview

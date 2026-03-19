@@ -78,8 +78,10 @@
 }
 
 .home-cta .btn-primary:hover,
-.home-cta .btn-primary:active {
+.home-cta .btn-primary:active,
+.home-cta .btn-primary:focus {
   color: #ffffff;
+  text-decoration: none;
 }
 
 .home-cimmie,

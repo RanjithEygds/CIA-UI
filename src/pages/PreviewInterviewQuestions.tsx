@@ -139,19 +139,13 @@ export default function PreviewInterviewQuestions() {
   return (
     <div className="preview-questions-page">
       <header className="preview-questions-header card">
-        <div>
-          <p className="preview-questions-kicker">Questionnaire Agent Output</p>
+        <div className="preview-questions-header-content">
           <h1>Preview of Interview Questions</h1>
           <p>
             Review and edit the interview questions generated for the stakeholder interview.
             You can add, edit, or remove questions before launching sessions.
           </p>
-        </div>
-        <div className="preview-questions-meta">
-          <span className="badge">{questions.length} question{questions.length !== 1 ? 's' : ''}</span>
-          <button className="btn btn-primary" type="button" onClick={() => navigate('/add-stakeholders')}>
-            Proceed to launch
-          </button>
+          <span className="badge preview-questions-header-badge">{questions.length} question{questions.length !== 1 ? 's' : ''}</span>
         </div>
       </header>
 
@@ -254,7 +248,7 @@ export default function PreviewInterviewQuestions() {
           Back to extracted context
         </Link>
         <button className="btn btn-primary" type="button" onClick={() => navigate('/add-stakeholders')}>
-          Continue to launch interview
+          Next
         </button>
       </footer>
     </div>

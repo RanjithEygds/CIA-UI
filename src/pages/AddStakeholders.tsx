@@ -8,6 +8,8 @@ export type StakeholderEntry = {
   id: string;
   name: string;
   email: string;
+  userGroup?: string;
+  subGroup?: string;
 };
 
 function generateId(): string {
@@ -28,7 +30,9 @@ export function loadStakeholders(): StakeholderEntry[] {
         'name' in s &&
         'email' in s &&
         typeof (s as StakeholderEntry).name === 'string' &&
-        typeof (s as StakeholderEntry).email === 'string'
+        typeof (s as StakeholderEntry).email === 'string' &&
+        ((s as StakeholderEntry).userGroup === undefined || typeof (s as StakeholderEntry).userGroup === 'string') &&
+        ((s as StakeholderEntry).subGroup === undefined || typeof (s as StakeholderEntry).subGroup === 'string')
     );
   } catch {
     return [];
@@ -57,6 +61,8 @@ export default function AddStakeholders() {
   const [stakeholders, setStakeholders] = useState<StakeholderEntry[]>(() => loadStakeholders());
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [userGroup, setUserGroup] = useState('');
+  const [subGroup, setSubGroup] = useState('');
   const [touched, setTouched] = useState(false);
 
   useEffect(() => {
@@ -71,9 +77,20 @@ export default function AddStakeholders() {
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
     if (!trimmedName || !trimmedEmail || !EMAIL_REGEX.test(trimmedEmail)) return;
-    setStakeholders((prev) => [...prev, { id: generateId(), name: trimmedName, email: trimmedEmail }]);
+    setStakeholders((prev) => [
+      ...prev,
+      {
+        id: generateId(),
+        name: trimmedName,
+        email: trimmedEmail,
+        ...(userGroup.trim() && { userGroup: userGroup.trim() }),
+        ...(subGroup.trim() && { subGroup: subGroup.trim() }),
+      },
+    ]);
     setName('');
     setEmail('');
+    setUserGroup('');
+    setSubGroup('');
     setTouched(false);
   };
 
@@ -149,6 +166,34 @@ export default function AddStakeholders() {
               <span className="add-stakeholders-error">Please enter a valid email address.</span>
             )}
           </div>
+          <div className="add-stakeholders-input-row">
+            <label htmlFor="stakeholder-user-group" className="add-stakeholders-label">
+              User Group <span className="add-stakeholders-optional">(optional)</span>
+            </label>
+            <input
+              id="stakeholder-user-group"
+              type="text"
+              className="add-stakeholders-input"
+              value={userGroup}
+              onChange={(e) => setUserGroup(e.target.value)}
+              placeholder="e.g. Finance, IT"
+              aria-label="User group (optional)"
+            />
+          </div>
+          <div className="add-stakeholders-input-row">
+            <label htmlFor="stakeholder-sub-group" className="add-stakeholders-label">
+              Sub-Group <span className="add-stakeholders-optional">(optional)</span>
+            </label>
+            <input
+              id="stakeholder-sub-group"
+              type="text"
+              className="add-stakeholders-input"
+              value={subGroup}
+              onChange={(e) => setSubGroup(e.target.value)}
+              placeholder="e.g. Payables, Infrastructure"
+              aria-label="Sub-group (optional)"
+            />
+          </div>
           <button
             type="button"
             className="btn btn-outline add-stakeholders-add-btn"
@@ -167,6 +212,11 @@ export default function AddStakeholders() {
               <li key={s.id} className="add-stakeholders-item">
                 <span className="add-stakeholders-item-name">{s.name}</span>
                 <span className="add-stakeholders-item-email">{s.email}</span>
+                {(s.userGroup || s.subGroup) && (
+                  <span className="add-stakeholders-item-meta">
+                    {[s.userGroup, s.subGroup].filter(Boolean).join(' · ')}
+                  </span>
+                )}
                 <button
                   type="button"
                   className="btn btn-ghost add-stakeholders-remove"

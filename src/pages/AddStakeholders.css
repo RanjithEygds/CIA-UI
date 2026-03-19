@@ -87,6 +87,12 @@
   color: var(--color-secondary);
 }
 
+.add-stakeholders-optional {
+  font-weight: 400;
+  color: var(--ink-400);
+  font-size: 0.68rem;
+}
+
 .add-stakeholders-input {
   padding: 0.4rem 0.5rem;
   font-size: 0.75rem;
@@ -148,6 +154,14 @@
   flex: 1;
   min-width: 0;
   color: var(--ink-500);
+}
+
+.add-stakeholders-item-meta {
+  width: 100%;
+  font-size: 0.68rem;
+  color: var(--ink-400);
+  flex-basis: 100%;
+  margin-top: -0.2rem;
 }
 
 .add-stakeholders-remove {
