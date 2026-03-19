@@ -71,7 +71,7 @@ export default function AddStakeholders() {
 
   const nameValid = name.trim().length > 0;
   const emailValid = email.trim().length === 0 || EMAIL_REGEX.test(email.trim());
-  const canAdd = name.trim().length > 0 && email.trim().length > 0 && emailValid;
+  const canAdd = nameValid && email.trim().length > 0 && emailValid;
 
   const handleAdd = () => {
     const trimmedName = name.trim();
