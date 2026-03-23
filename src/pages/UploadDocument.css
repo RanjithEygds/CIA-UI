@@ -95,45 +95,60 @@
   line-height: 1.35;
 }
 
-.upload-doc-card .upload-zone {
+/* Section upload shell (all document cards): no inner dashed drop box; drag/drop + file input on shell */
+.upload-doc-card .upload-section-shell {
   position: relative;
-  flex: 0 0 auto;
-  min-height: 120px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  padding: 0.75rem 1rem;
+  min-height: 0;
   background: linear-gradient(
     180deg,
     rgba(13, 115, 119, 0.04) 0%,
     rgba(45, 53, 97, 0.03) 100%
   );
   border-radius: var(--radius);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.upload-doc-card .upload-zone-content {
+.upload-doc-card .upload-section-shell.upload-section-shell--dragover {
+  background: linear-gradient(
+    180deg,
+    rgba(13, 115, 119, 0.09) 0%,
+    rgba(45, 53, 97, 0.06) 100%
+  );
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.upload-doc-card .upload-section-file-input {
+  z-index: 0;
+}
+
+.upload-doc-card .upload-section-upload-header {
+  position: relative;
+  z-index: 1;
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.upload-doc-card .upload-section-upload-header .upload-doc-card-desc {
+  margin: 0;
+  flex: 1;
+  min-width: min(12rem, 100%);
+}
+
+.upload-doc-card .upload-attachments-btn {
+  flex-shrink: 0;
   gap: 0.4rem;
-  pointer-events: none;
 }
 
-.upload-doc-card .upload-zone-content .upload-browse-btn {
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.upload-cloud-icon {
-  display: flex;
+.upload-doc-card .upload-attachments-icon {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #0d7377;
-}
-
-.upload-doc-card .upload-zone p {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--ink-600, #374151);
 }
 
 /* Browse button: same hover feel as Home "Initiate CIA" – darker gradient, lift, stronger shadow, no underline */
@@ -163,31 +178,176 @@
   transform: translateY(-2px);
 }
 
-.upload-doc-card .upload-input {
+.upload-doc-card .upload-section-shell > .upload-input {
   position: absolute;
   inset: 0;
   opacity: 0;
   cursor: pointer;
 }
 
-.upload-doc-card .file-list {
-  list-style: none;
-  margin: 0.5rem 0 0;
-  padding: 0;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+.upload-input--pass-through {
+  pointer-events: none;
+  cursor: default;
 }
 
-.upload-doc-card .file-list li {
+/* File list inside section shell — grows with row count */
+.upload-doc-card .upload-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0.65rem 0.65rem;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  min-height: 0;
+  position: relative;
+  z-index: 2;
+  border-top: 1px solid rgba(45, 53, 97, 0.14);
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 0 0 calc(var(--radius) - 2px) calc(var(--radius) - 2px);
+}
+
+.upload-doc-card .upload-section-shell > .upload-file-list {
+  position: relative;
+  z-index: 2;
+  border-radius: 0 0 var(--radius) var(--radius);
+  margin-top: 0.25rem;
+  padding-top: 0.6rem;
+}
+
+.upload-file-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 0.5rem 0.65rem;
+  padding: 0.5rem 0.55rem;
+  background: #f8fafb;
+  border: 1px solid rgba(45, 53, 97, 0.2);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(45, 53, 97, 0.06);
+}
+
+.upload-file-type-badge {
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  border-bottom: 1px solid var(--border);
-  padding: 0.35rem 0;
-  color: var(--ink-700);
+  justify-content: center;
+  min-width: 2.35rem;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  border-radius: 4px;
+  line-height: 1.1;
+}
+
+.upload-file-type-badge--pdf {
+  background: #b42318;
+}
+.upload-file-type-badge--docx {
+  background: #185abd;
+}
+.upload-file-type-badge--xlsx {
+  background: #1d6f42;
+}
+.upload-file-type-badge--pptx {
+  background: #d24726;
+}
+.upload-file-type-badge--text {
+  background: #5c6b7a;
+}
+.upload-file-type-badge--image {
+  background: #7c3aed;
+}
+.upload-file-type-badge--zip {
+  background: #b45309;
+}
+.upload-file-type-badge--generic {
+  background: var(--color-secondary);
+}
+
+.upload-file-row-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.upload-file-row-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.6rem;
+}
+
+.upload-file-name {
   font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-700);
+  word-break: break-word;
+}
+
+.upload-file-meta {
+  font-size: 0.65rem;
+  color: #4e5c6b;
+  white-space: nowrap;
+}
+
+.upload-file-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.upload-file-progress-track {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(45, 53, 97, 0.1);
+  overflow: hidden;
+}
+
+.upload-file-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-primary) 0%, #0a5c60 100%);
+  transition: width 0.12s ease-out;
+}
+
+.upload-file-progress-pct {
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-secondary);
+  min-width: 2.25rem;
+  text-align: right;
+}
+
+.upload-file-error {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #b42318;
+  line-height: 1.35;
+}
+
+.upload-file-row-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.upload-file-success-icon {
+  display: flex;
+  color: var(--color-success);
+}
+
+.upload-file-status-placeholder {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .upload-doc-card .file-remove {
