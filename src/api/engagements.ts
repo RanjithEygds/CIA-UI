@@ -1,7 +1,9 @@
-export type CreateEngagementResp = { engagement_id: string; name?: string | null };
+export type CreateEngagementResp = {
+  engagement_id: string;
+  name?: string | null;
+};
 
 const BASE_URL = import.meta.env.VITE_CIMMIE_API_URL ?? "http://localhost:8000";
-
 
 export interface EngagementListItem {
   id: string;
@@ -13,20 +15,19 @@ export interface EngagementListItem {
 
 export interface EngagementDetailsResponse {
   engagement_id: string;
-  details: any;           // you may type this later
+  details: any; // you may type this later
   updated_at?: string;
 }
 
 export type EngagementDoc = {
-  id: string;             // UUID
+  id: string; // UUID
   filename: string;
   size_bytes: number;
   category?: string | null;
 };
 
-
 export type EngagementSummaryResponse = {
-  engagement_id: string;  // UUID (string)
+  engagement_id: string; // UUID (string)
   name?: string | null;
   document_count: number;
   documents: EngagementDoc[];
@@ -64,16 +65,43 @@ export type EngagementContextOut = {
   stakeholders: Stakeholder[];
 };
 
+export type QuestionItem = {
+  id: string;
+  section_index: number;
+  section: string;
+  sequence_in_section: number;
+  question_text: string;
+  pillar: string | null;
+  pillar_index?: number | null;
+};
+
+export type QuestionsPreviewResponse = {
+  engagement_id: string;
+  questions: QuestionItem[];
+};
+
+export type QuestionUpdatePayload = Partial<{
+  section: string;
+  section_index: number;
+  pillar: string;
+  pillar_index: number;
+  question_text: string;
+  sequence_in_section: number;
+}>;
+
 /** Throw on non-2xx with readable message */
 async function okOrThrow(res: Response) {
   if (!res.ok) {
     let text = "";
-    try { text = await res.text(); } catch {}
-    throw new Error(`${res.status} ${res.statusText}: ${text || "Request failed"}`);
+    try {
+      text = await res.text();
+    } catch {}
+    throw new Error(
+      `${res.status} ${res.statusText}: ${text || "Request failed"}`,
+    );
   }
   return res;
 }
-
 
 export async function getEngagements(): Promise<EngagementListItem[]> {
   const res = await fetch(`${BASE_URL}/engagements`);
@@ -85,16 +113,17 @@ export async function getEngagements(): Promise<EngagementListItem[]> {
   return res.json(); // backend returns raw array
 }
 
-
 /** Create a new engagement (optionally pass a name). */
-export async function createEngagement(name?: string): Promise<CreateEngagementResp> {
+export async function createEngagement(
+  name?: string,
+): Promise<CreateEngagementResp> {
   const body = name ? { name } : {};
   const res = await okOrThrow(
     await fetch(`${BASE_URL}/engagements`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    })
+    }),
   );
   return res.json();
 }
@@ -111,8 +140,13 @@ export function uploadDocumentWithProgress(
     name?: string;
     signal?: AbortSignal;
     onProgress?: (pct: number) => void; // 0..100
-  }
-): Promise<{ id: string; filename: string; size_bytes: number; category?: string | null }> {
+  },
+): Promise<{
+  id: string;
+  filename: string;
+  size_bytes: number;
+  category?: string | null;
+}> {
   return new Promise((resolve, reject) => {
     const url = `${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/documents`;
     const fd = new FormData();
@@ -125,7 +159,9 @@ export function uploadDocumentWithProgress(
 
     if (opts?.signal) {
       const abortHandler = () => {
-        try { xhr.abort(); } catch {}
+        try {
+          xhr.abort();
+        } catch {}
         reject(new DOMException("Upload aborted", "AbortError"));
       };
       opts.signal.addEventListener("abort", abortHandler, { once: true });
@@ -149,7 +185,11 @@ export function uploadDocumentWithProgress(
           reject(new Error("Failed to parse upload response"));
         }
       } else {
-        reject(new Error(`${xhr.status} ${xhr.statusText}: ${xhr.responseText || "Upload failed"}`));
+        reject(
+          new Error(
+            `${xhr.status} ${xhr.statusText}: ${xhr.responseText || "Upload failed"}`,
+          ),
+        );
       }
     };
 
@@ -167,7 +207,7 @@ export async function uploadDocuments(
     onFileProgress?: (fileIndex: number, pct: number) => void;
     onOverallProgress?: (pct: number) => void;
     signal?: AbortSignal;
-  }
+  },
 ) {
   const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0) || 1;
   let uploadedBytes = 0;
@@ -191,7 +231,10 @@ export async function uploadDocuments(
         // Adjust global counter based on delta
         uploadedBytes += Math.max(0, uploadedForFile - lastReported);
         lastReported = uploadedForFile;
-        const overallPct = Math.min(100, Math.round((uploadedBytes / totalBytes) * 100));
+        const overallPct = Math.min(
+          100,
+          Math.round((uploadedBytes / totalBytes) * 100),
+        );
         opts?.onOverallProgress?.(overallPct);
       },
     }).then((r) => results.push(r));
@@ -203,14 +246,18 @@ export async function uploadDocuments(
 /** Get engagement summary (doc list + preview summary) */
 export async function getEngagementSummary(engagementId: string) {
   const res = await okOrThrow(
-    await fetch(`${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/summary`)
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/summary`,
+    ),
   );
   return res.json();
 }
 
 export async function getEngagementContext(engagementId: string) {
   const res = await okOrThrow(
-    await fetch(`${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/context`)
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/context`,
+    ),
   );
   return res.json();
 }
@@ -223,25 +270,63 @@ export async function updateEngagementContext(
     impacted_groups: ImpactGroup[];
     type_of_change: TypeOfChange;
     stakeholders: { name: string; email: string }[];
-  }>
+  }>,
 ) {
   const res = await okOrThrow(
-    await fetch(`${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/context`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/context`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    ),
   );
 
   return res.json();
 }
 
-
 export async function getEngagementDetails(
-  engagementId: string
+  engagementId: string,
 ): Promise<EngagementDetailsResponse> {
   const res = await okOrThrow(
-    await fetch(`${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/details`)
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/details`,
+    ),
   );
+  return res.json();
+}
+
+export async function getQuestionsPreview(
+  engagementId: string,
+): Promise<QuestionsPreviewResponse> {
+  const res = await okOrThrow(
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(
+        engagementId,
+      )}/questions/preview`,
+    ),
+  );
+  return res.json();
+}
+
+export async function updateQuestion(
+  engagementId: string,
+  questionId: string,
+  payload: QuestionUpdatePayload,
+): Promise<any> {
+  const res = await okOrThrow(
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(
+        engagementId,
+      )}/questions/${encodeURIComponent(questionId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    ),
+  );
+
   return res.json();
 }
