@@ -260,3 +260,130 @@
   max-height: 280px;
   overflow-y: auto;
 }
+
+/* Stakeholder interview grid (Excel-driven) */
+.interview-grid-card {
+  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+  border-radius: 12px;
+  box-shadow: 0 8px 22px rgba(10, 42, 62, 0.08);
+}
+
+.interview-grid-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.interview-grid-header-row .engagement-section-title {
+  margin-bottom: 0;
+}
+
+.interview-grid-columns-wrap {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.interview-grid-column {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.interview-grid-column-header {
+  width: 100%;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.interview-grid-column-header:hover {
+  filter: brightness(0.96);
+}
+
+.interview-grid-column-header:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: -2px;
+}
+
+.interview-grid-chevron {
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.interview-grid-column-body {
+  padding: 0.75rem 0.85rem;
+}
+
+.interview-question-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.75rem;
+  list-style: disc;
+}
+
+.interview-question-item {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 0.7rem 0.65rem 0.45rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: rgba(13, 115, 119, 0.03);
+  list-style-position: outside;
+}
+
+.interview-question-text {
+  margin: 0 0 0.45rem 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--color-text);
+}
+
+.interview-answer-label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.interview-answer-input {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.interview-answer-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.interview-grid-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.85rem;
+}
+
+.engagement-heatmap-actions {
+  display: flex;
+  justify-content: flex-end;
+}

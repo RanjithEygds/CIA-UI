@@ -137,22 +137,6 @@
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
-.cia-heatmap-swatch[data-level='0'] {
-  background: #e4eaef;
-}
-
-.cia-heatmap-swatch[data-level='1'] {
-  background: #7ec9a9;
-}
-
-.cia-heatmap-swatch[data-level='2'] {
-  background: #f0b429;
-}
-
-.cia-heatmap-swatch[data-level='3'] {
-  background: #e85d5d;
-}
-
 .cia-heatmap-chart-wrap {
   height: min(520px, 70vh);
   min-height: 380px;
@@ -215,19 +199,19 @@
 }
 
 .cia-heatmap-tooltip-level[data-level='0'] {
-  color: var(--color-text-muted);
+  color: #8b93a8;
 }
 
 .cia-heatmap-tooltip-level[data-level='1'] {
-  color: #2d7a5a;
+  color: #5c6785;
 }
 
 .cia-heatmap-tooltip-level[data-level='2'] {
-  color: #b8860b;
+  color: #3d4a6e;
 }
 
 .cia-heatmap-tooltip-level[data-level='3'] {
-  color: #c23d3d;
+  color: #2d3561;
 }
 
 .cia-heatmap-tooltip-value {

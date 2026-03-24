@@ -8,7 +8,7 @@ type HeatMapRow = {
   function: string;
 } & Record<ImpactKey, number>;
 
-const impactKeys: ImpactKey[] = ['People', 'Process', 'Technology', 'Organization'];
+export const HEATMAP_IMPACT_KEYS: ImpactKey[] = ['People', 'Process', 'Technology', 'Organization'];
 
 const IMPACT_LABELS: Record<number, string> = {
   0: 'No change',
@@ -17,8 +17,16 @@ const IMPACT_LABELS: Record<number, string> = {
   3: 'High',
 };
 
+/** Sidebar-aligned blues: same family as nav bar `--color-secondary` (#2d3561) */
+const SEVERITY_BLUE: Record<number, string> = {
+  0: '#e8eaf3',
+  1: '#b4bdd8',
+  2: '#6f7c9e',
+  3: '#2d3561',
+};
+
 /** Demo data: 0 = none, 1 = low, 2 = medium, 3 = high */
-const mockData: HeatMapRow[] = [
+export const HEATMAP_MATRIX_DATA: HeatMapRow[] = [
   { function: 'HR', People: 3, Process: 2, Technology: 1, Organization: 2 },
   { function: 'Finance', People: 2, Process: 3, Technology: 2, Organization: 1 },
   { function: 'IT', People: 1, Process: 2, Technology: 3, Organization: 2 },
@@ -28,18 +36,8 @@ const mockData: HeatMapRow[] = [
 
 function cellFill(cell: Omit<ComputedCell<{ x: string; y?: number | null }>, 'color' | 'opacity' | 'borderColor' | 'labelTextColor'>): string {
   const v = cell.value;
-  switch (v) {
-    case 0:
-      return '#e4eaef';
-    case 1:
-      return '#7ec9a9';
-    case 2:
-      return '#f0b429';
-    case 3:
-      return '#e85d5d';
-    default:
-      return '#ffffff';
-  }
+  if (v === 0 || v === 1 || v === 2 || v === 3) return SEVERITY_BLUE[v];
+  return '#ffffff';
 }
 
 function HeatMapTooltip({ cell }: TooltipProps<{ x: string; y?: number | null }>) {
@@ -74,16 +72,16 @@ const legendItems: { level: number; label: string }[] = [
 ];
 
 export default function ChangeImpactHeatmap() {
-  const transformedData = mockData.map((row) => ({
+  const transformedData = HEATMAP_MATRIX_DATA.map((row) => ({
     id: row.function,
-    data: impactKeys.map((key) => ({
+    data: HEATMAP_IMPACT_KEYS.map((key) => ({
       x: key,
       y: row[key],
     })),
   }));
 
-  const highCells = mockData.reduce((acc, row) => {
-    impactKeys.forEach((k) => {
+  const highCells = HEATMAP_MATRIX_DATA.reduce((acc, row) => {
+    HEATMAP_IMPACT_KEYS.forEach((k) => {
       if (row[k] >= 3) acc += 1;
     });
     return acc;
@@ -99,8 +97,8 @@ export default function ChangeImpactHeatmap() {
           illustrative for demo purposes.
         </p>
         <div className="cia-heatmap-meta">
-          <span className="cia-heatmap-pill">{mockData.length} functions</span>
-          <span className="cia-heatmap-pill">{impactKeys.length} dimensions</span>
+          <span className="cia-heatmap-pill">{HEATMAP_MATRIX_DATA.length} functions</span>
+          <span className="cia-heatmap-pill">{HEATMAP_IMPACT_KEYS.length} dimensions</span>
           <span className="cia-heatmap-pill cia-heatmap-pill-accent">{highCells} high-impact cells</span>
         </div>
       </header>
@@ -114,7 +112,11 @@ export default function ChangeImpactHeatmap() {
           <ul className="cia-heatmap-legend" aria-label="Severity legend">
             {legendItems.map(({ level, label }) => (
               <li key={level} className="cia-heatmap-legend-item">
-                <span className="cia-heatmap-swatch" data-level={level} aria-hidden />
+                <span
+                  className="cia-heatmap-swatch"
+                  style={{ background: SEVERITY_BLUE[level] }}
+                  aria-hidden
+                />
                 <span>{label}</span>
               </li>
             ))}
@@ -156,19 +158,18 @@ export default function ChangeImpactHeatmap() {
             emptyColor="#ffffff"
             borderWidth={1}
             borderColor={{ from: 'color', modifiers: [['darker', 0.15]] }}
-            borderRadius={6}
-            labelTextColor={{
-              from: 'color',
-              modifiers: [['darker', 2.4]],
-            }}
+            borderRadius={0}
+            labelTextColor={(cell) => (cell.value === 3 ? '#ffffff' : '#1a2332')}
             enableLabels
             animate
             motionConfig="gentle"
             hoverTarget="cell"
             tooltip={HeatMapTooltip}
             forceSquare={false}
-            xInnerPadding={0.12}
-            yInnerPadding={0.15}
+            xInnerPadding={0}
+            xOuterPadding={0}
+            yInnerPadding={0}
+            yOuterPadding={0}
           />
         </div>
       </section>

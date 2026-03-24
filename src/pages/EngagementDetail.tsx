@@ -1,58 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import * as XLSX from 'xlsx';
+import PptxGenJS from 'pptxgenjs';
 import { MOCK_ENGAGEMENTS } from './AllCIAs';
+import ChangeImpactHeatmap, { HEATMAP_IMPACT_KEYS, HEATMAP_MATRIX_DATA } from './ChangeImpactHeatmap';
 import './EngagementDetail.css';
 
 const LENSES = [
   { id: 'people', label: 'People', severity: 'High' as const, evidence: '12 interview responses; role redesign cited in 8.' },
   { id: 'process', label: 'Process', severity: 'High' as const, evidence: 'Workflow changes in 6 process areas; 4 SOPs affected.' },
   { id: 'technology', label: 'Technology', severity: 'Medium' as const, evidence: 'New ERP modules; 3 system integrations; training planned.' },
-  { id: 'data', label: 'Data', severity: 'Medium' as const, evidence: 'Data migration and access model changes; 2 data owners identified.' },
+  { id: 'data', label: 'Organisation', severity: 'Medium' as const, evidence: 'Data migration and access model changes; 2 data owners identified.' },
 ];
-
-const MOCK_IMPACT_RECORDS = [
-  { id: '1', lens: 'People', area: 'HR Operations', impact: 'Role redesign and RACI changes', severity: 'High', source: 'Interview – HR Lead' },
-  { id: '2', lens: 'People', area: 'Frontline', impact: 'Behaviour change and adoption support', severity: 'High', source: 'Interview – Ops Manager' },
-  { id: '3', lens: 'Process', area: 'Finance', impact: 'Month-end and approval workflow changes', severity: 'High', source: 'Interview – Finance' },
-  { id: '4', lens: 'Technology', area: 'IT', impact: 'ERP rollout and integration', severity: 'Medium', source: 'Document + Interview' },
-  { id: '5', lens: 'Data', area: 'Data Governance', impact: 'Master data and access model', severity: 'Medium', source: 'Document' },
-];
-
-const MOCK_TEMPLATE_CONTENT = `Change Impact Assessment – Summary
-Engagement: Finance ERP rollout
-Version: 1.0 | Date: 2024
-
-1. Executive summary
-This CIA summarises the change impact of the global Finance ERP implementation across 12 countries. Impacts are assessed across People, Process, Technology, and Data lenses.
-
-2. Scope and approach
-- Scope: Finance function; Wave 1 (pilot) and Wave 2 (rollout).
-- Method: Document review, stakeholder interviews (CIMMIE), and validation with Change Lead.
-- Evidence: 12 interview transcripts, brief and scope, context pack.
-
-3. Key findings (by lens)
-- People: High impact. Role redesign and RACI changes in HR and frontline operations.
-- Process: High impact. Six process areas and four SOPs affected; month-end and approvals.
-- Technology: Medium impact. New ERP modules and three integrations; training planned.
-- Data: Medium impact. Data migration and access model; two data owners identified.
-
-4. Recommendations
-- Prioritise change and training for People and Process impacts.
-- Confirm data cutover and access model with Data Governance before go-live.`;
-
-const MOCK_NARRATIVE = `CIA Summary Narrative
-
-This Change Impact Assessment has been prepared in line with the agreed CIA structure and is based on document review and structured stakeholder interviews conducted via CIMMIE.
-
-People: The change has high impact on people. Role redesign and updated RACI are planned for HR Operations and frontline service delivery. Twelve interview responses indicate concern about timing and readiness; adoption support and behaviour change are recurring themes. Eight respondents specifically cited role and responsibility changes.
-
-Process: Process impact is high. Six process areas are affected, with four SOPs requiring update. Month-end close and approval workflows will change; Finance and Operations have highlighted dependency on training and access timing. Evidence is drawn from interviews and the change brief.
-
-Technology: Technology impact is assessed as medium. New ERP modules and three system integrations are in scope. Training and access are planned; interviewees noted dependency on environment availability and data migration.
-
-Data: Data impact is medium. Data migration and access model changes are in scope. Two data owners have been identified; evidence is from document review and one follow-up interview.
-
-Overall, the assessment supports prioritising change and training for People and Process impacts, and confirming data cutover and access with Data Governance before go-live.`;
 
 const MOCK_STAKEHOLDERS = [
   {
@@ -102,28 +61,221 @@ export default function EngagementDetail() {
     ? MOCK_ENGAGEMENTS.find((e) => e.id === engagementId)
     : undefined;
 
-  const [isEditing, setIsEditing] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
-  const [narrative, setNarrative] = useState(MOCK_NARRATIVE);
   const [selectedStakeholderId, setSelectedStakeholderId] = useState<string>('');
+  const [excelColumns, setExcelColumns] = useState<string[]>([]);
+  const [excelRows, setExcelRows] = useState<Record<string, string>[]>([]);
+  const [expandedColumns, setExpandedColumns] = useState<Record<string, boolean>>({});
 
   const selectedStakeholder = selectedStakeholderId
     ? MOCK_STAKEHOLDERS.find((s) => s.id === selectedStakeholderId)
     : null;
+  const interviewColumns = useMemo(
+    () =>
+      excelColumns.filter((column, index) => {
+        const columnNumber = index + 1;
+        const isRemovedRange = columnNumber >= 27 && columnNumber <= 49;
+        const isRemovedColumn = columnNumber === 16 || columnNumber === 26;
+        const isInterviewee = column.trim().toLowerCase() === 'interviewee';
+        return !isRemovedRange && !isRemovedColumn && !isInterviewee;
+      }),
+    [excelColumns],
+  );
+  const allExpanded = useMemo(
+    () => interviewColumns.length > 0 && interviewColumns.every((column) => expandedColumns[column]),
+    [interviewColumns, expandedColumns],
+  );
+  const questionsByColumn = useMemo(() => {
+    return interviewColumns.reduce<Record<string, string[]>>((acc, column) => {
+      const isWrapUpColumn = column.trim().toLowerCase() === 'wrap up and validation';
+      acc[column] = excelRows.flatMap((row) => {
+        const rawQuestion = (row[column] ?? '').trim();
+        if (!rawQuestion) return [];
 
-  const handleDownloadTemplate = () => {
-    const blob = new Blob([MOCK_TEMPLATE_CONTENT], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `CIA-Template-${engagement?.title?.replace(/\s+/g, '-') || 'engagement'}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+        const lineParts = rawQuestion
+          .split(/\r?\n+/)
+          .map((part) => part.replace(/\s+/g, ' ').trim())
+          .filter((part) => part.length > 0);
+
+        if (!isWrapUpColumn) return lineParts;
+
+        return lineParts.flatMap((part) => {
+          const bulletSplit = part
+            .split(/\s*•\s*/g)
+            .map((entry) => entry.trim())
+            .filter((entry) => entry.length > 0);
+
+          return bulletSplit.flatMap((entry) => {
+            const questionMatches = entry.match(/[^?]+\?/g)?.map((match) => match.trim()) ?? [];
+            if (questionMatches.length > 1) {
+              const remainder = entry.replace(questionMatches.join(' '), '').trim();
+              return remainder ? [...questionMatches, remainder] : questionMatches;
+            }
+
+            return entry
+              .split(/(?<=\?)\s+(?=(What|Who|Which|When|How|Where|Why|Do|Does|Is|Are|Can|Will|Would|Could|Should)\b)/g)
+              .map((item) => item.trim())
+              .filter((item) => item.length > 0 && !/^(What|Who|Which|When|How|Where|Why|Do|Does|Is|Are|Can|Will|Would|Could|Should)$/i.test(item));
+          });
+        });
+      });
+      return acc;
+    }, {});
+  }, [interviewColumns, excelRows]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadExcel = async () => {
+      try {
+        const response = await fetch('/CIA Stakeholder Interview Questions and Guide.xlsx');
+        const buffer = await response.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+
+        if (!firstSheetName) return;
+
+        const worksheet = workbook.Sheets[firstSheetName];
+        const matrix = XLSX.utils.sheet_to_json<(string | number | boolean | null)[]>(worksheet, {
+          header: 1,
+          defval: '',
+        });
+
+        if (!matrix.length) return;
+
+        const headerRow = (matrix[0] || []).map((value, index) => {
+          const header = String(value ?? '').trim();
+          return header || `Column ${index + 1}`;
+        });
+
+        const rows = matrix.slice(1).map((row) => {
+          const record: Record<string, string> = {};
+          headerRow.forEach((header, columnIndex) => {
+            const value = row[columnIndex];
+            record[header] = value == null ? '' : String(value);
+          });
+          return record;
+        });
+
+        if (!isMounted) return;
+        setExcelColumns(headerRow);
+        setExcelRows(rows);
+        setExpandedColumns(
+          headerRow.reduce<Record<string, boolean>>((acc, column) => {
+            acc[column] = false;
+            return acc;
+          }, {}),
+        );
+      } catch (error) {
+        if (!isMounted) return;
+        setExcelColumns([]);
+        setExcelRows([]);
+        setExpandedColumns({});
+      }
+    };
+
+    loadExcel();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handlePublish = () => {
     setIsPublished(true);
-    setIsEditing(false);
+  };
+
+  const handleExport = () => {
+    if (!interviewColumns.length) return;
+
+    const sheetData = [
+      interviewColumns,
+      ...excelRows.map((row) => interviewColumns.map((column) => row[column] ?? '')),
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Interview Questions');
+    XLSX.writeFile(workbook, 'CIA Stakeholder Interview Questions and Guide Export.xlsx');
+  };
+
+  const toggleColumn = (column: string) => {
+    setExpandedColumns((prev) => ({
+      ...prev,
+      [column]: !prev[column],
+    }));
+  };
+
+  const toggleAllColumns = () => {
+    setExpandedColumns((prev) =>
+      interviewColumns.reduce<Record<string, boolean>>((acc, column) => {
+        acc[column] = !allExpanded;
+        return acc;
+      }, { ...prev }),
+    );
+  };
+
+  // PPT colors mapped to values 0-3 (kept aligned to provided export logic)
+  const getPptFill = (value: number) => {
+    switch (value) {
+      case 0:
+        return 'DBEAFE'; // Lightest Blue - No Change
+      case 1:
+        return '93C5FD'; // Light Blue - Low
+      case 2:
+        return '3B82F6'; // Medium Blue - Medium
+      case 3:
+        return '1E40AF'; // Dark Blue (Nav Blue) - High
+      default: return 'FFFFFF';
+    }
+  };
+
+  // Export function
+  const exportHeatmapPPT = (
+    matrixData: typeof HEATMAP_MATRIX_DATA,
+    impactKeys: typeof HEATMAP_IMPACT_KEYS,
+  ) => {
+    const pptx = new PptxGenJS();
+    const slide = pptx.addSlide();
+
+    slide.addText('Change Impact Heatmap', {
+      x: 0.5,
+      y: 0.3,
+      fontSize: 20,
+      bold: true,
+    });
+
+    const tableRows = [
+      [
+        { text: 'Function', options: { bold: true, align: 'center' as const } },
+        ...impactKeys.map((key) => ({
+          text: key,
+          options: { bold: true, align: 'center' as const },
+        })),
+      ],
+      ...matrixData.map((row) => [
+        { text: row.function, options: { bold: true } },
+        ...impactKeys.map((key) => ({
+          text: row[key].toString(),
+          options: {
+            fill: { color: getPptFill(row[key]) },
+            bold: true,
+            align: 'center' as const,
+            color: '000000',
+          },
+        })),
+      ]),
+    ];
+
+    slide.addTable(tableRows, {
+      x: 0.5,
+      y: 1.0,
+      w: 9,
+      rowH: 0.5,
+      fontSize: 12,
+      border: { type: 'solid', color: 'D1D5DB' },
+    });
+
+    void pptx.writeFile({ fileName: 'CIA_Heatmap_Export.pptx' });
   };
 
   if (!engagement) {
@@ -151,14 +303,6 @@ export default function EngagementDetail() {
         </div>
 
         <div className="engagement-detail-actions">
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={() => setIsEditing((e) => !e)}
-            disabled={isPublished}
-          >
-            {isEditing ? 'Lock' : 'Edit'}
-          </button>
           <button
             type="button"
             className="btn btn-primary"
@@ -190,76 +334,90 @@ export default function EngagementDetail() {
         </div>
       </section>
 
-      {/* Section B – Populated CIA Template */}
-      <section className="engagement-section card" aria-labelledby="section-template-heading">
-        <h2 id="section-template-heading" className="engagement-section-title">
-          Populated CIA Template
-        </h2>
-        <pre className="engagement-template-content">{MOCK_TEMPLATE_CONTENT}</pre>
-        <div className="engagement-section-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleDownloadTemplate}
-          >
-            Download Template
-          </button>
-        </div>
-      </section>
-
-      {/* Section C – Structured Impact Records */}
-      <section className="engagement-section card" aria-labelledby="section-records-heading">
-        <h2 id="section-records-heading" className="engagement-section-title">
-          Structured Impact Records
-        </h2>
-        <div className="engagement-table-wrap">
-          <table className="engagement-table">
-            <thead>
-              <tr>
-                <th>Lens</th>
-                <th>Area</th>
-                <th>Impact</th>
-                <th>Severity</th>
-                <th>Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_IMPACT_RECORDS.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.lens}</td>
-                  <td>{row.area}</td>
-                  <td>{row.impact}</td>
-                  <td>
-                    <span className={`badge severity-${row.severity.toLowerCase()}`}>
-                      {row.severity}
-                    </span>
-                  </td>
-                  <td>{row.source}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Section D – CIA Summary Narrative */}
-      <section className="engagement-section card" aria-labelledby="section-narrative-heading">
-        <h2 id="section-narrative-heading" className="engagement-section-title">
-          CIA Summary Narrative
-        </h2>
-        {isEditing ? (
-          <textarea
-            className="engagement-narrative engagement-narrative-input"
-            value={narrative}
-            onChange={(e) => setNarrative(e.target.value)}
-            rows={14}
-          />
-        ) : (
-          <div className="engagement-narrative engagement-narrative-readonly">
-            {narrative}
+      {engagement.id === '1' && (
+        <section className="engagement-section card interview-grid-card" aria-labelledby="section-interview-grid-heading">
+          <div className="interview-grid-header-row">
+            <h2 id="section-interview-grid-heading" className="engagement-section-title">
+              Stakeholder Interview Questions Grid
+            </h2>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={toggleAllColumns}
+              disabled={!interviewColumns.length}
+            >
+              {allExpanded ? 'Collapse' : 'Expand Full'}
+            </button>
           </div>
-        )}
-      </section>
+
+          <div className="interview-grid-columns-wrap">
+            {interviewColumns.map((column) => {
+              const isExpanded = !!expandedColumns[column];
+              const questions = questionsByColumn[column] ?? [];
+              return (
+                <div key={column} className="interview-grid-column">
+                  <button
+                    type="button"
+                    className="interview-grid-column-header"
+                    onClick={() => toggleColumn(column)}
+                    aria-expanded={isExpanded}
+                  >
+                    <span>{column}</span>
+                    <span className="interview-grid-chevron" aria-hidden="true">
+                      {isExpanded ? '▲' : '▼'}
+                    </span>
+                  </button>
+                  {isExpanded && (
+                    <div className="interview-grid-column-body">
+                      <ul className="interview-question-list">
+                        {questions.map((question, index) => (
+                          <li key={`${column}-q-${index}`} className="interview-question-item">
+                            <p className="interview-question-text">{question}</p>
+                            <label className="interview-answer-label">
+                              Answer:
+                              <textarea
+                                className="interview-answer-input"
+                                placeholder="Enter answer..."
+                                rows={3}
+                              />
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="interview-grid-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleExport}
+              disabled={!excelRows.length}
+            >
+              Export
+            </button>
+          </div>
+        </section>
+      )}
+
+      {engagement.id === '1' && (
+        <>
+          <div className="engagement-heatmap-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => exportHeatmapPPT(HEATMAP_MATRIX_DATA, HEATMAP_IMPACT_KEYS)}
+            >
+              Export Heatmap to PPT
+            </button>
+          </div>
+          <ChangeImpactHeatmap />
+        </>
+      )}
 
       {/* Post-Publish – Interview Records */}
       {isPublished && (
