@@ -32,6 +32,7 @@
   --radius-md: 10px;
   --brand-500: #0a9396;
   --brand-700: var(--color-primary);
+  --ey-yellow: #FFE600;
 }
 
 * {

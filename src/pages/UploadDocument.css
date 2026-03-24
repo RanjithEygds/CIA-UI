@@ -1,0 +1,382 @@
+.upload-doc-page {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 1000px;
+}
+
+.upload-doc-page h1 {
+  margin: 0;
+  font-size: clamp(1rem, 2.2vw, 1.35rem);
+  font-weight: 700;
+  color: var(--color-secondary);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.upload-doc-desc {
+  margin: 0;
+  color: #4e5c6b;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.upload-doc-engagement {
+  margin: 0;
+}
+
+.upload-doc-engagement label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+  margin-bottom: 0.3rem;
+}
+
+.upload-doc-input {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.upload-doc-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* Vertical stacking: one card per row with identical spacing */
+.upload-doc-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin: 0;
+}
+
+/* Upload cards: solid background, prominent theme-aligned border (Preview-consistent), clear separation */
+.upload-doc-card {
+  padding: 0.75rem 1rem;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #e8f0f4;
+  border: 1.5px solid rgba(45, 53, 97, 0.32);
+  border-radius: var(--radius);
+  box-shadow:
+    0 1px 2px rgba(13, 115, 119, 0.06),
+    0 4px 12px rgba(45, 53, 97, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, border-color 0.2s, box-shadow 0.2s;
+}
+
+.upload-doc-card:hover {
+  border-color: rgba(45, 53, 97, 0.48);
+  transform: translateY(-2px);
+  box-shadow:
+    0 2px 4px rgba(13, 115, 119, 0.08),
+    0 8px 20px rgba(45, 53, 97, 0.12),
+    0 4px 8px rgba(0, 0, 0, 0.06);
+}
+
+.upload-doc-card h3 {
+  margin: 0 0 0.3rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+  letter-spacing: -0.01em;
+}
+
+.upload-doc-card-desc {
+  margin: 0 0 0.5rem 0;
+  color: #4e5c6b;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+/* Section upload shell (all document cards): no inner dashed drop box; drag/drop + file input on shell */
+.upload-doc-card .upload-section-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem;
+  min-height: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(13, 115, 119, 0.04) 0%,
+    rgba(45, 53, 97, 0.03) 100%
+  );
+  border-radius: var(--radius);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.upload-doc-card .upload-section-shell.upload-section-shell--dragover {
+  background: linear-gradient(
+    180deg,
+    rgba(13, 115, 119, 0.09) 0%,
+    rgba(45, 53, 97, 0.06) 100%
+  );
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.upload-doc-card .upload-section-file-input {
+  z-index: 0;
+}
+
+.upload-doc-card .upload-section-upload-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.upload-doc-card .upload-section-upload-header .upload-doc-card-desc {
+  margin: 0;
+  flex: 1;
+  min-width: min(12rem, 100%);
+}
+
+.upload-doc-card .upload-attachments-btn {
+  flex-shrink: 0;
+  gap: 0.4rem;
+}
+
+.upload-doc-card .upload-attachments-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Browse button: same hover feel as Home "Initiate CIA" – darker gradient, lift, stronger shadow, no underline */
+.upload-browse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ffffff;
+  text-decoration: none;
+  background: linear-gradient(135deg, var(--color-primary) 0%, #0a5c60 100%);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(13, 115, 119, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.upload-browse-btn:hover,
+.upload-browse-btn:active,
+.upload-browse-btn:focus {
+  color: #ffffff;
+  text-decoration: none;
+  background: linear-gradient(135deg, var(--color-primary-dark) 0%, #074a4d 100%);
+  box-shadow: 0 4px 12px rgba(13, 115, 119, 0.4);
+  transform: translateY(-2px);
+}
+
+.upload-doc-card .upload-section-shell > .upload-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-input--pass-through {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* File list inside section shell — grows with row count */
+.upload-doc-card .upload-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0.65rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  min-height: 0;
+  position: relative;
+  z-index: 2;
+  border-top: 1px solid rgba(45, 53, 97, 0.14);
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 0 0 calc(var(--radius) - 2px) calc(var(--radius) - 2px);
+}
+
+.upload-doc-card .upload-section-shell > .upload-file-list {
+  position: relative;
+  z-index: 2;
+  border-radius: 0 0 var(--radius) var(--radius);
+  margin-top: 0.25rem;
+  padding-top: 0.6rem;
+}
+
+.upload-file-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 0.5rem 0.65rem;
+  padding: 0.5rem 0.55rem;
+  background: #f8fafb;
+  border: 1px solid rgba(45, 53, 97, 0.2);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(45, 53, 97, 0.06);
+}
+
+.upload-file-type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.35rem;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  border-radius: 4px;
+  line-height: 1.1;
+}
+
+.upload-file-type-badge--pdf {
+  background: #b42318;
+}
+.upload-file-type-badge--docx {
+  background: #185abd;
+}
+.upload-file-type-badge--xlsx {
+  background: #1d6f42;
+}
+.upload-file-type-badge--pptx {
+  background: #d24726;
+}
+.upload-file-type-badge--text {
+  background: #5c6b7a;
+}
+.upload-file-type-badge--image {
+  background: #7c3aed;
+}
+.upload-file-type-badge--zip {
+  background: #b45309;
+}
+.upload-file-type-badge--generic {
+  background: var(--color-secondary);
+}
+
+.upload-file-row-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.upload-file-row-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.6rem;
+}
+
+.upload-file-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-700);
+  word-break: break-word;
+}
+
+.upload-file-meta {
+  font-size: 0.65rem;
+  color: #4e5c6b;
+  white-space: nowrap;
+}
+
+.upload-file-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.upload-file-progress-track {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(45, 53, 97, 0.1);
+  overflow: hidden;
+}
+
+.upload-file-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-primary) 0%, #0a5c60 100%);
+  transition: width 0.12s ease-out;
+}
+
+.upload-file-progress-pct {
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-secondary);
+  min-width: 2.25rem;
+  text-align: right;
+}
+
+.upload-file-error {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #b42318;
+  line-height: 1.35;
+}
+
+.upload-file-row-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.upload-file-success-icon {
+  display: flex;
+  color: var(--color-success);
+}
+
+.upload-file-status-placeholder {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.upload-doc-card .file-remove {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.68rem;
+}
+
+.upload-doc-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0;
+  padding-top: 0.35rem;
+}
+
+.upload-doc-actions .btn {
+  min-width: 140px;
+}
+
+@media (max-width: 640px) {
+  .upload-doc-page h1 {
+    font-size: 1rem;
+  }
+
+  .upload-doc-actions {
+    justify-content: stretch;
+  }
+
+  .upload-doc-actions .btn {
+    width: 100%;
+    min-width: 0;
+  }
+}

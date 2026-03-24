@@ -77,6 +77,13 @@
   border: 2px solid rgba(255, 255, 255, 0.45);
 }
 
+.home-cta .btn-primary:hover,
+.home-cta .btn-primary:active,
+.home-cta .btn-primary:focus {
+  color: #ffffff;
+  text-decoration: none;
+}
+
 .home-cimmie,
 .home-agents,
 .home-flow {
@@ -171,18 +178,12 @@
   line-height: 1.3;
 }
 
-/* 3D-style agent cards – 3-over-2 layout, second row centered */
+/* 3D-style agent cards – single row of 4 cards */
 .agents-grid-3d {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.9rem;
 }
-
-.agents-grid-3d .agent-card-3d:nth-child(1) { grid-column: 1 / 3; }
-.agents-grid-3d .agent-card-3d:nth-child(2) { grid-column: 3 / 5; }
-.agents-grid-3d .agent-card-3d:nth-child(3) { grid-column: 5 / 7; }
-.agents-grid-3d .agent-card-3d:nth-child(4) { grid-column: 2 / 4; }
-.agents-grid-3d .agent-card-3d:nth-child(5) { grid-column: 4 / 6; }
 
 .agent-card-3d {
   background: linear-gradient(145deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
@@ -325,6 +326,10 @@
 }
 
 @media (max-width: 768px) {
+  .agents-grid-3d {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .flow-timeline {
     grid-template-columns: 1fr;
     gap: 1.25rem;

@@ -20,7 +20,12 @@ type UploadSection = {
 
 type UploadState = Record<string, UploadSection[]>;
 
-type EditableCardId = "brief" | "type" | "groups" | "stakeholders" | "research";
+type EditableCardId =
+  | "brief"
+  | "type"
+  | "rationale"
+  | "stakeholders"
+  | "research";
 
 type StakeholderEntry = { name: string; email: string };
 
@@ -42,23 +47,10 @@ const EDITABLE_CARDS: {
       "Classification of the change (e.g. process, technology, operating model).",
   },
   {
-    id: "groups",
-    title: "Groups Impacted By The Change",
-    initialContent:
-      "Teams, functions, or business units affected by the change.",
+    id: "rationale",
+    title: "Change Rationale",
+    initialContent: "Rationale and drivers for the change initiative.",
   },
-  // {
-  //   id: "stakeholders",
-  //   title: "Key Stakeholders That Need To Be Engaged & Consulted",
-  //   initialContent:
-  //     "Individuals or roles requiring engagement and consultation.",
-  // },
-  // {
-  //   id: "research",
-  //   title: "Areas That Require Further Research",
-  //   initialContent:
-  //     "Topics or gaps to be explored before or during the change.",
-  // },
 ];
 
 const SECTION_LABELS: Record<string, string> = {
@@ -391,7 +383,7 @@ export default function Preview() {
   return (
     <div className="preview-page">
       <header className="preview-header card">
-        <div>
+        <div className="preview-header-content">
           <p className="preview-kicker">Data Extraction Agent Output</p>
           <h1>Preview of Extracted Change Context</h1>
           <p>
@@ -399,6 +391,9 @@ export default function Preview() {
             becomes the baseline context for CIMMIE interview prompts and
             downstream CIA outputs.
           </p>
+          <span className="badge preview-header-badge">
+            Files uploaded: {totalFiles}
+          </span>
         </div>
         <div className="preview-meta">
           {summary && (
@@ -581,7 +576,7 @@ export default function Preview() {
       </section>
 
       <footer className="preview-actions">
-        <Link className="btn btn-outline" to="/initiate">
+        <Link className="btn btn-outline" to="/upload">
           Back to uploads
         </Link>
         <button
@@ -589,7 +584,7 @@ export default function Preview() {
           type="button"
           onClick={() => navigate("/preview-questions")}
         >
-          Continue to launch interview
+          Next
         </button>
       </footer>
     </div>

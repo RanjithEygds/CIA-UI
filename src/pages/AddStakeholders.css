@@ -1,0 +1,193 @@
+.add-stakeholders-page {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.add-stakeholders-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  background:
+    radial-gradient(circle at right top, rgba(238, 155, 0, 0.18), transparent 34%),
+    linear-gradient(180deg, #ffffff, #f9fcff);
+}
+
+.add-stakeholders-kicker {
+  margin: 0;
+  color: var(--color-secondary);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.add-stakeholders-header h1 {
+  margin: 0.25rem 0;
+  font-size: clamp(1rem, 2.2vw, 1.35rem);
+  line-height: 1.15;
+  color: var(--color-secondary);
+}
+
+.add-stakeholders-header p {
+  margin: 0;
+  max-width: 760px;
+  color: var(--ink-500);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.add-stakeholders-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  flex-direction: column;
+}
+
+.add-stakeholders-block {
+  margin: 0;
+}
+
+.add-stakeholders-block h2 {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+  color: var(--color-secondary);
+}
+
+.add-stakeholders-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.add-stakeholders-block-header h2 {
+  margin: 0;
+}
+
+.add-stakeholders-form {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.add-stakeholders-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 400px;
+}
+
+.add-stakeholders-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.add-stakeholders-optional {
+  font-weight: 400;
+  color: var(--ink-400);
+  font-size: 0.68rem;
+}
+
+.add-stakeholders-input {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--ink-700);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.add-stakeholders-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.add-stakeholders-input-invalid {
+  border-color: var(--color-warning);
+}
+
+.add-stakeholders-input-invalid:focus {
+  border-color: var(--color-warning);
+}
+
+.add-stakeholders-error {
+  font-size: 0.68rem;
+  color: var(--color-warning);
+}
+
+.add-stakeholders-add-btn {
+  align-self: flex-start;
+}
+
+.add-stakeholders-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.add-stakeholders-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+
+.add-stakeholders-item:last-child {
+  border-bottom: none;
+}
+
+.add-stakeholders-item-name {
+  font-weight: 600;
+  color: var(--ink-700);
+  min-width: 120px;
+}
+
+.add-stakeholders-item-email {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink-500);
+}
+
+.add-stakeholders-item-meta {
+  width: 100%;
+  font-size: 0.68rem;
+  color: var(--ink-400);
+  flex-basis: 100%;
+  margin-top: -0.2rem;
+}
+
+.add-stakeholders-remove {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.68rem;
+  flex-shrink: 0;
+}
+
+.add-stakeholders-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.empty-row {
+  margin: 0.2rem 0 0;
+  color: var(--ink-300);
+  font-size: 0.68rem;
+}
+
+@media (max-width: 680px) {
+  .add-stakeholders-actions {
+    flex-direction: column;
+  }
+
+  .add-stakeholders-actions .btn {
+    width: 100%;
+  }
+}

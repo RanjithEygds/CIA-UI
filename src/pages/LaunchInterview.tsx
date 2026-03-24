@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { loadStakeholders } from './AddStakeholders';
 import './LaunchInterview.css';
 
 type Stakeholder = {
   id: string;
   name: string;
+  email?: string;
+  userGroup?: string;
+  subGroup?: string;
   role: string;
   depth: 'High-level' | 'Detailed';
   slot: string;
@@ -53,9 +57,30 @@ function statusClass(status: Stakeholder['status']) {
 const COPY_FEEDBACK_MS = 2500;
 const TOAST_DURATION_MS = 2500;
 
+function useStakeholders(): { stakeholders: Stakeholder[]; fromSaved: boolean } {
+  return useMemo(() => {
+    const saved = loadStakeholders();
+    if (saved.length > 0) {
+      const mapped: Stakeholder[] = saved.map((s) => ({
+        id: s.id,
+        name: s.name,
+        email: s.email,
+        userGroup: s.userGroup,
+        subGroup: s.subGroup,
+        role: '—',
+        depth: 'Detailed',
+        slot: '—',
+        status: 'Queued' as const,
+      }));
+      return { stakeholders: mapped, fromSaved: true };
+    }
+    return { stakeholders: stakeholderSeed, fromSaved: false };
+  }, []);
+}
+
 export default function LaunchInterview() {
   const navigate = useNavigate();
-  const [stakeholders] = useState(stakeholderSeed);
+  const { stakeholders, fromSaved } = useStakeholders();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showCopyToast, setShowCopyToast] = useState(false);
 
@@ -83,9 +108,6 @@ export default function LaunchInterview() {
           <button className="btn btn-primary" type="button" onClick={() => navigate('/cimmie')}>
             Launch all sessions
           </button>
-          <Link className="btn btn-outline" to="/preview">
-            View extracted preview
-          </Link>
         </div>
       </header>
 
@@ -98,6 +120,9 @@ export default function LaunchInterview() {
           <thead>
             <tr>
               <th>Name</th>
+              {fromSaved && <th>Email</th>}
+              {fromSaved && <th>User Group</th>}
+              {fromSaved && <th>Sub-Group</th>}
               <th>Role</th>
               <th>Depth</th>
               <th>Session slot</th>
@@ -110,6 +135,9 @@ export default function LaunchInterview() {
             {stakeholders.map((stakeholder) => (
               <tr key={stakeholder.id}>
                 <td>{stakeholder.name}</td>
+                {fromSaved && <td>{stakeholder.email ?? '—'}</td>}
+                {fromSaved && <td>{stakeholder.userGroup ?? '—'}</td>}
+                {fromSaved && <td>{stakeholder.subGroup ?? '—'}</td>}
                 <td>{stakeholder.role}</td>
                 <td>{stakeholder.depth}</td>
                 <td>{stakeholder.slot}</td>
@@ -141,6 +169,21 @@ export default function LaunchInterview() {
           </tbody>
         </table>
       </section>
+
+      <footer className="launch-actions">
+        <div className="launch-actions-row">
+          <Link className="btn btn-outline" to="/add-stakeholders">
+            Back to add Stakeholders
+          </Link>
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => navigate('/cimmie')}
+          >
+            Continue to Launch Interview
+          </button>
+        </div>
+      </footer>
 
       {showCopyToast && (
         <div className="copy-toast" role="status" aria-live="polite">

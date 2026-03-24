@@ -23,11 +23,6 @@ const agents = [
     description: 'Populates the CIA template with high-level and detailed outputs.',
     accent: 'CT',
   },
-  {
-    title: 'Questioner Agent',
-    description: 'Generates interview questions for stakeholders.',
-    accent: 'QA',
-  },
 ];
 
 const flowSteps = [
@@ -71,7 +66,7 @@ export default function Home() {
           Turns stakeholder interviews into delivery-ready CIA outputs. Built for Change Management teams, CIAssist accelerates the Change Impact Assessment process from document intake to structured findings, narrative drafting, and template population.
         </p>
         <div className="home-cta">
-          <Link to="/initiate" className="btn btn-primary">
+          <Link to="/upload" className="btn btn-primary">
             Initiate CIA
           </Link>
         </div>
@@ -85,14 +80,15 @@ export default function Home() {
         <div className="cimmie-card card">
           <div className="cimmie-card-inner">
             <div className="cimmie-card-icon cimmie-card-icon-themed" aria-hidden="true">
-              <img src="/cimmie-robo-icon2.jpg" alt="" className="cimmie-robo-img" />
+              <img src="/cimmie-robot.jpg" alt="" className="cimmie-robo-img" />
             </div>
             <div className="cimmie-card-text">
               <p>
-                <strong>CIMMIE</strong> is a text-based chatbot used in scheduled, time-boxed
-                interview sessions. Stakeholders join through one-time access links, complete
-                their interview, and receive a real-time conversational read-back of captured
-                evidence by topic.
+                <strong>CIMMIE</strong> is a conversational chatbot that supports 
+                both text and voice interactions within scheduled, 
+                time‑boxed interview sessions. Stakeholders join using one‑time access 
+                links, complete their interview, and receive a real‑time conversational 
+                read‑back of the captured evidence organized by topic.
               </p>
               {/* <p className="cimmie-note">
                 Access is session-scoped and time-limited. Stakeholders cannot request post-interview

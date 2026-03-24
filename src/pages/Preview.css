@@ -3,12 +3,9 @@
   gap: 0.6rem;
 }
 
-.preview-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  background: linear-gradient(180deg, #ffffff, #f8fcff);
+.preview-header {  background:
+  radial-gradient(circle at right top, rgba(238, 155, 0, 0.18), transparent 44%),
+  linear-gradient(180deg, #ffffff, #f9fcff);
 }
 
 .preview-kicker {
@@ -27,6 +24,10 @@
   color: var(--color-secondary);
 }
 
+.preview-header-content {
+  display: block;
+}
+
 .preview-header p {
   margin: 0;
   max-width: 720px;
@@ -35,11 +36,9 @@
   line-height: 1.35;
 }
 
-.preview-meta {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.35rem;
-  flex-direction: column;
+.preview-header-badge {
+  display: inline-block;
+  margin-top: 0.5rem;
 }
 
 .preview-grid {
@@ -48,21 +47,31 @@
   gap: 0.5rem;
 }
 
-/* Upload Artifacts card – unique gradient */
+/* Upload artifacts – pure white, no gradient */
 .preview-grid > .card.preview-block {
-  background: linear-gradient(160deg, #f8fafc 0%, #eef6fb 40%, #e8f2f8 100%);
+  background: #ffffff;
 }
 
-/* Five extracted cards – bluish 3D gradient matching left nav (--color-secondary), slightly prominent border */
+/* Preview extracted cards – same styling as Upload page cards (solid background, border, shadow, spacing) */
 .preview-extracted .card.preview-block {
-  background: linear-gradient(165deg, #eef2f9 0%, #e2e8f4 28%, #dce2ef 55%, #e0e6f2 82%, #e6eaf5 100%);
-  border: 1px solid rgba(45, 53, 97, 0.16);
+  padding: 0.75rem 1rem;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #e8f0f4;
+  border: 1.5px solid rgba(45, 53, 97, 0.32);
+  border-radius: var(--radius);
+  box-shadow:
+    0 1px 2px rgba(13, 115, 119, 0.06),
+    0 4px 12px rgba(45, 53, 97, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .preview-extracted {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 1.5rem;
 }
 
 .preview-block h2 {
@@ -71,12 +80,24 @@
   color: var(--color-secondary);
 }
 
+/* Extracted cards: title typography matches Upload card h3 */
+.preview-extracted .preview-block h2 {
+  margin: 0 0 0.3rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
 .preview-block-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.4rem;
+}
+
+.preview-extracted .preview-block-header {
+  margin-bottom: 0.5rem;
 }
 
 .preview-block-header h2 {
@@ -144,6 +165,14 @@
   font-size: 0.75rem;
   line-height: 1.35;
   color: var(--ink-700);
+}
+
+/* Extracted cards body text – match Upload card description hierarchy */
+.preview-extracted .summary-points p {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #4e5c6b;
 }
 
 .preview-stakeholders-wrap {

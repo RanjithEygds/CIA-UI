@@ -4,20 +4,13 @@
 }
 
 .preview-questions-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  background: linear-gradient(180deg, #ffffff, #f8fcff);
+  background:
+    radial-gradient(circle at right top, rgba(238, 155, 0, 0.18), transparent 44%),
+    linear-gradient(180deg, #ffffff, #f9fcff);
 }
 
-.preview-questions-kicker {
-  margin: 0;
-  color: var(--color-secondary);
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
-  font-weight: 700;
-  text-transform: uppercase;
+.preview-questions-header-content {
+  display: block;
 }
 
 .preview-questions-header h1 {
@@ -35,11 +28,9 @@
   line-height: 1.35;
 }
 
-.preview-questions-meta {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.35rem;
-  flex-direction: column;
+.preview-questions-header-badge {
+  display: inline-block;
+  margin-top: 0.5rem;
 }
 
 .preview-questions-block {

@@ -4,10 +4,11 @@ import './Sidebar.css';
 
 const navItems = [
   { path: '/', label: 'Home', icon: '⌂', visible: true },
-  { path: '/initiate', label: 'Initiate CIA', icon: '+', visible: true },
+  { path: '/upload', label: 'Initiate CIA', icon: '+', visible: true },
   { path: '/preview', label: 'Preview', icon: '◷', visible: false },
   { path: '/launch', label: 'Launch Interview', icon: '▤', visible: false },
   { path: '/all-cias', label: 'All CIAs', icon: '▤', visible: true },
+  { path: '/impact-heatmap', label: 'Impact heatmap', icon: '▦', visible: true },
 ];
 
 interface SidebarProps {

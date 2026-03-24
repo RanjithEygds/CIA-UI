@@ -83,19 +83,16 @@ export default function PreviewInterviewQuestions() {
   return (
     <div className="preview-questions-page">
       <header className="preview-questions-header card">
-        <div>
-          <p className="preview-questions-kicker">Interview Questions</p>
-          <h1>Preview & Edit Questions</h1>
-          <p>Review the parsed interview questions and edit as needed.</p>
-        </div>
-        <div className="preview-questions-meta">
-          <span className="badge">{questions.length} questions</span>
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate("/launch")}
-          >
-            Proceed to launch
-          </button>
+        <div className="preview-questions-header-content">
+          <h1>Preview of Interview Questions</h1>
+          <p>
+            Review and edit the interview questions generated for the
+            stakeholder interview. You can add, edit, or remove questions before
+            launching sessions.
+          </p>
+          <span className="badge preview-questions-header-badge">
+            {questions.length} question{questions.length !== 1 ? "s" : ""}
+          </span>
         </div>
       </header>
 
