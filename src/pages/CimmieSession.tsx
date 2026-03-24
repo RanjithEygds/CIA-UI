@@ -343,14 +343,18 @@ export default function CimmieSession() {
         else if (event.message) setComposerSpeechError(event.message);
         else setComposerSpeechError("Speech recognition error.");
       };
-      recognition.onend = () => {
+      recognition.onend = async () => {
         clearSilenceTimeout();
         stopMediaTracks();
         recognitionRef.current = null;
         setComposerListening(false);
         setComposerMicStatus("idle");
         const text = sessionTranscriptRef.current.trim();
+        setVoicePanelTranscript("");
         if (text) setDraft((prev) => (prev ? `${prev} ${text}` : text));
+
+        if (!text) return;
+        await handleVoiceAnswerSubmit(text);
       };
       try {
         recognition.start();
@@ -473,7 +477,7 @@ export default function CimmieSession() {
         setVoicePanelMicStatus("idle");
         setVoicePanelTranscript("");
       };
-      recognition.onend = () => {
+      recognition.onend = async () => {
         stopVoicePanelTracks();
         voiceRecognitionRef.current = null;
         setVoicePanelListening(false);
@@ -481,7 +485,11 @@ export default function CimmieSession() {
         setVoiceVolume(0);
         setVoicePanelTranscript("");
         const text = voiceTranscriptRef.current.trim();
+        setVoicePanelTranscript("");
         if (text) setDraft((prev) => (prev ? `${prev} ${text}` : text));
+
+        if (!text) return;
+        await handleVoiceAnswerSubmit(text);
       };
       try {
         recognition.start();
@@ -590,6 +598,120 @@ export default function CimmieSession() {
     () => formatRemaining(remainingSeconds),
     [remainingSeconds],
   );
+
+  useEffect(() => {
+    if (interviewMode !== "voice") return;
+    if (!currentQuestion) return;
+
+    const utter = new SpeechSynthesisUtterance(currentQuestion.question_text);
+    utter.rate = 1;
+    utter.pitch = 1;
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
+
+    // When speaking the question finishes, start listening
+    utter.onend = () => {
+      startVoiceRecording();
+    };
+  }, [currentQuestion, interviewMode]);
+
+  async function handleVoiceAnswerSubmit(text: string) {
+    console.log(text, "voice");
+
+    if (!interviewId || !currentQuestion || completed) return;
+
+    // Show user's spoken answer inside the chat log (optional)
+    setMessages((prev) => [
+      ...prev,
+      { id: `voice-user-${Date.now()}`, from: "user", text },
+    ]);
+
+    try {
+      const result = await submitAnswer(interviewId, {
+        question_id: currentQuestion.question_id,
+        answer_text: text,
+      });
+
+      // Bot follow-up on same question
+      if (result.stay_on_question) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-follow-${Date.now()}`,
+            from: "bot",
+            text: result.bot_reply,
+          },
+        ]);
+        // Speak follow-up
+        window.speechSynthesis.speak(
+          new SpeechSynthesisUtterance(result.bot_reply),
+        );
+        return;
+      }
+
+      // Recorded → speak readback if exists
+      if (result.readback) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `readback-${Date.now()}`,
+            from: "bot",
+            text: result.readback ?? "",
+          },
+        ]);
+        window.speechSynthesis.speak(
+          new SpeechSynthesisUtterance(result.readback),
+        );
+      }
+
+      // Get next Q
+      const next = await getNextQuestion(interviewId);
+
+      if (next.section === "DONE" || next.question_id === "-1") {
+        setCompleted(true);
+        setCurrentQuestion(null);
+
+        const endText = "Interview completed. Thank you for your responses.";
+        setMessages((prev) => [
+          ...prev,
+          { id: "done", from: "bot", text: endText },
+        ]);
+
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance(endText));
+      } else {
+        // Set next question → triggers TTS → triggers mic
+        setCurrentQuestion(next);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `q-${next.question_id}`,
+            from: "bot",
+            text: next.question_text,
+          },
+        ]);
+      }
+    } catch (err) {
+      console.error(err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `voice-error-${Date.now()}`,
+          from: "bot",
+          text: "Oops — something went wrong submitting your answer.",
+        },
+      ]);
+    }
+  }
+
+  useEffect(() => {
+    if (interviewMode !== "voice") return;
+    if (currentQuestion) {
+      window.speechSynthesis.speak(
+        new SpeechSynthesisUtterance(currentQuestion.question_text),
+      );
+    }
+  }, [interviewMode]);
 
   useEffect(() => {
     let mounted = true;
