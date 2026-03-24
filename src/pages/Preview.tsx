@@ -205,19 +205,19 @@ export default function Preview() {
       payload.type_of_change = rawContext.type_of_change;
     }
 
-    if (id === "groups") {
-      // Convert drafted text into ImpactGroup[]
-      rawContext.impacted_groups = draft
-        .split("\n")
-        .filter((line) => line.trim())
-        .map((line) => ({
-          name: line.replace("•", "").trim(),
-          description: null,
-          confidence: "Low",
-        }));
+    // if (id === "groups") {
+    //   // Convert drafted text into ImpactGroup[]
+    //   rawContext.impacted_groups = draft
+    //     .split("\n")
+    //     .filter((line) => line.trim())
+    //     .map((line) => ({
+    //       name: line.replace("•", "").trim(),
+    //       description: null,
+    //       confidence: "Low",
+    //     }));
 
-      payload.impacted_groups = rawContext.impacted_groups;
-    }
+    //   payload.impacted_groups = rawContext.impacted_groups;
+    // }
 
     if (id === "stakeholders") {
       // stakeholdersList already holds the updated list
@@ -392,7 +392,7 @@ export default function Preview() {
             downstream CIA outputs.
           </p>
           <span className="badge preview-header-badge">
-            Files uploaded: {totalFiles}
+            {/* Files uploaded: {totalFiles} */}
           </span>
         </div>
         <div className="preview-meta">
