@@ -7,7 +7,6 @@ import {
   updateEngagementContext,
   type EngagementSummaryResponse,
   type ImpactGroup,
-  type Stakeholder,
   type TypeOfChange,
 } from "../api/engagements";
 
@@ -20,14 +19,7 @@ type UploadSection = {
 
 type UploadState = Record<string, UploadSection[]>;
 
-type EditableCardId =
-  | "brief"
-  | "type"
-  | "rationale"
-  | "stakeholders"
-  | "research";
-
-type StakeholderEntry = { name: string; email: string };
+type EditableCardId = "brief" | "type" | "rationale";
 
 const EDITABLE_CARDS: {
   id: EditableCardId;
@@ -142,28 +134,9 @@ export default function Preview() {
         EDITABLE_CARDS.map((c) => [c.id, c.initialContent]),
       ) as Record<EditableCardId, string>,
   );
-  const [stakeholdersList, setStakeholdersList] = useState<StakeholderEntry[]>(
-    [],
-  );
   const [editingId, setEditingId] = useState<EditableCardId | null>(null);
   const [draft, setDraft] = useState("");
-  const [newStakeholderName, setNewStakeholderName] = useState("");
-  const [newStakeholderEmail, setNewStakeholderEmail] = useState("");
   const editInputRef = useRef<HTMLTextAreaElement | null>(null);
-
-  useEffect(() => {
-    if (editingId !== null && editingId !== "stakeholders") {
-      setDraft(content[editingId]);
-      const id = setTimeout(() => {
-        const t = editInputRef.current;
-        if (t) {
-          t.focus();
-          t.setSelectionRange(t.value.length, t.value.length);
-        }
-      }, 0);
-      return () => clearTimeout(id);
-    }
-  }, [editingId, content]);
 
   useEffect(() => {
     if (editingId === null) return;
@@ -219,14 +192,6 @@ export default function Preview() {
     //   payload.impacted_groups = rawContext.impacted_groups;
     // }
 
-    if (id === "stakeholders") {
-      // stakeholdersList already holds the updated list
-      payload.stakeholders = stakeholdersList.map((s) => ({
-        name: s.name,
-        email: s.email,
-      }));
-    }
-
     // ✅ SEND UPDATE TO BACKEND
     await updateEngagementContext(engagementId, payload);
 
@@ -234,22 +199,6 @@ export default function Preview() {
     setContent((prev) => ({ ...prev, [id]: draft }));
 
     setEditingId(null);
-  };
-
-  const addStakeholder = () => {
-    const name = newStakeholderName.trim();
-    const email = newStakeholderEmail.trim();
-    if (!name && !email) return;
-    setStakeholdersList((prev) => [
-      ...prev,
-      { name: name || "—", email: email || "—" },
-    ]);
-    setNewStakeholderName("");
-    setNewStakeholderEmail("");
-  };
-
-  const removeStakeholder = (index: number) => {
-    setStakeholdersList((prev) => prev.filter((_, i) => i !== index));
   };
 
   function prettyPrintTypeOfChange(t: any): string {
@@ -316,18 +265,8 @@ export default function Preview() {
             contextData.change_summary,
           ),
           type: prettyPrintTypeOfChange(contextData.type_of_change),
-          groups: prettyPrintGroups(contextData.impacted_groups),
-          stakeholders: "", // stakeholders use separate UI list
-          research: prev.research, // leave untouched
+          rationale: prettyPrintGroups(contextData.impacted_groups),
         }));
-
-        // ✅ Populate stakeholder list (for stakeholder card)
-        setStakeholdersList(
-          contextData.stakeholders.map((s: Stakeholder) => ({
-            name: s.name || "—",
-            email: s.email || "—",
-          })),
-        );
 
         // Optionally cache for other pages
         sessionStorage.setItem(
@@ -391,9 +330,6 @@ export default function Preview() {
             becomes the baseline context for CIMMIE interview prompts and
             downstream CIA outputs.
           </p>
-          <span className="badge preview-header-badge">
-            {/* Files uploaded: {totalFiles} */}
-          </span>
         </div>
         <div className="preview-meta">
           {summary && (
@@ -476,83 +412,7 @@ export default function Preview() {
                     )}
                   </div>
                 </div>
-                {card.id === "stakeholders" ? (
-                  isEditing ? (
-                    <div className="preview-stakeholders-wrap">
-                      <ul className="preview-stakeholders-list">
-                        {stakeholdersList.map((s, i) => (
-                          <li key={i} className="preview-stakeholders-item">
-                            <span className="preview-stakeholders-name">
-                              {s.name}
-                            </span>
-                            <span className="preview-stakeholders-email">
-                              {s.email}
-                            </span>
-                            <button
-                              type="button"
-                              className="btn btn-ghost preview-stakeholders-remove"
-                              onClick={() => removeStakeholder(i)}
-                              aria-label={`Remove ${s.name}`}
-                            >
-                              Remove
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="preview-stakeholders-add">
-                        <input
-                          type="text"
-                          className="preview-stakeholders-input"
-                          placeholder="Name"
-                          value={newStakeholderName}
-                          onChange={(e) =>
-                            setNewStakeholderName(e.target.value)
-                          }
-                          aria-label="Stakeholder name"
-                        />
-                        <input
-                          type="email"
-                          className="preview-stakeholders-input"
-                          placeholder="Email"
-                          value={newStakeholderEmail}
-                          onChange={(e) =>
-                            setNewStakeholderEmail(e.target.value)
-                          }
-                          aria-label="Stakeholder email"
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-outline"
-                          onClick={addStakeholder}
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="preview-stakeholders-wrap">
-                      {stakeholdersList.length === 0 ? (
-                        <p className="empty-row">No stakeholders added.</p>
-                      ) : (
-                        <ul className="preview-stakeholders-list">
-                          {stakeholdersList.map((s, i) => (
-                            <li
-                              key={i}
-                              className="preview-stakeholders-item preview-stakeholders-item-readonly"
-                            >
-                              <span className="preview-stakeholders-name">
-                                {s.name}
-                              </span>
-                              <span className="preview-stakeholders-email">
-                                {s.email}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )
-                ) : isEditing ? (
+                {isEditing ? (
                   <textarea
                     ref={editInputRef}
                     className="preview-block-edit"
