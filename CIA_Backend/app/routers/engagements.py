@@ -1,0 +1,561 @@
+from datetime import datetime, timezone
+import os
+import shutil
+import uuid
+from typing import List
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Body
+from sqlalchemy.orm import Session
+from ..db import SessionLocal
+from ..models import (
+    Engagement,
+    Document,
+    EngagementInsights,
+    EngagementContext,
+    Stakeholder,
+    QuestionCatalog,
+    Answer,
+    Interview,
+)
+from ..services.agent1_prep import run_agent1_prep
+from ..schemas import (
+    EngagementCreate,
+    EngagementListItem,
+    EngagementSummaryOut,
+    DocumentUploadResponse,
+    QuestionUpdate,
+    QuestionCreate,
+    UpdateContextRequest,
+)
+
+router = APIRouter()
+
+# Default questions master file (ensure this exists!)
+DEFAULT_QUESTIONS_PATH = "./app/storage/default/questions.xlsx"
+
+# User-added questions share one synthetic section, ordered after parsed catalog.
+CUSTOM_QUESTIONS_SECTION = "Custom questions"
+
+
+def _ordered_catalog_for_engagement(db: Session, engagement_id: str) -> List[QuestionCatalog]:
+    return (
+        db.query(QuestionCatalog)
+        .filter(QuestionCatalog.engagement_id == engagement_id)
+        .order_by(
+            QuestionCatalog.section_index.asc(),
+            QuestionCatalog.sequence_in_section.asc(),
+        )
+        .all()
+    )
+
+
+def _questions_preview_rows(items: List[QuestionCatalog]) -> List[dict]:
+    return [
+        {
+            "id": it.id,
+            "section_index": it.section_index,
+            "section": it.section,
+            "sequence_in_section": it.sequence_in_section,
+            "question_text": it.question_text,
+        }
+        for it in items
+    ]
+
+
+def _prune_question_id_from_engagement_plans(
+    db: Session, engagement_id: str, question_id: str
+) -> None:
+    """Remove a catalog id from all stored interview plans for this engagement."""
+    interviews = (
+        db.query(Interview)
+        .filter(Interview.engagement_id == engagement_id)
+        .all()
+    )
+    for iv in interviews:
+        plan = iv.questions_plan
+        if not plan or not isinstance(plan, dict):
+            continue
+        new_plan: dict = {}
+        changed = False
+        for section, qids in plan.items():
+            if isinstance(qids, list):
+                filtered = [x for x in qids if x != question_id]
+                if len(filtered) != len(qids):
+                    changed = True
+                if filtered:
+                    new_plan[section] = filtered
+            else:
+                new_plan[section] = qids
+        if changed:
+            iv.questions_plan = new_plan
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@router.post("", response_model=dict)
+def create_engagement(
+    payload: EngagementCreate = Body(default=None),
+    db: Session = Depends(get_db),
+):
+    """
+    Creates an engagement and folder structure, and copies the default questions docx
+    into /storage/{engagement_id}/questions/Stakeholder Interview Questions.docx
+    """
+    name = payload.name if payload else None
+
+    e = Engagement(name=name)
+    db.add(e)
+    db.commit()
+    db.refresh(e)
+
+    base = f"./app/storage/{e.id}"
+    docs_dir = f"{base}/documents"
+    q_dir = f"{base}/questions"
+    out_dir = f"{base}/outputs"
+    os.makedirs(docs_dir, exist_ok=True)
+    os.makedirs(q_dir, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
+
+    # Validate default questions existence
+    if not os.path.exists(DEFAULT_QUESTIONS_PATH):
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Default questions file is missing at "
+                f"{DEFAULT_QUESTIONS_PATH}. "
+                "Ensure the default questions docx exists before creating engagements."
+            ),
+        )
+
+    # Copy default to canonical name used by Agent 1 parser
+    target_questions_path = os.path.join(q_dir, "Stakeholder Interview Questions.xlsx")
+    shutil.copyfile(DEFAULT_QUESTIONS_PATH, target_questions_path)
+
+    return {"engagement_id": e.id, "name": e.name}
+
+
+@router.post("/{engagement_id}/documents", response_model=DocumentUploadResponse)
+async def upload_document(
+    engagement_id: str,
+    file: UploadFile = File(...),
+    category: str = Form(default=None),
+    name: str = Form(default=None),  # optional display name for UI; not persisted separately
+    db: Session = Depends(get_db),
+):
+    e = db.query(Engagement).get(engagement_id)
+    if not e:
+        raise HTTPException(404, "Engagement not found")
+
+    folder = f"./app/storage/{engagement_id}/documents"
+    os.makedirs(folder, exist_ok=True)
+
+    path = os.path.join(folder, file.filename)
+    content = await file.read()
+    with open(path, "wb") as f:
+        f.write(content)
+
+    doc = Document(
+        engagement_id=engagement_id,
+        filename=file.filename,
+        path=path,
+        size_bytes=len(content),
+        category=category,
+    )
+    db.add(doc)
+    e.document_count = (e.document_count or 0) + 1
+    db.commit()
+    db.refresh(doc)
+
+    return DocumentUploadResponse(
+        id=doc.id, filename=doc.filename, size_bytes=doc.size_bytes, category=doc.category
+    )
+
+
+@router.get("/{engagement_id}/summary", response_model=EngagementSummaryOut)
+def engagement_summary(engagement_id: str, db: Session = Depends(get_db)):
+    e = db.query(Engagement).get(engagement_id)
+    if not e:
+        raise HTTPException(404, "Engagement not found")
+
+    docs = db.query(Document).filter(Document.engagement_id == engagement_id).all()
+    doc_list = [
+        {
+            "id": d.id,
+            "filename": d.filename,
+            "size_bytes": d.size_bytes,
+            "category": d.category,
+        }
+        for d in docs
+    ]
+
+    # Generate preview summary and materialize QuestionCatalog on first call
+    if not e.summary:
+        e.summary = run_agent1_prep(db, engagement_id)
+        db.commit()
+
+    return EngagementSummaryOut(
+        engagement_id=e.id,
+        name=e.name,
+        document_count=e.document_count or 0,
+        documents=doc_list,
+        summary=e.summary,
+    )
+
+
+@router.post("/{engagement_id}/questions/replace")
+async def replace_questions_file(
+    engagement_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """
+    Replaces the questions file for this engagement with the uploaded DOCX.
+    Re-parses the questions into QuestionCatalog (Agent 1).
+    """
+    e = db.query(Engagement).get(engagement_id)
+    if not e:
+        raise HTTPException(404, "Engagement not found")
+
+    filename = file.filename or ""
+    if not filename.lower().endswith(".docx"):
+        raise HTTPException(400, "Only .docx files are supported for questions.")
+
+    q_dir = f"./app/storage/{engagement_id}/questions"
+    os.makedirs(q_dir, exist_ok=True)
+    target_path = os.path.join(q_dir, "Stakeholder Interview Questions.docx")
+
+    content = await file.read()
+    if len(content) < 50:  # fix '&lt;' to '<'
+        raise HTTPException(400, "Uploaded file seems empty or invalid.")
+
+    with open(target_path, "wb") as f:
+        f.write(content)
+
+    # Re-parse to refresh QuestionCatalog + preview summary
+    summary = run_agent1_prep(db, engagement_id)
+
+    return {
+        "status": "ok",
+        "message": "Questions file replaced and re-parsed successfully.",
+        "engagement_id": engagement_id,
+        "preview_summary": summary,
+    }
+
+
+@router.get("/{engagement_id}/questions/preview")
+def preview_questions(engagement_id: str, db: Session = Depends(get_db)):
+    """
+    View the parsed questions (from QuestionCatalog) in strict numeric section order,
+    then by sequence within each section. Useful for admin/debugging.
+    Returns an empty list if none exist yet (e.g. before prep or custom-only flow).
+    """
+
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found.")
+
+    items = _ordered_catalog_for_engagement(db, engagement_id)
+    return {
+        "engagement_id": engagement_id,
+        "questions": _questions_preview_rows(items),
+    }
+
+
+@router.post("/{engagement_id}/questions", response_model=dict)
+def create_question(
+    engagement_id: str,
+    payload: QuestionCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Add a custom question to the catalog for this engagement.
+    New rows sort after parsed sections; multiple custom questions share one section.
+    Returns the full ordered question list for the engagement.
+    """
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found.")
+
+    text = (payload.question_text or "").strip()
+    if not text:
+        raise HTTPException(400, "question_text is required.")
+
+    existing = _ordered_catalog_for_engagement(db, engagement_id)
+    custom_rows = [r for r in existing if r.section == CUSTOM_QUESTIONS_SECTION]
+
+    if custom_rows:
+        section_index = custom_rows[0].section_index
+        sequence_in_section = max(r.sequence_in_section for r in custom_rows) + 1
+    elif not existing:
+        section_index = 1
+        sequence_in_section = 1
+    else:
+        section_index = max(r.section_index for r in existing) + 1
+        sequence_in_section = 1
+
+    new_id = str(uuid.uuid4())
+    q = QuestionCatalog(
+        id=new_id,
+        engagement_id=engagement_id,
+        section=CUSTOM_QUESTIONS_SECTION,
+        section_index=section_index,
+        sequence_in_section=sequence_in_section,
+        question_text=text,
+    )
+    db.add(q)
+    db.commit()
+
+    items = _ordered_catalog_for_engagement(db, engagement_id)
+    return {
+        "status": "created",
+        "engagement_id": engagement_id,
+        "question": {
+            "id": q.id,
+            "section": q.section,
+            "section_index": q.section_index,
+            "question_text": q.question_text,
+            "sequence_in_section": q.sequence_in_section,
+        },
+        "questions": _questions_preview_rows(items),
+    }
+
+
+@router.get("", response_model=List[EngagementListItem])
+def list_engagements(db: Session = Depends(get_db)):
+    """
+    Returns all engagements with key metadata:
+    id, name, summary, created_at, document_count
+    Sorted by newest first.
+    """
+    rows = (
+        db.query(Engagement)
+        .order_by(Engagement.created_at.desc())
+        .all()
+    )
+
+    return [
+        EngagementListItem(
+            id=e.id,
+            name=e.name,
+            summary=e.summary,
+            created_at=e.created_at.isoformat() if e.created_at else None,
+            document_count=e.document_count or 0,
+        )
+        for e in rows
+    ]
+
+
+@router.get("/{engagement_id}/details")
+def engagement_details(engagement_id: str, db: Session = Depends(get_db)):
+    from app.services.agent3_engagement import engagement_summary_agent
+
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found")
+
+    state = engagement_summary_agent.invoke({
+        "engagement_id": engagement_id,
+        "engagement_summary": eng.summary,
+        "db": db,
+        "generated_insights": None
+    })
+
+    # Return current insights
+    insights = (
+        db.query(EngagementInsights)
+        .filter_by(engagement_id=engagement_id)
+        .first()
+    )
+
+    return {
+        "engagement_id": engagement_id,
+        "details": insights.insights_json,
+        "updated_at": insights.updated_at.isoformat()
+    }
+
+
+@router.get("/{engagement_id}/context")
+def get_engagement_context(engagement_id: str, db: Session = Depends(get_db)):
+    e = db.query(Engagement).get(engagement_id)
+    if not e:
+        raise HTTPException(404, "Engagement not found")
+
+    ctx = db.query(EngagementContext).filter(EngagementContext.engagement_id == engagement_id).first()
+    if not ctx:
+        # Optionally trigger Agent-1 here, or return 404
+        raise HTTPException(404, "Context not available. Run /summary first.")
+
+    stakeholders = db.query(Stakeholder)\
+        .filter(Stakeholder.engagement_id == engagement_id)\
+        .order_by(Stakeholder.name.asc())\
+        .all()
+
+    return {
+        "engagement_id": engagement_id,
+        "change_brief": ctx.change_brief,
+        "change_summary": ctx.change_summary_json or [],
+        "impacted_groups": ctx.impacted_groups_json or [],
+        "type_of_change": ctx.type_of_change_json or {},
+        "stakeholders": [
+            {
+                "id": s.id,
+                "name": s.name,
+                "email": s.email,
+                "role": s.role,
+                "department": s.department,
+                "engagement_level": s.engagement_level,
+                "source_document_id": s.source_document_id
+            }
+            for s in stakeholders
+        ],
+        "source_docs": ctx.source_docs or [],
+        "updated_at": ctx.updated_at.isoformat() if ctx.updated_at else None
+    }
+
+
+@router.patch("/{engagement_id}/context")
+def update_engagement_context(
+    engagement_id: str,
+    payload: UpdateContextRequest,
+    db: Session = Depends(get_db)
+):
+    ctx = db.query(EngagementContext).filter_by(engagement_id=engagement_id).first()
+    if not ctx:
+        raise HTTPException(404, "Context not found. Run /summary first.")
+
+    # ✅ Partial updates applied here
+    if payload.change_brief is not None:
+        ctx.change_brief = payload.change_brief
+
+    if payload.change_summary is not None:
+        ctx.change_summary_json = payload.change_summary
+
+    if payload.impacted_groups is not None:
+        ctx.impacted_groups_json = [g.dict() for g in payload.impacted_groups]
+
+    if payload.type_of_change is not None:
+        ctx.type_of_change_json = payload.type_of_change.dict()
+
+    if payload.stakeholders is not None:
+        db.query(Stakeholder).filter_by(engagement_id=engagement_id).delete()
+
+        for s in payload.stakeholders:
+            db.add(
+                Stakeholder(
+                    engagement_id=engagement_id,
+                    name=s.name,
+                    email=s.email,
+                    role=s.role,
+                    department=s.department,
+                    engagement_level=s.engagement_level,
+                    source_document_id=None,
+                )
+            )
+
+    ctx.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return {"status": "ok", "message": "Context updated successfully."}
+
+
+@router.patch("/{engagement_id}/questions/{question_id}", response_model=dict)
+def update_question(
+    engagement_id: str,
+    question_id: str,
+    payload: QuestionUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Update a specific question in the QuestionCatalog by ID.
+    Supports partial updates — only the fields provided will be updated.
+    """
+
+    q = (
+        db.query(QuestionCatalog)
+        .filter(
+            QuestionCatalog.id == question_id,
+            QuestionCatalog.engagement_id == engagement_id
+        )
+        .first()
+    )
+
+    if not q:
+        raise HTTPException(404, "Question not found for this engagement.")
+
+    # ✅ Apply only provided values
+    if payload.section is not None:
+        q.section = payload.section
+
+    if payload.section_index is not None:
+        q.section_index = payload.section_index
+
+    if payload.question_text is not None:
+        q.question_text = payload.question_text
+
+    if payload.sequence_in_section is not None:
+        q.sequence_in_section = payload.sequence_in_section
+
+    db.commit()
+    db.refresh(q)
+
+    items = _ordered_catalog_for_engagement(db, engagement_id)
+    return {
+        "status": "updated",
+        "question": {
+            "id": q.id,
+            "section": q.section,
+            "section_index": q.section_index,
+            "question_text": q.question_text,
+            "sequence_in_section": q.sequence_in_section,
+        },
+        "questions": _questions_preview_rows(items),
+    }
+
+
+@router.delete("/{engagement_id}/questions/{question_id}", response_model=dict)
+def delete_question(
+    engagement_id: str,
+    question_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Remove a question from the catalog for this engagement.
+    Deletes related answers and prunes the question id from any stored interview plans.
+    """
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found.")
+
+    q = (
+        db.query(QuestionCatalog)
+        .filter(
+            QuestionCatalog.id == question_id,
+            QuestionCatalog.engagement_id == engagement_id,
+        )
+        .first()
+    )
+    if not q:
+        raise HTTPException(404, "Question not found for this engagement.")
+
+    db.query(Answer).filter(
+        Answer.question_catalog_id == question_id,
+        Answer.engagement_id == engagement_id,
+    ).delete(synchronize_session=False)
+
+    _prune_question_id_from_engagement_plans(db, engagement_id, question_id)
+
+    db.delete(q)
+    db.commit()
+
+    items = _ordered_catalog_for_engagement(db, engagement_id)
+    return {
+        "status": "deleted",
+        "engagement_id": engagement_id,
+        "removed_id": question_id,
+        "questions": _questions_preview_rows(items),
+    }
+
