@@ -111,3 +111,15 @@ class StakeholderUpdatePayload(BaseModel):
     role: Optional[str] = None
     department: Optional[str] = None
     engagement_level: Optional[str] = None
+
+
+class KeyFinding(BaseModel):
+    text: str = Field(..., min_length=5, max_length=300)
+
+class InsightsOut(BaseModel):
+    engagement_id: str
+    version: str = "insight-v1"
+    summary: str  # 100-150 word summary
+    key_findings: List[KeyFinding]  # 5-8 findings
+    transcript_hash: str  # used for caching 
+

@@ -134,22 +134,17 @@ class CIATemplateRow(Base):
     validation_required = Column(Boolean, default=False)
     validation_notes = Column(Text, nullable=True)
 
+
 class EngagementInsights(Base):
     __tablename__ = "engagement_insights"
 
-    id = Column(UUID_STR, primary_key=True, default=lambda: str(uuid.uuid4()))
-    engagement_id = Column(UUID_STR, ForeignKey("engagements.id"), unique=True, nullable=False)
-
-    # The entire generated output
-    insights_json = Column(JSON, nullable=False)
-
-    # List of interview IDs used to generate the insights
-    interviews_used = Column(JSON, nullable=False)
-
-    # Optional: version number, future-proofing
-    version = Column(Integer, default=1)
-
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    engagement_id = Column(String, primary_key=True)
+    version = Column(String, default="insight-v1")
+    
+    summary = Column(Text)
+    key_findings_json = Column(Text)
+    
+    transcript_hash = Column(String)  # MD5 or SHA256 hash of completed transcripts
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     
@@ -182,3 +177,4 @@ class Stakeholder(Base):
     source_document_id = Column(UUID_STR, nullable=True)  # which uploaded doc it came from
     extra_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
