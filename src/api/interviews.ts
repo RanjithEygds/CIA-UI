@@ -49,10 +49,21 @@ export type StartInterviewRequest = {
   stakeholder_email: string;
 };
 
-export interface TranscriptResponse {
+export type TranscriptRow = {
+  question_id: string;
+  section: string;
+  question_text: string;
+  answer_text: string;
+};
+
+export interface InterviewTranscript {
   interview_id: string;
-  consent_captured: boolean;
-  transcript: string;
+  engagement_id: string;
+  engagement_name: string | null;
+  stakeholder_name: string;
+  stakeholder_email: string | null;
+  status: string; // "completed", "ended", or "in_progress"
+  transcript: TranscriptRow[];
 }
 
 export type StartInterviewResponse = {
@@ -376,7 +387,7 @@ export async function extendInterviewSession(
 
 export async function getTranscript(
   interviewId: string,
-): Promise<TranscriptResponse> {
+): Promise<InterviewTranscript> {
   const res = await fetch(
     `${API_BASE}/interviews/${encodeURIComponent(interviewId)}/transcript`,
   );
@@ -411,7 +422,6 @@ export type InterviewResponseTurn = {
 
 export type InterviewResponsesDetailOut = {
   interview_id: string;
-  engagement_id: string;
   stakeholder_name: string;
   stakeholder_email?: string | null;
   status: string;

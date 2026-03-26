@@ -1,58 +1,49 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import {
-  fetchInterviewResponsesDetail,
-  formatInterviewDuration,
-  type InterviewResponsesDetailOut,
-} from '../api/interviews';
-import { getDemoResponsesDetail } from '../data/demoStakeholderInterviews';
-import './StakeholderResponses.css';
-
-function isDemoInterviewId(id: string): boolean {
-  return id.startsWith('demo-iv-');
-}
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
+import { type InterviewResponsesDetailOut } from "../api/interviews";
+import { getTranscript, type InterviewTranscript } from "../api/interviews";
+import "./StakeholderResponses.css";
 
 function buildTranscriptExport(d: InterviewResponsesDetailOut): string {
   const lines: string[] = [];
-  lines.push('CIA — Stakeholder interview transcript');
-  lines.push('=====================================');
-  lines.push('');
+  lines.push("CIA — Stakeholder interview transcript");
+  lines.push("=====================================");
+  lines.push("");
   lines.push(`Stakeholder name: ${d.stakeholder_name}`);
   if (d.stakeholder_email) lines.push(`Email: ${d.stakeholder_email}`);
-  lines.push(`Interview date: ${d.interview_date ?? '—'}`);
+  lines.push(`Interview date: ${d.interview_date ?? "—"}`);
   lines.push(`Sentiment: ${d.sentiment}`);
-  lines.push(`Duration: ${formatInterviewDuration(d.duration_seconds ?? null)}`);
   lines.push(`Status: ${d.status}`);
-  lines.push('');
+  lines.push("");
   if (d.final_summary) {
-    lines.push('Summary');
-    lines.push('-------');
+    lines.push("Summary");
+    lines.push("-------");
     lines.push(d.final_summary);
-    lines.push('');
+    lines.push("");
   }
-  lines.push('Question-by-question transcript');
-  lines.push('---------------------------------');
+  lines.push("Question-by-question transcript");
+  lines.push("---------------------------------");
   d.questions.forEach((q, i) => {
-    lines.push('');
+    lines.push("");
     lines.push(`Q${i + 1}. ${q.question_text}`);
     if (q.timestamp_utc) lines.push(`    Timestamp: ${q.timestamp_utc}`);
     if (q.section) lines.push(`    Section: ${q.section}`);
     lines.push(`    Answer:`);
-    const answerLines = (q.answer_text || '(no response)').split('\n');
+    const answerLines = (q.answer_text || "(no response)").split("\n");
     answerLines.forEach((ln) => lines.push(`    ${ln}`));
   });
-  lines.push('');
-  lines.push('— End of transcript —');
-  return lines.join('\n');
+  lines.push("");
+  lines.push("— End of transcript —");
+  return lines.join("\n");
 }
 
 function downloadTextFile(filename: string, content: string) {
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   a.download = filename;
-  a.rel = 'noopener';
+  a.rel = "noopener";
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -60,40 +51,63 @@ function downloadTextFile(filename: string, content: string) {
 }
 
 function safeFilenamePart(s: string): string {
-  return s.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_').slice(0, 60) || 'transcript';
+  return (
+    s
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "_")
+      .slice(0, 60) || "transcript"
+  );
 }
 
 export default function StakeholderResponses() {
   const { stakeholderId } = useParams<{ stakeholderId: string }>();
   const location = useLocation();
   const returnTo =
-    (location.state as { returnTo?: string } | null)?.returnTo ?? '/all-cias';
+    (location.state as { returnTo?: string } | null)?.returnTo ?? "/all-cias";
 
-  const [detail, setDetail] = useState<InterviewResponsesDetailOut | null>(null);
+  const [detail, setDetail] = useState<InterviewResponsesDetailOut | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState('');
+  const [filter, setFilter] = useState("");
   const [openMap, setOpenMap] = useState<Record<number, boolean>>({});
 
+  /**
+   * ✅ Replace backend load logic to use getTranscript()
+   */
   const load = useCallback(async (id: string) => {
     setLoading(true);
     setError(null);
+
     try {
-      if (isDemoInterviewId(id)) {
-        const demo = getDemoResponsesDetail(id);
-        if (!demo) {
-          setDetail(null);
-          setError('Interview not found.');
-        } else {
-          setDetail(demo);
-        }
-        return;
-      }
-      const data = await fetchInterviewResponsesDetail(id);
-      setDetail(data);
-    } catch (e) {
+      // ✅ Fetch from new backend endpoint
+      const transcript: InterviewTranscript = await getTranscript(id);
+
+      // ✅ Map transcript → UI response shape
+      const mapped: InterviewResponsesDetailOut = {
+        interview_id: transcript.interview_id,
+        stakeholder_name: transcript.stakeholder_name,
+        stakeholder_email: transcript.stakeholder_email,
+        status: "completed",
+
+        sentiment: "N/A", // backend does not provide sentiment yet
+        duration_seconds: null, // backend lacks duration
+        interview_date: null, // backend does not provide timestamp
+        final_summary: null, // backend does not provide readback/summary
+
+        questions: transcript.transcript.map((row) => ({
+          question_text: row.question_text,
+          answer_text: row.answer_text,
+          timestamp_utc: null, // backend doesn't provide
+          section: row.section,
+        })),
+      };
+
+      setDetail(mapped);
+    } catch (e: any) {
       setDetail(null);
-      setError(e instanceof Error ? e.message : 'Could not load transcript.');
+      setError(e instanceof Error ? e.message : "Could not load transcript.");
     } finally {
       setLoading(false);
     }
@@ -101,7 +115,7 @@ export default function StakeholderResponses() {
 
   useEffect(() => {
     if (!stakeholderId) {
-      setError('Missing interview id.');
+      setError("Missing interview id.");
       setLoading(false);
       return;
     }
@@ -129,14 +143,17 @@ export default function StakeholderResponses() {
       .filter(
         ({ item }) =>
           item.question_text.toLowerCase().includes(q) ||
-          (item.answer_text || '').toLowerCase().includes(q),
+          (item.answer_text || "").toLowerCase().includes(q),
       );
   }, [detail, filter]);
 
   const handleExport = () => {
     if (!detail) return;
     const body = buildTranscriptExport(detail);
-    const datePart = (detail.interview_date || new Date().toISOString()).slice(0, 10);
+    const datePart = (detail.interview_date || new Date().toISOString()).slice(
+      0,
+      10,
+    );
     const name = safeFilenamePart(detail.stakeholder_name);
     downloadTextFile(`CIA_Transcript_${name}_${datePart}.txt`, body);
   };
@@ -158,7 +175,9 @@ export default function StakeholderResponses() {
         ← Back
       </Link>
 
-      {loading && <p className="stakeholder-responses-empty">Loading transcript…</p>}
+      {loading && (
+        <p className="stakeholder-responses-empty">Loading transcript…</p>
+      )}
       {!loading && error && (
         <p className="stakeholder-responses-not-found">{error}</p>
       )}
@@ -166,21 +185,9 @@ export default function StakeholderResponses() {
       {!loading && detail && (
         <>
           <div className="card stakeholder-responses-header-card">
-            <h1 className="stakeholder-responses-title">{detail.stakeholder_name}</h1>
-            <div className="stakeholder-responses-meta-row">
-              <span>
-                <strong>Sentiment:</strong> {detail.sentiment}
-              </span>
-              <span>
-                <strong>Duration:</strong> {formatInterviewDuration(detail.duration_seconds ?? null)}
-              </span>
-              <span>
-                <strong>Interview date:</strong>{' '}
-                {detail.interview_date
-                  ? new Date(detail.interview_date).toLocaleString()
-                  : '—'}
-              </span>
-            </div>
+            <h1 className="stakeholder-responses-title">
+              {detail.stakeholder_name}
+            </h1>
 
             <div className="stakeholder-responses-toolbar">
               <input
@@ -191,15 +198,23 @@ export default function StakeholderResponses() {
                 onChange={(e) => setFilter(e.target.value)}
                 aria-label="Filter questions"
               />
-              <button type="button" className="btn btn-primary" onClick={handleExport}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleExport}
+              >
                 Export transcript
               </button>
             </div>
 
             {detail.final_summary && (
-              <div style={{ marginTop: '0.85rem' }}>
-                <h2 className="stakeholder-responses-subheading">Interview summary</h2>
-                <p className="stakeholder-responses-summary">{detail.final_summary}</p>
+              <div style={{ marginTop: "0.85rem" }}>
+                <h2 className="stakeholder-responses-subheading">
+                  Interview summary
+                </h2>
+                <p className="stakeholder-responses-summary">
+                  {detail.final_summary}
+                </p>
               </div>
             )}
           </div>
@@ -208,8 +223,8 @@ export default function StakeholderResponses() {
             {filteredQuestions.length === 0 && (
               <p className="stakeholder-responses-empty">
                 {detail.questions.length === 0
-                  ? 'No responses recorded yet for this interview.'
-                  : 'No questions match your search.'}
+                  ? "No responses recorded yet for this interview."
+                  : "No questions match your search."}
               </p>
             )}
 
@@ -228,12 +243,19 @@ export default function StakeholderResponses() {
                     }
                     aria-expanded={open}
                   >
-                    <span className="stakeholder-question-chevron" aria-hidden="true">
-                      {open ? '▲' : '▼'}
+                    <span
+                      className="stakeholder-question-chevron"
+                      aria-hidden="true"
+                    >
+                      {open ? "▲" : "▼"}
                     </span>
                     <span className="stakeholder-question-heading">
-                      <div className="stakeholder-question-index">Question {index + 1}</div>
-                      <p className="stakeholder-question-text">{item.question_text}</p>
+                      <div className="stakeholder-question-index">
+                        Question {index + 1}
+                      </div>
+                      <p className="stakeholder-question-text">
+                        {item.question_text}
+                      </p>
                     </span>
                   </button>
                   {open && (
@@ -244,7 +266,7 @@ export default function StakeholderResponses() {
                         </div>
                       )}
                       <p className="stakeholder-question-answer">
-                        {item.answer_text || '—'}
+                        {item.answer_text || "—"}
                       </p>
                     </div>
                   )}
