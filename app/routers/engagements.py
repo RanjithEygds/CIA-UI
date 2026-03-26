@@ -826,3 +826,77 @@ def update_stakeholder(
             "engagement_level": stakeholder.engagement_level,
         },
     }
+
+@router.get("/{engagement_id}/transcripts", response_model=dict)
+def get_engagement_transcripts(
+    engagement_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns all COMPLETED interviews for an engagement, including
+    the full transcript (question + answer pairs).
+    """
+
+    # 1) Validate engagement
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found")
+
+    # 2) Fetch only completed/ended interviews
+    completed_interviews = (
+        db.query(Interview)
+        .filter(
+            Interview.engagement_id == engagement_id,
+            Interview.status.in_(["completed", "ended"])
+        )
+        .order_by(Interview.started_at.asc())
+        .all()
+    )
+
+    output_rows = []
+
+    # 3) Preload catalog questions for this engagement
+    catalog_map = {
+        q.id: q
+        for q in db.query(QuestionCatalog)
+        .filter(QuestionCatalog.engagement_id == engagement_id)
+        .order_by(QuestionCatalog.section_index.asc(), QuestionCatalog.sequence_in_section.asc())
+        .all()
+    }
+
+    for iv in completed_interviews:
+
+        # 4) Full transcript = list of answer-rows, not 1 big blob
+        answers = (
+            db.query(Answer)
+            .filter(Answer.interview_id == iv.id)
+            .order_by(Answer.timestamp.asc())
+            .all()
+        )
+
+        transcript_rows = []
+
+        for ans in answers:
+            qcat = catalog_map.get(ans.question_catalog_id)
+            if not qcat:
+                continue
+
+            transcript_rows.append({
+                "question_id": qcat.id,
+                "section": qcat.section,
+                "question_text": qcat.question_text,
+                "answer_text": ans.answer_text,
+            })
+
+        output_rows.append({
+            "interview_id": iv.id,
+            "stakeholder_name": iv.stakeholder_name,
+            "stakeholder_email": iv.stakeholder_email,
+            "transcript": transcript_rows
+        })
+
+    return {
+        "engagement_id": engagement_id,
+        "engagement_name": eng.name,
+        "completed_interviews": output_rows
+    }
