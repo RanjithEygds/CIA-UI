@@ -228,10 +228,15 @@
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+  padding-right: 0.25rem;
 }
 
 .interview-grid-header-row .engagement-section-title {
   margin-bottom: 0;
+}
+
+.engagement-export-transcript-btn {
+  flex-shrink: 0;
 }
 
 .interview-grid-columns-wrap {

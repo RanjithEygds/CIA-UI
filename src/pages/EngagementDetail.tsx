@@ -200,23 +200,21 @@ export default function EngagementDetail() {
           </span>
         </div>
       </div>
-      {/* ✅ Keep Transcripts ain excel */}
-      <div className="engagement-heatmap-actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handleExportTranscripts}
-        >
-          Export Transcript
-        </button>
-      </div>
-
       {/* ✅ Real stakeholder interviews grid */}
       {engagement.id && isLikelyEngagementUuid(engagement.id) && (
         <StakeholderInterviewGrid
           engagementId={engagement.id}
           useDemoData={false}
           returnPath={`/all-cias/${engagement.id}`}
+          headerAction={
+            <button
+              type="button"
+              className="btn btn-primary engagement-export-transcript-btn"
+              onClick={handleExportTranscripts}
+            >
+              Export Transcript
+            </button>
+          }
         />
       )}
 

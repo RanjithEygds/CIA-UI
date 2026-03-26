@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { type InterviewStakeholderSummaryRow } from "../api/interviews";
@@ -14,6 +14,7 @@ type Props = {
   engagementId: string;
   useDemoData: boolean;
   returnPath: string;
+  headerAction?: ReactNode;
 };
 
 function statusPillClass(label: string): string {
@@ -38,6 +39,7 @@ export default function StakeholderInterviewGrid({
   engagementId,
   useDemoData,
   returnPath,
+  headerAction,
 }: Props) {
   const [rows, setRows] = useState<InterviewStakeholderSummaryRow[]>([]);
   const [loading, setLoading] = useState(!useDemoData);
@@ -118,12 +120,15 @@ export default function StakeholderInterviewGrid({
       className="engagement-section card interview-grid-card stakeholder-interview-section"
       aria-labelledby="stakeholder-interview-grid-heading"
     >
-      <h2
-        id="stakeholder-interview-grid-heading"
-        className="engagement-section-title"
-      >
-        Stakeholder Interview Summary
-      </h2>
+      <div className="interview-grid-header-row">
+        <h2
+          id="stakeholder-interview-grid-heading"
+          className="engagement-section-title"
+        >
+          Stakeholder Interview Summary
+        </h2>
+        {headerAction}
+      </div>
       <p className="stakeholder-interview-desc">
         Track interview progress, sentiment, and responses. Expand a row for a
         quick summary or open the full transcript.
