@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.services.agent1_prep import run_agent1_prep
 from app.services.llm import llm_call, llm_stream
+from app.services.transcripts_service import get_transcript_for_interview
 from ..db import SessionLocal
 from ..models import Engagement, Interview, Transcript, Answer, QuestionCatalog, Document
 from ..schemas import InterviewStartIn, InterviewOut, InterviewFirstIn, NextQuestionOut, InterviewAnswerIn, TranscriptOut
@@ -567,16 +568,22 @@ def end_interview(interview_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "completed", "final_summary": final_summary}
 
-@router.get("/{interview_id}/transcript", response_model=TranscriptOut)
-def get_transcript(interview_id: str, db: Session = Depends(get_db)):
-    iv = db.query(Interview).get(interview_id)
-    if not iv:
-        raise HTTPException(404, "Interview not found")
-    tr = db.query(Transcript).filter(Transcript.interview_id==interview_id).first()
-    if not tr:
-        raise HTTPException(404, "Transcript not found")
-    return TranscriptOut(interview_id=interview_id, consent_captured=iv.consent_captured, transcript=tr.content)
+@router.get("/{interview_id}/transcript", response_model=dict)
+def get_single_interview_transcript(
+    interview_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Returns transcript for a SINGLE completed (or ended) interview.
+    Matches the format of engagement-level transcripts.
+    """
 
+    try:
+        return get_transcript_for_interview(db, interview_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load transcript: {str(e)}")
 
 @router.get("/{interview_id}/sections")
 def list_sections(interview_id: str, db: Session = Depends(get_db)):

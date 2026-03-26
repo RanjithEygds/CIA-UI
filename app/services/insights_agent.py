@@ -33,24 +33,24 @@ def generate_insights_with_llm(engagement_id: str, transcripts: list) -> Dict:
     transcript_text = json.dumps(transcripts, indent=2)
 
     user_prompt = f"""
-ENGAGEMENT_ID: {engagement_id}
+    ENGAGEMENT_ID: {engagement_id}
 
-TRANSCRIPTS (all completed interviews):
-{transcript_text}
+    TRANSCRIPTS (all completed interviews):
+    {transcript_text}
 
-REQUIREMENTS:
-- Summary: 100-150 words
-- Key findings: 5-8 bullet items, each 20-30 words
-Return JSON in schema:
-{{ 
-  "summary": "...", 
-  "key_findings": [{{"text": "..."}}, ...]
-}}
-"""
+    REQUIREMENTS:
+    - Summary: 100-150 words
+    - Key findings: 5-8 bullet items, each 20-30 words
+    Return JSON in schema:
+    {{ 
+    "summary": "...", 
+    "key_findings": [{{"text": "..."}}, ...]
+    }}
+    """
 
     raw = llm_call(
-        system=INSIGHTS_SYSTEM_PROMPT,
-        user=user_prompt,
+        system_prompt=INSIGHTS_SYSTEM_PROMPT,
+        user_prompt=user_prompt,
         temperature=0,
         json_mode=True
     )

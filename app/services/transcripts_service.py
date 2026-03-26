@@ -42,7 +42,7 @@ def get_transcripts_for_engagement(db: Session, engagement_id: str) -> Dict:
         answers = (
             db.query(Answer)
             .filter(Answer.interview_id == iv.id)
-            .order_by(Answer.timestamp.asc())
+            .order_by(Answer.timestamp_utc.asc())
             .all()
         )
 
@@ -69,3 +69,55 @@ def get_transcripts_for_engagement(db: Session, engagement_id: str) -> Dict:
         "engagement_name": eng.name,
         "completed_interviews": output_rows
     }
+
+def get_transcript_for_interview(db: Session, interview_id: str) -> Dict:
+    """
+    Returns the full transcript for ONE interview.
+    Format mirrors the engagement transcripts endpoint.
+    """
+
+    iv = db.query(Interview).get(interview_id)
+    if not iv:
+        raise ValueError("Interview not found")
+
+    eng = db.query(Engagement).get(iv.engagement_id)
+    if not eng:
+        raise ValueError("Engagement not found for this interview")
+
+    # Load catalog questions for this interview's engagement
+    catalog_map = {
+        q.id: q
+        for q in db.query(QuestionCatalog)
+        .filter(QuestionCatalog.engagement_id == iv.engagement_id)
+        .all()
+    }
+
+    # Load answers for this interview
+    answers = (
+        db.query(Answer)
+        .filter(Answer.interview_id == interview_id)
+        .order_by(Answer.timestamp_utc.asc())
+        .all()
+    )
+
+    transcript_rows = [
+        {
+            "question_id": catalog_map[a.question_catalog_id].id,
+            "section": catalog_map[a.question_catalog_id].section,
+            "question_text": catalog_map[a.question_catalog_id].question_text,
+            "answer_text": a.answer_text,
+        }
+        for a in answers
+        if a.question_catalog_id in catalog_map
+    ]
+
+    return {
+        "interview_id": iv.id,
+        "engagement_id": iv.engagement_id,
+        "engagement_name": eng.name,
+        "stakeholder_name": iv.stakeholder_name,
+        "stakeholder_email": iv.stakeholder_email,
+        "status": iv.status,
+        "transcript": transcript_rows,
+    }
+
