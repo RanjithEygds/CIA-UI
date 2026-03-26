@@ -7,14 +7,7 @@ import ChangeImpactHeatmap, {
 } from "./ChangeImpactHeatmap";
 import StakeholderInterviewGrid from "../components/StakeholderInterviewGrid";
 
-import {
-  getEngagementSummary,
-  getEngagementTranscripts,
-  getEngagementInsights,
-  type InterviewTranscript,
-  type EngagementTranscriptsResponse,
-  type EngagementInsightsResponse,
-} from "../api/engagements";
+import { getEngagementSummary } from "../api/engagements";
 
 import { isLikelyEngagementUuid } from "../api/interviews";
 import "./EngagementDetail.css";
@@ -30,28 +23,6 @@ export default function EngagementDetail() {
     title: string;
     summary: string;
   } | null>(null);
-
-  // Completed interviews + transcripts
-  const [transcripts, setTranscripts] = useState<InterviewTranscript[]>([]);
-
-  // Insights (summary + key findings)
-  const [insights, setInsights] = useState<EngagementInsightsResponse | null>(
-    null,
-  );
-  const [insightsError, setInsightsError] = useState<string | null>(null);
-
-  // UI States
-  const [isPublished, setIsPublished] = useState(false);
-  const [selectedStakeholderId, setSelectedStakeholderId] =
-    useState<string>("");
-
-  const selectedStakeholder =
-    transcripts.find((t) => t.interview_id === selectedStakeholderId) || null;
-
-  // On Publish
-  const handlePublish = () => {
-    setIsPublished(true);
-  };
 
   // PPT Colors for heatmap (unchanged)
   const getPptFill = (value: number) => {
@@ -128,26 +99,12 @@ export default function EngagementDetail() {
 
         // 1. Engagement details
         const eng = await getEngagementSummary(engagementId!);
-        console.log(eng);
 
         setEngagement({
           id: eng.engagement_id,
           title: eng.name ?? "Untitled Engagement",
           summary: eng.summary ?? "No summary available.",
         });
-
-        // 2. Completed interviews + transcript
-        const tx: EngagementTranscriptsResponse =
-          await getEngagementTranscripts(engagementId!);
-        setTranscripts(tx.completed_interviews);
-
-        // 3. Insights (summary + key findings)
-        const ins = await getEngagementInsights(engagementId!);
-        setInsights(ins);
-
-        if (ins.message) {
-          setInsightsError(ins.message); // "No completed interviews..." case
-        }
       } catch (err: any) {
         console.error(err);
       } finally {
@@ -191,17 +148,6 @@ export default function EngagementDetail() {
             Engagement ID: {engagement.id}
           </span>
         </div>
-
-        <div className="engagement-detail-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handlePublish}
-            disabled={isPublished}
-          >
-            {isPublished ? "Published" : "Publish"}
-          </button>
-        </div>
       </div>
 
       {/* ✅ Real stakeholder interviews grid */}
@@ -226,92 +172,6 @@ export default function EngagementDetail() {
         </button>
       </div>
       <ChangeImpactHeatmap />
-
-      {/* ✅ Post-Publish — Interview Records */}
-      {isPublished && (
-        <section
-          className="engagement-section card"
-          aria-labelledby="section-interviews-heading"
-        >
-          <h2
-            id="section-interviews-heading"
-            className="engagement-section-title"
-          >
-            Interview Records
-          </h2>
-
-          {/* Stakeholder Select */}
-          <label
-            htmlFor="interview-stakeholder-select"
-            className="interview-records-label"
-          >
-            Stakeholder
-          </label>
-          <select
-            id="interview-stakeholder-select"
-            className="interview-records-select"
-            value={selectedStakeholderId}
-            onChange={(e) => setSelectedStakeholderId(e.target.value)}
-          >
-            <option value="">Select a stakeholder</option>
-            {transcripts.map((s) => (
-              <option key={s.interview_id} value={s.interview_id}>
-                {s.stakeholder_name}
-              </option>
-            ))}
-          </select>
-
-          {selectedStakeholder && (
-            <div className="interview-records-panels">
-              {/* ✅ Full Transcript */}
-              <div className="interview-records-block">
-                <h3 className="interview-records-subtitle">
-                  Full interview transcript
-                </h3>
-                <div className="interview-records-scroll">
-                  {selectedStakeholder.transcript.map((row, idx) => (
-                    <p key={idx}>
-                      <strong>{row.question_text}</strong>
-                      <br />
-                      {row.answer_text}
-                    </p>
-                  ))}
-                </div>
-              </div>
-
-              {/* ✅ Summary / Key Findings panel */}
-              <div className="interview-records-block">
-                <h3 className="interview-records-subtitle">
-                  Read-back summary
-                </h3>
-                <div className="interview-records-scroll">
-                  {insightsError ? (
-                    <p>{insightsError}</p>
-                  ) : insights ? (
-                    <>
-                      <p>
-                        <strong>Summary:</strong>
-                        <br />
-                        {insights.summary}
-                      </p>
-                      <p>
-                        <strong>Key findings:</strong>
-                      </p>
-                      <ul>
-                        {insights.key_findings?.map((f, idx) => (
-                          <li key={idx}>{f.text}</li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
-                    "Loading insights..."
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
     </div>
   );
 }

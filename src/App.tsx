@@ -51,7 +51,7 @@ function AppRoutes() {
         <Route path="all-cias" element={<AllCIAs />} />
         <Route path="all-cias/:engagementId" element={<EngagementDetail />} />
         <Route
-          path="stakeholder/:stakeholderId/responses"
+          path="stakeholder/:stakeholderId"
           element={<StakeholderResponses />}
         />
         <Route path="impact-heatmap" element={<ChangeImpactHeatmap />} />

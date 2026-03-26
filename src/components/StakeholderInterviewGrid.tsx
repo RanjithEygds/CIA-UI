@@ -203,7 +203,7 @@ export default function StakeholderInterviewGrid({
                         className="btn-stakeholder-view"
                         to={`/stakeholder/${encodeURIComponent(
                           row.interview_id,
-                        )}/responses`}
+                        )}`}
                         state={{ returnTo: returnPath }}
                       >
                         View Response

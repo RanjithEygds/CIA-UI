@@ -1,6 +1,13 @@
+import { useEffect, useState } from "react";
 import { ResponsiveHeatMap } from "@nivo/heatmap";
 import type { ComputedCell, TooltipProps } from "@nivo/heatmap";
+import {
+  getEngagementInsights,
+  type EngagementInsightsResponse,
+} from "../api/engagements";
+
 import "./ChangeImpactHeatmap.css";
+import { useParams } from "react-router-dom";
 
 type ImpactKey = "People" | "Process" | "Technology" | "Organization";
 
@@ -15,6 +22,7 @@ export const HEATMAP_IMPACT_KEYS: ImpactKey[] = [
   "Organization",
 ];
 
+/** unchanged demo labels */
 const IMPACT_LABELS: Record<number, string> = {
   0: "No change",
   1: "Low",
@@ -22,7 +30,7 @@ const IMPACT_LABELS: Record<number, string> = {
   3: "High",
 };
 
-/** Sidebar-aligned blues: same family as nav bar `--color-secondary` (#2d3561) */
+/** unchanged demo colors */
 const SEVERITY_BLUE: Record<number, string> = {
   0: "#e8eaf3",
   1: "#b4bdd8",
@@ -30,7 +38,7 @@ const SEVERITY_BLUE: Record<number, string> = {
   3: "#2d3561",
 };
 
-/** Demo data: 0 = none, 1 = low, 2 = medium, 3 = high */
+/** Heatmap still uses demo data ⛔ Backend not ready */
 export const HEATMAP_MATRIX_DATA: HeatMapRow[] = [
   {
     function: "Claims Department",
@@ -69,20 +77,20 @@ export const HEATMAP_MATRIX_DATA: HeatMapRow[] = [
   },
 ];
 
-/** Row labels on the heatmap Y-axis (matches each row's `function`). */
 const HEATMAP_FUNCTION_AXIS_IDS = HEATMAP_MATRIX_DATA.map(
   (row) => row.function,
 );
 
+/** heatmap margin calculator — unchanged */
 function heatmapLeftMarginPx(): number {
   const maxChars = HEATMAP_FUNCTION_AXIS_IDS.reduce(
     (m, id) => Math.max(m, id.length),
     0,
   );
-  /* Room for end-anchored tick text (~7.5px/char at 12px) + padding inside SVG margin */
   return Math.min(320, Math.max(180, Math.ceil(maxChars * 7.5) + 52));
 }
 
+/** unchanged tooltip */
 function cellFill(
   cell: Omit<
     ComputedCell<{ x: string; y?: number | null }>,
@@ -101,6 +109,7 @@ function HeatMapTooltip({
   const label = IMPACT_LABELS[v] ?? "—";
   const xLabel =
     typeof cell.data.x === "string" ? cell.data.x : String(cell.data.x);
+
   return (
     <div className="cia-heatmap-tooltip">
       <div className="cia-heatmap-tooltip-title">{cell.serieId}</div>
@@ -130,19 +139,7 @@ const legendItems: { level: number; label: string }[] = [
   { level: 3, label: "High" },
 ];
 
-/** Point-wise summary aligned with heatmap narrative (demo copy). */
-const HEATMAP_KEY_FINDINGS: string[] = [
-  "The heatmap analysis indicates a moderate to high change impact, primarily driven by People and Organizational dimensions across all functions. Stakeholders broadly recognize the need for change and perceive it as necessary and beneficial, resulting in a cautiously optimistic overall sentiment.",
-  "People impact is consistently high, signaling strong awareness of role changes and a clear expectation for enablement through communication, training, and support. This reflects a sentiment of engagement rather than resistance.",
-  "Process impacts are moderate, suggesting that while workflows will evolve, the change is viewed as manageable and structured. Stakeholders expect improvement without significant disruption.",
-  "Technology impact remains low to moderate, indicating minimal anxiety around system changes. Technology is largely perceived as an enabler rather than a source of disruption.",
-  "Organizational impact is notable, particularly among Senior Leaders and core operational teams, highlighting the importance of leadership alignment, governance, and clear communication throughout the transition.",
-];
-
-/** Closing executive summary — shown in a separate callout below the bullet list. */
-const HEATMAP_FINDINGS_CLOSING_SUMMARY =
-  "The perceived sentiment across all fields is cautiously positive, with confidence in the change direction, a strong people focus, manageable process evolution, and limited technology-related concern. Successful adoption will depend on sustained leadership engagement and targeted people-centric change interventions.";
-
+/** check icon — unchanged */
 function KeyFindingCheckIcon() {
   return (
     <span className="cia-heatmap-findings-bullet" aria-hidden>
@@ -178,6 +175,35 @@ type ChangeImpactHeatmapProps = {
 export default function ChangeImpactHeatmap({
   onExportPpt,
 }: ChangeImpactHeatmapProps) {
+  const { engagementId } = useParams<{ engagementId: string }>();
+  const [insights, setInsights] = useState<EngagementInsightsResponse | null>(
+    null,
+  );
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+
+  /** ✅ Fetch insights from backend */
+  useEffect(() => {
+    if (!engagementId) return;
+
+    async function load() {
+      try {
+        const data = await getEngagementInsights(engagementId!);
+
+        if (data.message) {
+          // no completed interviews
+          setInsightsError(data.message);
+          setInsights(null);
+        } else {
+          setInsights(data);
+        }
+      } catch (err: any) {
+        setInsightsError(err.message || "Could not load insights.");
+      }
+    }
+
+    load();
+  }, [engagementId]);
+
   const transformedData = HEATMAP_MATRIX_DATA.map((row) => ({
     id: row.function,
     data: HEATMAP_IMPACT_KEYS.map((key) => ({
@@ -188,6 +214,7 @@ export default function ChangeImpactHeatmap({
 
   return (
     <div className="cia-heatmap-page">
+      {/* ✅ HEATMAP CARD — unchanged */}
       <section
         className="cia-heatmap-card card"
         aria-label="Impact heatmap chart"
@@ -215,6 +242,7 @@ export default function ChangeImpactHeatmap({
             ))}
           </ul>
         </div>
+
         {onExportPpt && (
           <div className="cia-heatmap-card-actions">
             <button
@@ -286,6 +314,7 @@ export default function ChangeImpactHeatmap({
         </div>
       </section>
 
+      {/* ✅ KEY FINDINGS SECTION — NOW USING BACKEND INSIGHTS */}
       <section
         className="cia-heatmap-findings card"
         aria-labelledby="heatmap-key-findings-heading"
@@ -296,13 +325,19 @@ export default function ChangeImpactHeatmap({
         >
           Summary of key findings
         </h2>
+
         <ul className="cia-heatmap-findings-list">
-          {HEATMAP_KEY_FINDINGS.map((text, index) => (
-            <li key={index} className="cia-heatmap-findings-item">
-              <KeyFindingCheckIcon />
-              <p className="cia-heatmap-findings-text">{text}</p>
-            </li>
-          ))}
+          {insightsError && (
+            <p className="cia-heatmap-findings-summary-text">{insightsError}</p>
+          )}
+
+          {!insightsError &&
+            insights?.key_findings?.map((item, index) => (
+              <li key={index} className="cia-heatmap-findings-item">
+                <KeyFindingCheckIcon />
+                <p className="cia-heatmap-findings-text">{item.text}</p>
+              </li>
+            ))}
         </ul>
 
         <div
@@ -311,8 +346,11 @@ export default function ChangeImpactHeatmap({
           aria-label="Closing summary"
         >
           <p className="cia-heatmap-findings-summary-kicker">In summary</p>
+
           <p className="cia-heatmap-findings-summary-text">
-            {HEATMAP_FINDINGS_CLOSING_SUMMARY}
+            {insightsError
+              ? "No insights available."
+              : (insights?.summary ?? "")}
           </p>
         </div>
       </section>
