@@ -8,6 +8,29 @@ from app.services.llm import llm_call
 from app.services.transcripts_service import get_transcripts_for_engagement
 
 
+import re
+
+def repair_json(output: str) -> str:
+    """
+    Attempts to fix common LLM truncation issues:
+    - missing closing brackets
+    - dangling quotes
+    - code fences
+    - trailing garbage
+    """
+
+    # Remove markdown fences
+    output = re.sub(r"```json|```", "", output).strip()
+
+    # If JSON array starts but does not end, add closing bracket
+    if output.startswith("[") and not output.rstrip().endswith("]"):
+        # Try to remove trailing incomplete characters
+        output = re.sub(r'["}]*$', "", output).rstrip()
+        output += "]"
+
+    return output
+
+
 def hash_transcripts(transcripts: list) -> str:
     payload = json.dumps(transcripts, sort_keys=True)
     return hashlib.md5(payload.encode("utf-8")).hexdigest()
@@ -92,6 +115,16 @@ Infer impact logically:
 • Approval changes → affects Support + Leadership  
 • Change sentiment → affects Managers + Champions  
 
+============================================================
+IMPORTANT — NON‑NEGOTIABLE OUTPUT RULE:
+============================================================
+1. You MUST return a JSON ARRAY whose length is EXACTLY equal to the number of impacted groups provided.
+2. For each impacted group, you MUST produce one JSON object.
+3. If you return a single object, that is INVALID.
+4. If you skip or merge groups, that is INVALID.
+5. You MUST output one object PER impacted group, in the same order as presented.
+
+
 Assign 0 ONLY if there is truly no reasonable connection.
 
 Return ONLY the JSON output.
@@ -99,16 +132,15 @@ Return ONLY the JSON output.
 
 def generate_heatmap_with_llm(groups, transcripts):
     system = HEATMAP_SYSTEM_PROMPT
-
+    
     user = f"""
     IMPACTED_GROUPS (ALL must appear in the output exactly as listed):
-    {json.dumps(groups, indent=2)}
+    {json.dumps(groups, indent=4)}
 
     TRANSCRIPTS (Use these to infer impact levels):
-    {json.dumps(transcripts, indent=2)}
+    {json.dumps(transcripts, indent=4)}
 
-    You MUST return EXACTLY {len(groups)} objects in the JSON array — one per group.
-    Never return a single object. Never omit any group.
+    You MUST return objects in the JSON array for EXACTLY all the groups["name"]
 
     YOUR TASK:
     Using the provided impacted groups and transcripts, generate a Change Impact Heatmap.
@@ -134,31 +166,26 @@ def generate_heatmap_with_llm(groups, transcripts):
     OUTPUT FORMAT (STRICT):
     [
         {{
-            "function": "Group A",
-            "People": 0,
-            "Process": 0,
-            "Technology": 0,
-            "Organization": 0
+            "function": "<name of impacted group>",
+            "People": <0-3>,
+            "Process": <0-3>,
+            "Technology": <0-3>,
+            "Organization": <0-3>
         }},
-        {{
-            "function": "Group B",
-            "People": 0,
-            "Process": 0,
-            "Technology": 0,
-            "Organization": 0
-        }}
+        ...
     ]
+    Return ONLY valid JSON.
     """
     
     raw = llm_call(
         system_prompt=system,
         user_prompt=user,
-        json_mode=True,
-        temperature=0,
+        json_mode=False,
+        temperature=0
     )
-
+    print(raw)
     try:
-        return json.loads(raw)
+        return json.loads(repair_json(raw))
     except Exception as e:
         raise RuntimeError(f"LLM returned invalid JSON: {raw[:500]}")
     
