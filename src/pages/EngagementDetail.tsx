@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import PptxGenJS from "pptxgenjs";
+import * as XLSX from "xlsx";
+import { getEngagementTranscripts } from "../api/engagements";
 import ChangeImpactHeatmap, {
   HEATMAP_IMPACT_KEYS,
   HEATMAP_MATRIX_DATA,
@@ -11,6 +13,15 @@ import { getEngagementSummary } from "../api/engagements";
 
 import { isLikelyEngagementUuid } from "../api/interviews";
 import "./EngagementDetail.css";
+
+type TranscriptExportRow = {
+  InterviewID: string;
+  StakeholderName: string;
+  StakeholderEmail: string;
+  Section: string;
+  Question: string;
+  Answer: string;
+};
 
 export default function EngagementDetail() {
   const { engagementId } = useParams<{ engagementId: string }>();
@@ -134,6 +145,46 @@ export default function EngagementDetail() {
     );
   }
 
+  const handleExportTranscripts = async () => {
+    if (!engagementId) return;
+
+    try {
+      const data = await getEngagementTranscripts(engagementId);
+
+      const rows: TranscriptExportRow[] = [];
+
+      data.completed_interviews.forEach((iv) => {
+        iv.transcript.forEach((t) => {
+          rows.push({
+            InterviewID: iv.interview_id,
+            StakeholderName: iv.stakeholder_name,
+            StakeholderEmail: iv.stakeholder_email ?? "",
+            Section: t.section,
+            Question: t.question_text,
+            Answer: t.answer_text,
+          });
+        });
+      });
+
+      if (rows.length === 0) {
+        alert("No completed interviews. Nothing to export.");
+        return;
+      }
+
+      // Create worksheet + workbook
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Transcripts");
+
+      const filename = `CIA_Transcripts_${engagement?.title || "Engagement"}.xlsx`;
+
+      XLSX.writeFile(workbook, filename);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to export transcripts.");
+    }
+  };
+
   return (
     <div className="engagement-detail-page">
       <Link to="/all-cias" className="engagement-detail-back">
@@ -148,6 +199,16 @@ export default function EngagementDetail() {
             Engagement ID: {engagement.id}
           </span>
         </div>
+      </div>
+      {/* ✅ Keep Transcripts ain excel */}
+      <div className="engagement-heatmap-actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={handleExportTranscripts}
+        >
+          Export Transcript
+        </button>
       </div>
 
       {/* ✅ Real stakeholder interviews grid */}

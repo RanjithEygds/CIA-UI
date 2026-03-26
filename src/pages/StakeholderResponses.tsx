@@ -3,52 +3,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { type InterviewResponsesDetailOut } from "../api/interviews";
 import { getTranscript, type InterviewTranscript } from "../api/interviews";
 import "./StakeholderResponses.css";
-
-function buildTranscriptExport(d: InterviewResponsesDetailOut): string {
-  const lines: string[] = [];
-  lines.push("CIA — Stakeholder interview transcript");
-  lines.push("=====================================");
-  lines.push("");
-  lines.push(`Stakeholder name: ${d.stakeholder_name}`);
-  if (d.stakeholder_email) lines.push(`Email: ${d.stakeholder_email}`);
-  lines.push(`Interview date: ${d.interview_date ?? "—"}`);
-  lines.push(`Sentiment: ${d.sentiment}`);
-  lines.push(`Status: ${d.status}`);
-  lines.push("");
-  if (d.final_summary) {
-    lines.push("Summary");
-    lines.push("-------");
-    lines.push(d.final_summary);
-    lines.push("");
-  }
-  lines.push("Question-by-question transcript");
-  lines.push("---------------------------------");
-  d.questions.forEach((q, i) => {
-    lines.push("");
-    lines.push(`Q${i + 1}. ${q.question_text}`);
-    if (q.timestamp_utc) lines.push(`    Timestamp: ${q.timestamp_utc}`);
-    if (q.section) lines.push(`    Section: ${q.section}`);
-    lines.push(`    Answer:`);
-    const answerLines = (q.answer_text || "(no response)").split("\n");
-    answerLines.forEach((ln) => lines.push(`    ${ln}`));
-  });
-  lines.push("");
-  lines.push("— End of transcript —");
-  return lines.join("\n");
-}
-
-function downloadTextFile(filename: string, content: string) {
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.rel = "noopener";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+import * as XLSX from "xlsx";
 
 function safeFilenamePart(s: string): string {
   return (
@@ -149,13 +104,34 @@ export default function StakeholderResponses() {
 
   const handleExport = () => {
     if (!detail) return;
-    const body = buildTranscriptExport(detail);
+
+    // 1. Build rows for Excel
+    const rows = detail.questions.map((q, index) => ({
+      InterviewID: detail.interview_id,
+      StakeholderName: detail.stakeholder_name,
+      StakeholderEmail: detail.stakeholder_email ?? "",
+      QuestionNumber: index + 1,
+      Section: q.section ?? "",
+      Question: q.question_text,
+      Answer: q.answer_text ?? "",
+    }));
+
+    // 2. Create workbook + worksheet
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Transcript");
+
+    // 3. Export filename
     const datePart = (detail.interview_date || new Date().toISOString()).slice(
       0,
       10,
     );
     const name = safeFilenamePart(detail.stakeholder_name);
-    downloadTextFile(`CIA_Transcript_${name}_${datePart}.txt`, body);
+
+    const filename = `CIA_Transcript_${name}_${datePart}.xlsx`;
+
+    // 4. Write file
+    XLSX.writeFile(workbook, filename);
   };
 
   if (!stakeholderId) {
