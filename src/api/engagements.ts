@@ -173,6 +173,20 @@ export type EngagementInsightsResponse = {
   message?: string; // appears when no completed interviews
 };
 
+export type HeatmapRow = {
+  function: string;
+  People: number;
+  Process: number;
+  Technology: number;
+  Organization: number;
+};
+
+export type EngagementHeatmapResponse = {
+  engagement_id: string;
+  heatmap: HeatmapRow[];
+  cached: boolean;
+};
+
 /** Throw on non-2xx with readable message */
 async function okOrThrow(res: Response) {
   if (!res.ok) {
@@ -597,6 +611,18 @@ export async function getEngagementInsights(
   const res = await okOrThrow(
     await fetch(
       `${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/insights`,
+    ),
+  );
+
+  return res.json();
+}
+
+export async function getEngagementHeatmap(
+  engagementId: string,
+): Promise<EngagementHeatmapResponse> {
+  const res = await okOrThrow(
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/heatmap`,
     ),
   );
 

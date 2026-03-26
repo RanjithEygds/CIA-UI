@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import PptxGenJS from "pptxgenjs";
 import * as XLSX from "xlsx";
-import { getEngagementTranscripts } from "../api/engagements";
+import {
+  getEngagementHeatmap,
+  getEngagementTranscripts,
+  type HeatmapRow,
+} from "../api/engagements";
 import ChangeImpactHeatmap, {
   HEATMAP_IMPACT_KEYS,
-  HEATMAP_MATRIX_DATA,
 } from "./ChangeImpactHeatmap";
 import StakeholderInterviewGrid from "../components/StakeholderInterviewGrid";
 
@@ -27,6 +30,7 @@ export default function EngagementDetail() {
   const { engagementId } = useParams<{ engagementId: string }>();
 
   const [loading, setLoading] = useState(true);
+  const [heatmap, setHeatmap] = useState<HeatmapRow[] | null>(null);
 
   // Engagement details
   const [engagement, setEngagement] = useState<{
@@ -53,7 +57,7 @@ export default function EngagementDetail() {
 
   // Export Heatmap to PPT (unchanged)
   const exportHeatmapPPT = (
-    matrixData: typeof HEATMAP_MATRIX_DATA,
+    matrixData: HeatmapRow[],
     impactKeys: typeof HEATMAP_IMPACT_KEYS,
   ) => {
     const pptx = new PptxGenJS();
@@ -123,6 +127,17 @@ export default function EngagementDetail() {
       }
     }
 
+    async function loadHeatmap() {
+      try {
+        const resp = await getEngagementHeatmap(engagementId!);
+        setHeatmap(resp.heatmap);
+      } catch (err: any) {
+        console.error("Heatmap error", err);
+        console.log("Failed to load heatmap.");
+      }
+    }
+
+    loadHeatmap();
     load();
   }, [engagementId]);
 
@@ -219,11 +234,18 @@ export default function EngagementDetail() {
       )}
 
       {/* ✅ Keep heatmap dummy data unchanged */}
-      <ChangeImpactHeatmap
-        onExportPpt={() =>
-          exportHeatmapPPT(HEATMAP_MATRIX_DATA, HEATMAP_IMPACT_KEYS)
-        }
-      />
+      <div className="engagement-heatmap-actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => {
+            if (heatmap) exportHeatmapPPT(heatmap, HEATMAP_IMPACT_KEYS);
+          }}
+        >
+          Export Heatmap to PPT
+        </button>
+      </div>
+      <ChangeImpactHeatmap />
     </div>
   );
 }

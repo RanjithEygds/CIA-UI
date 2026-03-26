@@ -3,17 +3,15 @@ import { ResponsiveHeatMap } from "@nivo/heatmap";
 import type { ComputedCell, TooltipProps } from "@nivo/heatmap";
 import {
   getEngagementInsights,
+  getEngagementHeatmap,
   type EngagementInsightsResponse,
+  type HeatmapRow,
 } from "../api/engagements";
 
 import "./ChangeImpactHeatmap.css";
 import { useParams } from "react-router-dom";
 
 type ImpactKey = "People" | "Process" | "Technology" | "Organization";
-
-type HeatMapRow = {
-  function: string;
-} & Record<ImpactKey, number>;
 
 export const HEATMAP_IMPACT_KEYS: ImpactKey[] = [
   "People",
@@ -37,58 +35,6 @@ const SEVERITY_BLUE: Record<number, string> = {
   2: "#6f7c9e",
   3: "#2d3561",
 };
-
-/** Heatmap still uses demo data ⛔ Backend not ready */
-export const HEATMAP_MATRIX_DATA: HeatMapRow[] = [
-  {
-    function: "Claims Department",
-    People: 3,
-    Process: 3,
-    Technology: 2,
-    Organization: 2,
-  },
-  {
-    function: "Underwriting Team",
-    People: 2,
-    Process: 3,
-    Technology: 3,
-    Organization: 2,
-  },
-  {
-    function: "Policy Servicing",
-    People: 3,
-    Process: 2,
-    Technology: 2,
-    Organization: 3,
-  },
-  {
-    function: "Support Functions",
-    People: 2,
-    Process: 2,
-    Technology: 1,
-    Organization: 3,
-  },
-  {
-    function: "Senior Leaders",
-    People: 3,
-    Process: 2,
-    Technology: 1,
-    Organization: 3,
-  },
-];
-
-const HEATMAP_FUNCTION_AXIS_IDS = HEATMAP_MATRIX_DATA.map(
-  (row) => row.function,
-);
-
-/** heatmap margin calculator — unchanged */
-function heatmapLeftMarginPx(): number {
-  const maxChars = HEATMAP_FUNCTION_AXIS_IDS.reduce(
-    (m, id) => Math.max(m, id.length),
-    0,
-  );
-  return Math.min(320, Math.max(180, Math.ceil(maxChars * 7.5) + 52));
-}
 
 /** unchanged tooltip */
 function cellFill(
@@ -181,6 +127,23 @@ export default function ChangeImpactHeatmap({
   );
   const [insightsError, setInsightsError] = useState<string | null>(null);
 
+  const [heatmap, setHeatmap] = useState<HeatmapRow[] | null>(null);
+
+  useEffect(() => {
+    if (!engagementId) return;
+
+    async function loadHeatmap() {
+      try {
+        const resp = await getEngagementHeatmap(engagementId!);
+        setHeatmap(resp.heatmap);
+      } catch (err: any) {
+        console.log(err.message ?? "Failed to load heatmap.");
+      }
+    }
+
+    loadHeatmap();
+  }, [engagementId]);
+
   /** ✅ Fetch insights from backend */
   useEffect(() => {
     if (!engagementId) return;
@@ -204,13 +167,24 @@ export default function ChangeImpactHeatmap({
     load();
   }, [engagementId]);
 
-  const transformedData = HEATMAP_MATRIX_DATA.map((row) => ({
-    id: row.function,
-    data: HEATMAP_IMPACT_KEYS.map((key) => ({
-      x: key,
-      y: row[key],
-    })),
-  }));
+  const transformedData =
+    heatmap?.map((row) => ({
+      id: row.function,
+      data: HEATMAP_IMPACT_KEYS.map((key) => ({
+        x: key,
+        y: row[key],
+      })),
+    })) ?? [];
+
+  const functionAxisIds = heatmap?.map((row) => row.function) ?? [];
+
+  function heatmapLeftMarginPx() {
+    const maxChars = functionAxisIds.reduce(
+      (m, id) => Math.max(m, id.length),
+      0,
+    );
+    return Math.min(320, Math.max(180, Math.ceil(maxChars * 7.5) + 52));
+  }
 
   return (
     <div className="cia-heatmap-page">
@@ -272,7 +246,7 @@ export default function ChangeImpactHeatmap({
             axisLeft={{
               tickSize: 0,
               tickPadding: 14,
-              tickValues: HEATMAP_FUNCTION_AXIS_IDS,
+              tickValues: functionAxisIds,
             }}
             theme={{
               background: "transparent",
