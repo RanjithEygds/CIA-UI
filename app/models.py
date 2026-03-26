@@ -178,3 +178,13 @@ class Stakeholder(Base):
     extra_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
+
+class EngagementHeatmap(Base):
+    __tablename__ = "engagement_heatmap"
+
+    engagement_id = Column(String, primary_key=True)
+    data_json = Column(Text)      # full heatmap matrix in JSON
+    transcript_hash = Column(String)   # detect changes
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+

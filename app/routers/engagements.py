@@ -7,6 +7,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, B
 from sqlalchemy.orm import Session
 
 from app.services.agent2_interview import initialize_interview_plan
+from app.services.heatmap_service import get_engagement_heatmap
 from app.services.insights_agent import get_engagement_insights
 from app.services.transcripts_service import get_transcripts_for_engagement
 from ..db import SessionLocal
@@ -854,4 +855,15 @@ def get_engagement_insights_endpoint(
     Uses caching to avoid re-running LLM if nothing changed.
     """
     return get_engagement_insights(db, engagement_id)
+
+
+@router.get("/{engagement_id}/heatmap", response_model=dict)
+def get_heatmap_endpoint(engagement_id: str, db: Session = Depends(get_db)):
+    try:
+        return get_engagement_heatmap(db, engagement_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Failed to generate heatmap: {str(e)}")
+
 
