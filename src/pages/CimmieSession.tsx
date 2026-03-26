@@ -300,6 +300,7 @@ const SESSION_MINUTES = 30;
 const INTERVIEW_MODE_KEY = "cimmie-interview-mode";
 const ACTIVE_STAKEHOLDER_KEY = "ciassist_active_stakeholder_id";
 const COMPLETED_STAKEHOLDERS_KEY = "ciassist_completed_stakeholders";
+const INTERVIEW_EXTENSIONS_KEY = "ciassist_interview_extensions";
 const SILENCE_TIMEOUT_MS = 7000;
 const VOICE_PANEL_SILENCE_TIMEOUT_MS = 2500;
 const MIC_TOGGLE_DEBOUNCE_MS = 400;
@@ -328,6 +329,20 @@ function formatRemaining(seconds: number) {
   return `${mins}:${secs}`;
 }
 
+function getInterviewExtensionMinutes(interviewId: string | undefined): number {
+  if (!interviewId) return 0;
+  try {
+    const raw = localStorage.getItem(INTERVIEW_EXTENSIONS_KEY);
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw) as Record<string, number>;
+    const v = parsed[interviewId];
+    if (typeof v !== "number" || Number.isNaN(v)) return 0;
+    return Math.max(0, Math.floor(v));
+  } catch {
+    return 0;
+  }
+}
+
 export default function CimmieSession() {
   const navigate = useNavigate();
   const [sections, setSections] = useState<InterviewSectionRow[]>([]);
@@ -337,6 +352,7 @@ export default function CimmieSession() {
   const [remainingSeconds, setRemainingSeconds] = useState(
     SESSION_MINUTES * 60,
   );
+  const [sessionMinutes, setSessionMinutes] = useState(SESSION_MINUTES);
   const [timeBannerDismissed, setTimeBannerDismissed] = useState(false);
   const [interviewMode, setInterviewMode] = useState<InterviewMode>(() =>
     getStoredInterviewMode(),
@@ -357,6 +373,7 @@ export default function CimmieSession() {
   const [error, setError] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] =
     useState<NextQuestionResponse | null>(null);
+  const appliedExtensionMinutesRef = useRef(0);
   const hasEndedRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -1419,8 +1436,12 @@ export default function CimmieSession() {
           ]);
         }
 
-        // (4) start timer
-        setRemainingSeconds(SESSION_MINUTES * 60);
+        // (4) start timer (base 30 mins + accumulated facilitator extensions)
+        const extensionMinutes = getInterviewExtensionMinutes(interviewId);
+        const totalSessionMinutes = SESSION_MINUTES + extensionMinutes;
+        appliedExtensionMinutesRef.current = extensionMinutes;
+        setSessionMinutes(totalSessionMinutes);
+        setRemainingSeconds(totalSessionMinutes * 60);
       } catch (e: any) {
         console.error(e);
         setError(
@@ -1449,6 +1470,22 @@ export default function CimmieSession() {
     closeAndFinalizeBotStreams,
     waitVoiceTypewriter,
   ]);
+
+  useEffect(() => {
+    if (!interviewId) return;
+    const syncExtension = () => {
+      const nextExtensionMinutes = getInterviewExtensionMinutes(interviewId);
+      const prevExtensionMinutes = appliedExtensionMinutesRef.current;
+      if (nextExtensionMinutes <= prevExtensionMinutes) return;
+      const deltaMinutes = nextExtensionMinutes - prevExtensionMinutes;
+      appliedExtensionMinutesRef.current = nextExtensionMinutes;
+      setSessionMinutes(SESSION_MINUTES + nextExtensionMinutes);
+      setRemainingSeconds((prev) => prev + deltaMinutes * 60);
+    };
+
+    const timer = window.setInterval(syncExtension, 2000);
+    return () => window.clearInterval(timer);
+  }, [interviewId]);
 
   useEffect(() => {
     if (sessionExpired && !hasEndedRef.current && interviewId && !completed) {
@@ -1778,7 +1815,7 @@ export default function CimmieSession() {
         <section className="session-time-banner card" role="status">
           <p className="session-time-banner-text">
             This session is time-bound. The link will expire in{" "}
-            {SESSION_MINUTES} minutes.
+            {sessionMinutes} minutes.
           </p>
           <button
             type="button"

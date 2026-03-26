@@ -124,6 +124,11 @@
 
 .stakeholder-table th:nth-child(7),
 .stakeholder-table td:nth-child(7) {
+  width: 10%;
+}
+
+.stakeholder-table th:nth-child(8),
+.stakeholder-table td:nth-child(8) {
   width: 15%;
 }
 
@@ -143,12 +148,14 @@
 /* Extend Session column only: disabled grey / no hover; enabled matches Initiate Session (.btn-primary.compact) */
 .stakeholder-table .launch-extend-session-btn.btn-primary.compact:disabled,
 .stakeholder-table .launch-extend-session-btn.btn-primary.compact[disabled] {
-  opacity: 1;
-  cursor: not-allowed;
-  background: linear-gradient(135deg, #5f6b78 0%, #3d4653 100%);
+  opacity: 0.62;
+  cursor: default;
+  background: #8b95a1;
   color: #fff;
   box-shadow: none;
-  filter: grayscale(0.12);
+  filter: none;
+  transform: none;
+  pointer-events: none;
 }
 
 .stakeholder-table .launch-extend-session-btn.btn-primary.compact:disabled:hover,
@@ -157,10 +164,11 @@
 .stakeholder-table .launch-extend-session-btn.btn-primary.compact[disabled]:focus,
 .stakeholder-table .launch-extend-session-btn.btn-primary.compact:disabled:active,
 .stakeholder-table .launch-extend-session-btn.btn-primary.compact[disabled]:active {
-  background: linear-gradient(135deg, #5f6b78 0%, #3d4653 100%);
+  background: #8b95a1;
   color: #fff;
   box-shadow: none;
-  filter: grayscale(0.12);
+  filter: none;
+  transform: none;
 }
 
 /* Copy feedback: soft teal/green highlight only; no size/typography/layout changes */

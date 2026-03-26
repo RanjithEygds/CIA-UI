@@ -6,9 +6,13 @@ import {
   getStakeholders,
   type StakeholderWithInterview,
 } from "../api/engagements";
+import { extendInterviewSession } from "../api/interviews";
 
 const COPY_FEEDBACK_MS = 2500;
 const TOAST_DURATION_MS = 2500;
+const EXTEND_MINUTES = 15;
+const ACTIVE_STAKEHOLDER_KEY = "ciassist_active_stakeholder_id";
+const INTERVIEW_EXTENSIONS_KEY = "ciassist_interview_extensions";
 
 function statusClass(status?: string | null) {
   if (!status) return "status-queued";
@@ -23,6 +27,12 @@ export default function LaunchInterview() {
     [],
   );
   const [loading, setLoading] = useState(true);
+  const [initiatedStakeholderIds, setInitiatedStakeholderIds] = useState<
+    Set<string>
+  >(new Set());
+  const [extendingInterviewIds, setExtendingInterviewIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showCopyToast, setShowCopyToast] = useState(false);
@@ -63,7 +73,41 @@ export default function LaunchInterview() {
       alert("No interview session found for this stakeholder.");
       return;
     }
+    setInitiatedStakeholderIds(
+      (prev) => new Set([...prev, stakeholder.stakeholder_id]),
+    );
+    sessionStorage.setItem(ACTIVE_STAKEHOLDER_KEY, stakeholder.stakeholder_id);
     navigate(`/cimmie/${stakeholder.interview_id}`);
+  }
+
+  async function handleExtendSession(stakeholder: StakeholderWithInterview) {
+    const interviewId = stakeholder.interview_id;
+    if (!interviewId) return;
+
+    const hasInitiated = initiatedStakeholderIds.has(stakeholder.stakeholder_id);
+    if (!hasInitiated) return;
+
+    setExtendingInterviewIds((prev) => new Set([...prev, interviewId]));
+    try {
+      const res = await extendInterviewSession({
+        stakeholder_name: stakeholder.name,
+        stakeholder_email: stakeholder.email ?? undefined,
+        extend_minutes: EXTEND_MINUTES,
+      });
+
+      const raw = localStorage.getItem(INTERVIEW_EXTENSIONS_KEY);
+      const parsed: Record<string, number> = raw ? JSON.parse(raw) : {};
+      parsed[res.interview_id] = res.total_extended_minutes;
+      localStorage.setItem(INTERVIEW_EXTENSIONS_KEY, JSON.stringify(parsed));
+    } catch (err: any) {
+      alert(err?.message || "Failed to extend session.");
+    } finally {
+      setExtendingInterviewIds((prev) => {
+        const next = new Set(prev);
+        next.delete(interviewId);
+        return next;
+      });
+    }
   }
 
   return (
@@ -98,6 +142,7 @@ export default function LaunchInterview() {
                 <th>Status</th>
                 <th>Link</th>
                 <th>Action</th>
+                <th>Extend Session</th>
               </tr>
             </thead>
 
@@ -137,6 +182,27 @@ export default function LaunchInterview() {
                       onClick={() => initiateSession(s)}
                     >
                       Initiate Session
+                    </button>
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-primary compact launch-extend-session-btn"
+                      type="button"
+                      disabled={
+                        !s.interview_id ||
+                        !initiatedStakeholderIds.has(s.stakeholder_id) ||
+                        extendingInterviewIds.has(s.interview_id)
+                      }
+                      aria-disabled={
+                        !s.interview_id ||
+                        !initiatedStakeholderIds.has(s.stakeholder_id) ||
+                        extendingInterviewIds.has(s.interview_id)
+                      }
+                      onClick={() => handleExtendSession(s)}
+                    >
+                      {extendingInterviewIds.has(s.interview_id ?? "")
+                        ? "Extending..."
+                        : "Extend Session"}
                     </button>
                   </td>
                 </tr>
