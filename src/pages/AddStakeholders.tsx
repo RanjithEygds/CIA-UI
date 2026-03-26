@@ -89,9 +89,68 @@ export default function AddStakeholders() {
 
     async function load() {
       setLoading(true);
+      // #region agent log
+      fetch("http://127.0.0.1:7682/ingest/8ba09ee8-e6ce-4a0c-9148-b5f60e18c850", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "41fa82",
+        },
+        body: JSON.stringify({
+          sessionId: "41fa82",
+          runId: "initial",
+          hypothesisId: "H1",
+          location: "AddStakeholders.tsx:93",
+          message: "Loading stakeholders started",
+          data: { hasEngagementId: Boolean(engagementId), engagementId },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       try {
         const data = await getStakeholders(engagementId!);
+        // #region agent log
+        fetch("http://127.0.0.1:7682/ingest/8ba09ee8-e6ce-4a0c-9148-b5f60e18c850", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "41fa82",
+          },
+          body: JSON.stringify({
+            sessionId: "41fa82",
+            runId: "initial",
+            hypothesisId: "H1",
+            location: "AddStakeholders.tsx:106",
+            message: "Loading stakeholders success",
+            data: { stakeholderCount: data?.stakeholders?.length ?? null },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
         setStakeholders(data.stakeholders);
+      } catch (err: any) {
+        // #region agent log
+        fetch("http://127.0.0.1:7682/ingest/8ba09ee8-e6ce-4a0c-9148-b5f60e18c850", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "41fa82",
+          },
+          body: JSON.stringify({
+            sessionId: "41fa82",
+            runId: "initial",
+            hypothesisId: "H2",
+            location: "AddStakeholders.tsx:118",
+            message: "Loading stakeholders failed",
+            data: {
+              errorMessage: err?.message ?? null,
+              errorName: err?.name ?? null,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        throw err;
       } finally {
         setLoading(false);
       }
@@ -109,6 +168,27 @@ export default function AddStakeholders() {
   // ✅ CREATE stakeholder
   const handleAdd = async () => {
     if (!engagementId || !canAdd) return;
+    // #region agent log
+    fetch("http://127.0.0.1:7682/ingest/8ba09ee8-e6ce-4a0c-9148-b5f60e18c850", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "41fa82",
+      },
+      body: JSON.stringify({
+        sessionId: "41fa82",
+        runId: "initial",
+        hypothesisId: "H3",
+        location: "AddStakeholders.tsx:142",
+        message: "Create stakeholder requested",
+        data: {
+          hasName: Boolean(name.trim()),
+          emailLooksValid: EMAIL_REGEX.test(email.trim()),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
 
     try {
       await createStakeholderAndInterview(engagementId, {
@@ -125,6 +205,27 @@ export default function AddStakeholders() {
       setDept("");
       setTouched(false);
     } catch (err: any) {
+      // #region agent log
+      fetch("http://127.0.0.1:7682/ingest/8ba09ee8-e6ce-4a0c-9148-b5f60e18c850", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "41fa82",
+        },
+        body: JSON.stringify({
+          sessionId: "41fa82",
+          runId: "initial",
+          hypothesisId: "H3",
+          location: "AddStakeholders.tsx:167",
+          message: "Create stakeholder failed",
+          data: {
+            errorMessage: err?.message ?? null,
+            errorName: err?.name ?? null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       alert(err.message);
     }
   };
@@ -141,6 +242,28 @@ export default function AddStakeholders() {
       await deleteStakeholder(engagementId, id);
       await refreshList();
     } catch (err: any) {
+      // #region agent log
+      fetch("http://127.0.0.1:7682/ingest/8ba09ee8-e6ce-4a0c-9148-b5f60e18c850", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "41fa82",
+        },
+        body: JSON.stringify({
+          sessionId: "41fa82",
+          runId: "initial",
+          hypothesisId: "H4",
+          location: "AddStakeholders.tsx:200",
+          message: "Delete stakeholder failed",
+          data: {
+            stakeholderId: id,
+            errorMessage: err?.message ?? null,
+            errorName: err?.name ?? null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       alert(err.message);
     }
   };
@@ -185,6 +308,28 @@ export default function AddStakeholders() {
       await refreshList();
       setEditingId(null);
     } catch (err: any) {
+      // #region agent log
+      fetch("http://127.0.0.1:7682/ingest/8ba09ee8-e6ce-4a0c-9148-b5f60e18c850", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "41fa82",
+        },
+        body: JSON.stringify({
+          sessionId: "41fa82",
+          runId: "initial",
+          hypothesisId: "H5",
+          location: "AddStakeholders.tsx:270",
+          message: "Update stakeholder failed",
+          data: {
+            stakeholderId: id,
+            errorMessage: err?.message ?? null,
+            errorName: err?.name ?? null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       alert(err.message);
     }
   };

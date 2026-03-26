@@ -408,10 +408,6 @@ export default function CimmieSession() {
   const [voiceDisplayedBotId, setVoiceDisplayedBotId] = useState<string | null>(
     null,
   );
-  /** Browsers require a user gesture before speechSynthesis; boot waits on this. */
-  const voiceAudioUnlockResolveRef = useRef<(() => void) | null>(null);
-  const [voiceAwaitingAudioUnlock, setVoiceAwaitingAudioUnlock] =
-    useState(false);
   const interviewModeRef = useRef(interviewMode);
   const completedRef = useRef(completed);
   const backendCompletionSyncedRef = useRef(false);
@@ -1330,20 +1326,6 @@ export default function CimmieSession() {
           const synthOk =
             typeof window !== "undefined" && !!window.speechSynthesis;
           if (synthOk) {
-            setVoiceAwaitingAudioUnlock(true);
-            await new Promise<void>((resolve) => {
-              if (!mounted) {
-                setVoiceAwaitingAudioUnlock(false);
-                resolve();
-                return;
-              }
-              voiceAudioUnlockResolveRef.current = () => {
-                voiceAudioUnlockResolveRef.current = null;
-                setVoiceAwaitingAudioUnlock(false);
-                resolve();
-              };
-            });
-            if (!mounted) return;
             const s = getSpeechSynthesis();
             if (s) void s.getVoices();
             await waitForSpeechSynthesisVoices();
@@ -1456,12 +1438,6 @@ export default function CimmieSession() {
     boot();
     return () => {
       mounted = false;
-      const unlock = voiceAudioUnlockResolveRef.current;
-      if (unlock) {
-        voiceAudioUnlockResolveRef.current = null;
-        unlock();
-      }
-      setVoiceAwaitingAudioUnlock(false);
     };
   }, [
     appendStreamBeginPart,
@@ -1694,12 +1670,6 @@ export default function CimmieSession() {
       setEnding(false);
     }
   }
-
-  const handleVoiceAudioUnlockClick = useCallback(() => {
-    const s = getSpeechSynthesis();
-    if (s) void s.getVoices();
-    voiceAudioUnlockResolveRef.current?.();
-  }, []);
 
   /** Text chat: only one bot stream bubble mounts at a time so typewriters run in order. */
   const textChatFirstPendingStreamIndex = useMemo(
@@ -1964,34 +1934,6 @@ export default function CimmieSession() {
 
       {interviewMode === "voice" && (
         <section className="voice-fullscreen" aria-label="Voice interview">
-          {voiceAwaitingAudioUnlock ? (
-            <div
-              className="voice-audio-unlock-overlay"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="voice-audio-unlock-title"
-            >
-              <div className="voice-audio-unlock-panel card">
-                <h2
-                  id="voice-audio-unlock-title"
-                  className="voice-audio-unlock-title"
-                >
-                  Enable voice
-                </h2>
-                <p className="voice-audio-unlock-copy">
-                  Your browser needs a tap here before it can play CIMMIE&apos;s
-                  spoken questions and replies.
-                </p>
-                <button
-                  type="button"
-                  className="btn btn-primary voice-audio-unlock-btn"
-                  onClick={handleVoiceAudioUnlockClick}
-                >
-                  Start voice interview
-                </button>
-              </div>
-            </div>
-          ) : null}
           <div
             className="voice-ui-panel voice-ui-panel-fullscreen"
             aria-label="Voice input"
