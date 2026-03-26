@@ -12,7 +12,7 @@ const TOAST_DURATION_MS = 2500;
 
 function statusClass(status?: string | null) {
   if (!status) return "status-queued";
-  return `status-${status.toLowerCase().replace(/\s+/g, "-")}`;
+  return `status-${status.toLowerCase().replace(/[\s_]+/g, "-")}`;
 }
 
 export default function LaunchInterview() {
@@ -93,6 +93,8 @@ export default function LaunchInterview() {
               <tr>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Group</th>
+                <th>Sub-Group</th>
                 <th>Status</th>
                 <th>Link</th>
                 <th>Action</th>
@@ -104,9 +106,12 @@ export default function LaunchInterview() {
                 <tr key={s.stakeholder_id}>
                   <td>{s.name}</td>
                   <td>{s.email ?? "—"}</td>
+                  <td>{s.role ?? "—"}</td>
+                  <td>{s.department ?? "—"}</td>
                   <td>
                     <span
                       className={`status-chip ${statusClass(s.interview_status)}`}
+                      aria-disabled="true"
                     >
                       {s.interview_status ?? "Unknown"}
                     </span>
