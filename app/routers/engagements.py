@@ -26,6 +26,7 @@ from ..schemas import (
     DocumentUploadResponse,
     QuestionUpdate,
     QuestionCreate,
+    StakeholderUpdatePayload,
     UpdateContextRequest,
 )
 
@@ -713,3 +714,115 @@ def list_stakeholders_with_interviews(
         "stakeholders": stakeholder_rows
     }
 
+@router.delete("/{engagement_id}/stakeholders/{stakeholder_id}", response_model=dict)
+def delete_stakeholder(
+    engagement_id: str,
+    stakeholder_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Deletes a stakeholder and their related interviews & answers.
+    """
+
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found")
+
+    stakeholder = (
+        db.query(Stakeholder)
+        .filter(
+            Stakeholder.id == stakeholder_id,
+            Stakeholder.engagement_id == engagement_id,
+        )
+        .first()
+    )
+
+    if not stakeholder:
+        raise HTTPException(404, "Stakeholder not found for this engagement")
+
+    # ✅ Delete interviews attached to this stakeholder (email match)
+    interviews = (
+        db.query(Interview)
+        .filter(
+            Interview.engagement_id == engagement_id,
+            Interview.stakeholder_email == stakeholder.email,
+        )
+        .all()
+    )
+
+    for iv in interviews:
+        # Delete answers
+        db.query(Answer).filter(Answer.interview_id == iv.id).delete()
+
+        # Delete interview itself
+        db.delete(iv)
+
+    # ✅ Delete stakeholder
+    db.delete(stakeholder)
+    db.commit()
+
+    return {
+        "status": "deleted",
+        "stakeholder_id": stakeholder_id,
+        "engagement_id": engagement_id,
+    }
+
+
+@router.patch("/{engagement_id}/stakeholders/{stakeholder_id}", response_model=dict)
+def update_stakeholder(
+    engagement_id: str,
+    stakeholder_id: str,
+    payload: StakeholderUpdatePayload,
+    db: Session = Depends(get_db)
+):
+    """
+    Updates stakeholder details (partial update).
+    """
+
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found")
+
+    stakeholder = (
+        db.query(Stakeholder)
+        .filter(
+            Stakeholder.id == stakeholder_id,
+            Stakeholder.engagement_id == engagement_id,
+        )
+        .first()
+    )
+
+    if not stakeholder:
+        raise HTTPException(404, "Stakeholder not found for this engagement")
+
+    # ✅ Apply partial updates
+    if payload.name is not None:
+        stakeholder.name = payload.name
+
+    if payload.email is not None:
+        stakeholder.email = payload.email
+
+    if payload.role is not None:
+        stakeholder.role = payload.role
+
+    if payload.department is not None:
+        stakeholder.department = payload.department
+
+    if payload.engagement_level is not None:
+        stakeholder.engagement_level = payload.engagement_level
+
+    db.commit()
+    db.refresh(stakeholder)
+
+    return {
+        "status": "updated",
+        "stakeholder_id": stakeholder_id,
+        "engagement_id": engagement_id,
+        "updated": {
+            "name": stakeholder.name,
+            "email": stakeholder.email,
+            "role": stakeholder.role,
+            "department": stakeholder.department,
+            "engagement_level": stakeholder.engagement_level,
+        },
+    }

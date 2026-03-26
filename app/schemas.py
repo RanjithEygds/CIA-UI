@@ -104,4 +104,10 @@ class QuestionUpdate(BaseModel):
 class QuestionCreate(BaseModel):
     question_text: str = Field(..., min_length=1)
 
-    
+
+class StakeholderUpdatePayload(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    department: Optional[str] = None
+    engagement_level: Optional[str] = None
