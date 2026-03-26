@@ -234,18 +234,9 @@ export default function EngagementDetail() {
       )}
 
       {/* ✅ Keep heatmap dummy data unchanged */}
-      <div className="engagement-heatmap-actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            if (heatmap) exportHeatmapPPT(heatmap, HEATMAP_IMPACT_KEYS);
-          }}
-        >
-          Export Heatmap to PPT
-        </button>
-      </div>
-      <ChangeImpactHeatmap />
+      <ChangeImpactHeatmap
+        onExportPpt={() => exportHeatmapPPT(heatmap!, HEATMAP_IMPACT_KEYS)}
+      />
     </div>
   );
 }
