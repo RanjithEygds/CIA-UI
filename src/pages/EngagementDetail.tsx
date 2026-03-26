@@ -1,16 +1,51 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import PptxGenJS from 'pptxgenjs';
-import { MOCK_ENGAGEMENTS } from './AllCIAs';
-import ChangeImpactHeatmap, { HEATMAP_IMPACT_KEYS, HEATMAP_MATRIX_DATA } from './ChangeImpactHeatmap';
-import StakeholderInterviewGrid from '../components/StakeholderInterviewGrid';
-import { isLikelyEngagementUuid } from '../api/interviews';
-import './EngagementDetail.css';
+import { useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import PptxGenJS from "pptxgenjs";
+import ChangeImpactHeatmap, {
+  HEATMAP_IMPACT_KEYS,
+  HEATMAP_MATRIX_DATA,
+} from "./ChangeImpactHeatmap";
+import StakeholderInterviewGrid from "../components/StakeholderInterviewGrid";
+import { isLikelyEngagementUuid } from "../api/interviews";
+import "./EngagementDetail.css";
+
+export interface Engagement {
+  id: string;
+  title: string;
+  summary: string;
+}
+
+export const MOCK_ENGAGEMENTS: Engagement[] = [
+  {
+    id: "1",
+    title: "Finance ERP Rollout",
+    summary:
+      "Change Impact Assessment for the global Finance ERP implementation. Covers process, technology, and role changes across 12 countries.",
+  },
+  {
+    id: "2",
+    title: "HR Service Delivery Transformation",
+    summary:
+      "CIA for the move to shared services and self-service HR. Focus on People and Process impacts for HR and line managers.",
+  },
+  {
+    id: "3",
+    title: "Supply Chain Digitisation",
+    summary:
+      "Impact assessment for the new SCM platform and revised procurement workflows. Technology and Data lens emphasis.",
+  },
+  {
+    id: "4",
+    title: "Customer Portal Launch",
+    summary:
+      "Stakeholder and customer impact for the new B2B portal. High-level CIA to support adoption and training planning.",
+  },
+];
 
 const MOCK_STAKEHOLDERS = [
   {
-    id: 'sh1',
-    name: 'Jane Smith (HR Lead)',
+    id: "sh1",
+    name: "Jane Smith (HR Lead)",
     transcript: `[CIMMIE] How would you describe your role in relation to this change?
 [Jane Smith] I'm the HR Lead for the region. My team owns role design, RACI updates, and the people side of the ERP rollout. We're working with Finance on the new approval workflows.
 
@@ -22,8 +57,8 @@ const MOCK_STAKEHOLDERS = [
     readback: `Role: HR Lead; owns role design, RACI, and people side of ERP rollout. Process: Month-end and approval workflows changing; four SOPs to update; training planned with timing concerns. Most affected: Frontline operations and service supervisors, especially in Wave 2; adoption support and clear comms needed.`,
   },
   {
-    id: 'sh2',
-    name: 'David Chen (Finance)',
+    id: "sh2",
+    name: "David Chen (Finance)",
     transcript: `[CIMMIE] How would you describe your role in relation to this change?
 [David Chen] I'm in Finance, responsible for the month-end close process and the new ERP integration in our stream.
 
@@ -35,8 +70,8 @@ const MOCK_STAKEHOLDERS = [
     readback: `Role: Finance; month-end close and ERP integration. Process/Technology: New ERP modules replacing legacy reporting; three integrations; dependency on IT and Data Governance for access and data migration. Concerns: Environment availability and cutover; need read-only environment earlier for training.`,
   },
   {
-    id: 'sh3',
-    name: 'Maria Garcia (Ops Manager)',
+    id: "sh3",
+    name: "Maria Garcia (Ops Manager)",
     transcript: `[CIMMIE] How would you describe your role in relation to this change?
 [Maria Garcia] I'm an Ops Manager. My team will use the new system for daily transactions and approvals.
 
@@ -50,13 +85,12 @@ const MOCK_STAKEHOLDERS = [
 ];
 
 export default function EngagementDetail() {
-  const { engagementId } = useParams<{ engagementId: string }>();
-  const engagement = engagementId
-    ? MOCK_ENGAGEMENTS.find((e) => e.id === engagementId)
-    : undefined;
+  // const { engagementId } = useParams<{ engagementId: string }>();
+  const engagement = 1 ? MOCK_ENGAGEMENTS.find((e) => e.id === "1") : undefined;
 
   const [isPublished, setIsPublished] = useState(false);
-  const [selectedStakeholderId, setSelectedStakeholderId] = useState<string>('');
+  const [selectedStakeholderId, setSelectedStakeholderId] =
+    useState<string>("");
 
   const selectedStakeholder = selectedStakeholderId
     ? MOCK_STAKEHOLDERS.find((s) => s.id === selectedStakeholderId)
@@ -70,14 +104,15 @@ export default function EngagementDetail() {
   const getPptFill = (value: number) => {
     switch (value) {
       case 0:
-        return 'DBEAFE'; // Lightest Blue - No Change
+        return "DBEAFE"; // Lightest Blue - No Change
       case 1:
-        return '93C5FD'; // Light Blue - Low
+        return "93C5FD"; // Light Blue - Low
       case 2:
-        return '3B82F6'; // Medium Blue - Medium
+        return "3B82F6"; // Medium Blue - Medium
       case 3:
-        return '1E40AF'; // Dark Blue (Nav Blue) - High
-      default: return 'FFFFFF';
+        return "1E40AF"; // Dark Blue (Nav Blue) - High
+      default:
+        return "FFFFFF";
     }
   };
 
@@ -89,7 +124,7 @@ export default function EngagementDetail() {
     const pptx = new PptxGenJS();
     const slide = pptx.addSlide();
 
-    slide.addText('Change Impact Heatmap', {
+    slide.addText("Change Impact Heatmap", {
       x: 0.5,
       y: 0.3,
       fontSize: 20,
@@ -98,10 +133,10 @@ export default function EngagementDetail() {
 
     const tableRows = [
       [
-        { text: 'Function', options: { bold: true, align: 'center' as const } },
+        { text: "Function", options: { bold: true, align: "center" as const } },
         ...impactKeys.map((key) => ({
           text: key,
-          options: { bold: true, align: 'center' as const },
+          options: { bold: true, align: "center" as const },
         })),
       ],
       ...matrixData.map((row) => [
@@ -111,8 +146,8 @@ export default function EngagementDetail() {
           options: {
             fill: { color: getPptFill(row[key]) },
             bold: true,
-            align: 'center' as const,
-            color: '000000',
+            align: "center" as const,
+            color: "000000",
           },
         })),
       ]),
@@ -124,10 +159,10 @@ export default function EngagementDetail() {
       w: 9,
       rowH: 0.5,
       fontSize: 12,
-      border: { type: 'solid', color: 'D1D5DB' },
+      border: { type: "solid", color: "D1D5DB" },
     });
 
-    void pptx.writeFile({ fileName: 'CIA_Heatmap_Export.pptx' });
+    void pptx.writeFile({ fileName: "CIA_Heatmap_Export.pptx" });
   };
 
   if (!engagement) {
@@ -151,7 +186,9 @@ export default function EngagementDetail() {
         <h1 className="engagement-detail-title">{engagement.title}</h1>
         <p className="engagement-detail-summary">{engagement.summary}</p>
         <div className="engagement-detail-meta">
-          <span className="engagement-detail-id">Engagement ID: {engagement.id}</span>
+          <span className="engagement-detail-id">
+            Engagement ID: {engagement.id}
+          </span>
         </div>
 
         <div className="engagement-detail-actions">
@@ -161,26 +198,28 @@ export default function EngagementDetail() {
             onClick={handlePublish}
             disabled={isPublished}
           >
-            {isPublished ? 'Published' : 'Publish'}
+            {isPublished ? "Published" : "Publish"}
           </button>
         </div>
       </div>
 
-      {(engagement.id === '1' || isLikelyEngagementUuid(engagement.id)) && (
+      {(engagement.id === "1" || isLikelyEngagementUuid(engagement.id)) && (
         <StakeholderInterviewGrid
           engagementId={engagement.id}
-          useDemoData={engagement.id === '1'}
+          useDemoData={engagement.id === "1"}
           returnPath={`/all-cias/${engagement.id}`}
         />
       )}
 
-      {engagement.id === '1' && (
+      {engagement.id === "1" && (
         <>
           <div className="engagement-heatmap-actions">
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => exportHeatmapPPT(HEATMAP_MATRIX_DATA, HEATMAP_IMPACT_KEYS)}
+              onClick={() =>
+                exportHeatmapPPT(HEATMAP_MATRIX_DATA, HEATMAP_IMPACT_KEYS)
+              }
             >
               Export Heatmap to PPT
             </button>
@@ -191,11 +230,20 @@ export default function EngagementDetail() {
 
       {/* Post-Publish – Interview Records */}
       {isPublished && (
-        <section className="engagement-section card" aria-labelledby="section-interviews-heading">
-          <h2 id="section-interviews-heading" className="engagement-section-title">
+        <section
+          className="engagement-section card"
+          aria-labelledby="section-interviews-heading"
+        >
+          <h2
+            id="section-interviews-heading"
+            className="engagement-section-title"
+          >
             Interview Records
           </h2>
-          <label htmlFor="interview-stakeholder-select" className="interview-records-label">
+          <label
+            htmlFor="interview-stakeholder-select"
+            className="interview-records-label"
+          >
             Stakeholder
           </label>
           <select
@@ -214,13 +262,17 @@ export default function EngagementDetail() {
           {selectedStakeholder && (
             <div className="interview-records-panels">
               <div className="interview-records-block">
-                <h3 className="interview-records-subtitle">Full interview transcript</h3>
+                <h3 className="interview-records-subtitle">
+                  Full interview transcript
+                </h3>
                 <div className="interview-records-scroll">
                   {selectedStakeholder.transcript}
                 </div>
               </div>
               <div className="interview-records-block">
-                <h3 className="interview-records-subtitle">Read-back summary</h3>
+                <h3 className="interview-records-subtitle">
+                  Read-back summary
+                </h3>
                 <div className="interview-records-scroll">
                   {selectedStakeholder.readback}
                 </div>

@@ -1,52 +1,67 @@
-import { Link } from 'react-router-dom';
-import './AllCIAs.css';
-
-export interface Engagement {
-  id: string;
-  title: string;
-  summary: string;
-}
-
-export const MOCK_ENGAGEMENTS: Engagement[] = [
-  {
-    id: '1',
-    title: 'Finance ERP Rollout',
-    summary: 'Change Impact Assessment for the global Finance ERP implementation. Covers process, technology, and role changes across 12 countries.',
-  },
-  {
-    id: '2',
-    title: 'HR Service Delivery Transformation',
-    summary: 'CIA for the move to shared services and self-service HR. Focus on People and Process impacts for HR and line managers.',
-  },
-  {
-    id: '3',
-    title: 'Supply Chain Digitisation',
-    summary: 'Impact assessment for the new SCM platform and revised procurement workflows. Technology and Data lens emphasis.',
-  },
-  {
-    id: '4',
-    title: 'Customer Portal Launch',
-    summary: 'Stakeholder and customer impact for the new B2B portal. High-level CIA to support adoption and training planning.',
-  },
-];
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import "./AllCIAs.css";
+import { getEngagements, type EngagementListItem } from "../api/engagements";
 
 export default function AllCIAs() {
+  const [engagements, setEngagements] = useState<EngagementListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getEngagements();
+        setEngagements(data);
+      } catch (err: any) {
+        setError(err.message || "Failed to load CIAs.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, []);
+
   return (
     <div className="all-cias-page">
       <h1>All CIAs / Engagements</h1>
       <p className="page-desc">
-        Change engagements and their associated CIAs. Select an engagement to view details.
+        Change engagements and their associated CIAs. Select an engagement to
+        view details.
       </p>
+
+      {loading && <p>Loading CIAs...</p>}
+      {error && <p className="error">{error}</p>}
+
       <div className="all-cias-grid" role="list">
-        {MOCK_ENGAGEMENTS.map((engagement) => (
+        {engagements.map((engagement) => (
           <Link
             key={engagement.id}
             to={`/all-cias/${engagement.id}`}
             className="engagement-tile card"
             role="listitem"
           >
-            <h2 className="engagement-tile-title">{engagement.title}</h2>
-            <p className="engagement-tile-summary">{engagement.summary}</p>
+            <h2 className="engagement-tile-title">
+              {engagement.name || "Untitled Engagement"}
+            </h2>
+
+            <p className="engagement-tile-summary">
+              {engagement.summary
+                ? engagement.summary.slice(0, 250) + "..."
+                : "No summary available."}
+            </p>
+
+            <p className="engagement-tile-meta">
+              📄 {engagement.document_count} documents
+            </p>
+
+            <p className="engagement-tile-date">
+              Created:{" "}
+              {engagement.created_at
+                ? new Date(engagement.created_at).toLocaleDateString()
+                : "—"}
+            </p>
           </Link>
         ))}
       </div>
