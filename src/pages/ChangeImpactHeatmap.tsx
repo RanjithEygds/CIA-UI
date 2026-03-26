@@ -229,31 +229,30 @@ export default function ChangeImpactHeatmap({
               Organization. Hover a cell for function, dimension, and severity.
             </p>
           </div>
-          <ul className="cia-heatmap-legend" aria-label="Severity legend">
-            {legendItems.map(({ level, label }) => (
-              <li key={level} className="cia-heatmap-legend-item">
-                <span
-                  className="cia-heatmap-swatch"
-                  style={{ background: SEVERITY_BLUE[level] }}
-                  aria-hidden
-                />
-                <span>{label}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {onExportPpt && (
-          <div className="cia-heatmap-card-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={onExportPpt}
-            >
-              Export Heatmap to PPT
-            </button>
+          <div className="cia-heatmap-card-head-right">
+            {onExportPpt && (
+              <button
+                type="button"
+                className="btn btn-primary cia-heatmap-export-btn"
+                onClick={onExportPpt}
+              >
+                Export Heatmap to PPT
+              </button>
+            )}
+            <ul className="cia-heatmap-legend" aria-label="Severity legend">
+              {legendItems.map(({ level, label }) => (
+                <li key={level} className="cia-heatmap-legend-item">
+                  <span
+                    className="cia-heatmap-swatch"
+                    style={{ background: SEVERITY_BLUE[level] }}
+                    aria-hidden
+                  />
+                  <span>{label}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-        )}
+        </div>
 
         <div className="cia-heatmap-chart-wrap">
           <ResponsiveHeatMap
@@ -323,7 +322,7 @@ export default function ChangeImpactHeatmap({
           id="heatmap-key-findings-heading"
           className="cia-heatmap-findings-title"
         >
-          Summary of key findings
+          Summary of Key Findings
         </h2>
 
         <ul className="cia-heatmap-findings-list">

@@ -110,6 +110,17 @@
   max-width: 28rem;
 }
 
+.cia-heatmap-card-head-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.65rem;
+}
+
+.cia-heatmap-export-btn {
+  flex-shrink: 0;
+}
+
 .cia-heatmap-card-actions {
   display: flex;
   justify-content: flex-end;
