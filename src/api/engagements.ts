@@ -89,6 +89,61 @@ export type QuestionUpdatePayload = Partial<{
   sequence_in_section: number;
 }>;
 
+export type StakeholderWithInterview = {
+  stakeholder_id: string;
+  name: string;
+  email?: string | null;
+  role?: string | null;
+  department?: string | null;
+  engagement_level?: string | null;
+  created_at?: string | null;
+
+  interview_id?: string | null;
+  interview_status?: string | null;
+  interview_started_at?: string | null;
+  interview_ended_at?: string | null;
+};
+
+export type StakeholderListResponse = {
+  engagement_id: string;
+  count: number;
+  stakeholders: StakeholderWithInterview[];
+};
+
+export type CreateStakeholderResp = {
+  status: string;
+  stakeholder_id: string;
+  interview_id: string;
+  message: string;
+};
+
+export type DeleteStakeholderResponse = {
+  status: string;
+  stakeholder_id: string;
+  engagement_id: string;
+};
+
+export type UpdateStakeholderPayload = Partial<{
+  name: string;
+  email: string;
+  role: string;
+  department: string;
+  engagement_level: string;
+}>;
+
+export type UpdateStakeholderResponse = {
+  status: string;
+  stakeholder_id: string;
+  engagement_id: string;
+  updated: {
+    name?: string;
+    email?: string;
+    role?: string;
+    department?: string;
+    engagement_level?: string;
+  };
+};
+
 /** Throw on non-2xx with readable message */
 async function okOrThrow(res: Response) {
   if (!res.ok) {
@@ -379,6 +434,52 @@ export async function updateQuestion(
   return res.json();
 }
 
+export async function getStakeholders(
+  engagementId: string,
+): Promise<StakeholderListResponse> {
+  const res = await okOrThrow(
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(
+        engagementId,
+      )}/stakeholders`,
+    ),
+  );
+  return res.json();
+}
+
+export async function createStakeholderAndInterview(
+  engagementId: string,
+  payload: {
+    name: string;
+    email?: string;
+    role?: string;
+    department?: string;
+    engagement_level?: string;
+  },
+): Promise<CreateStakeholderResp> {
+  const fd = new FormData();
+  fd.append("name", payload.name);
+  if (payload.email) fd.append("email", payload.email);
+  if (payload.role) fd.append("role", payload.role);
+  if (payload.department) fd.append("department", payload.department);
+  if (payload.engagement_level)
+    fd.append("engagement_level", payload.engagement_level);
+
+  const res = await okOrThrow(
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(
+        engagementId,
+      )}/stakeholders/manual`,
+      {
+        method: "POST",
+        body: fd,
+      },
+    ),
+  );
+
+  return res.json();
+}
+
 export type DeleteQuestionResponse = {
   status: string;
   engagement_id: string;
@@ -408,4 +509,43 @@ export async function deleteQuestion(
       pillar: q.pillar ?? null,
     })),
   };
+}
+
+export async function deleteStakeholder(
+  engagementId: string,
+  stakeholderId: string,
+): Promise<DeleteStakeholderResponse> {
+  const res = await okOrThrow(
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(
+        engagementId,
+      )}/stakeholders/${encodeURIComponent(stakeholderId)}`,
+      {
+        method: "DELETE",
+      },
+    ),
+  );
+
+  return res.json();
+}
+
+export async function updateStakeholder(
+  engagementId: string,
+  stakeholderId: string,
+  payload: UpdateStakeholderPayload,
+): Promise<UpdateStakeholderResponse> {
+  const res = await okOrThrow(
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(
+        engagementId,
+      )}/stakeholders/${encodeURIComponent(stakeholderId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    ),
+  );
+
+  return res.json();
 }

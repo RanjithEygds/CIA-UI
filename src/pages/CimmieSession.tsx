@@ -9,15 +9,16 @@ import React, {
 import "./CimmieSession.css";
 
 import {
-  startInterview,
-  firstIntroStream,
+  firstIntro,
   getNextQuestion,
   submitAnswer,
   submitAnswerStream,
   endInterview,
   type AnswerStreamDonePayload,
   type NextQuestionResponse,
+  firstIntroStream,
 } from "../api/interviews";
+import { useNavigate, useParams } from "react-router-dom";
 import { DEFAULT_TTS_VOICE } from "../config";
 
 /** Minimal type for Web Speech API SpeechRecognition. */
@@ -188,8 +189,7 @@ function BotTypewriterBlock({
     };
   }, [messageId, onSettled, onTick]);
 
-  const showTyping =
-    displayed.length < streamTotal.length || !streamComplete;
+  const showTyping = displayed.length < streamTotal.length || !streamComplete;
 
   return (
     <span className="chat-bubble-text cimmie-streaming-wrap">
@@ -359,6 +359,8 @@ function formatRemaining(seconds: number) {
 }
 
 export default function CimmieSession() {
+  const navigate = useNavigate();
+  const { interviewId } = useParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [remainingSeconds, setRemainingSeconds] = useState(
@@ -379,7 +381,6 @@ export default function CimmieSession() {
   const [composerSpeechError, setComposerSpeechError] = useState<string | null>(
     null,
   );
-  const [interviewId, setInterviewId] = useState<string | null>(null);
   const [completed, setCompleted] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -496,9 +497,15 @@ export default function CimmieSession() {
           : [],
       );
       ids.add(stakeholderId);
-      sessionStorage.setItem(COMPLETED_STAKEHOLDERS_KEY, JSON.stringify([...ids]));
+      sessionStorage.setItem(
+        COMPLETED_STAKEHOLDERS_KEY,
+        JSON.stringify([...ids]),
+      );
     } catch {
-      sessionStorage.setItem(COMPLETED_STAKEHOLDERS_KEY, JSON.stringify([stakeholderId]));
+      sessionStorage.setItem(
+        COMPLETED_STAKEHOLDERS_KEY,
+        JSON.stringify([stakeholderId]),
+      );
     }
   }, []);
 
@@ -936,7 +943,8 @@ export default function CimmieSession() {
   }, [completed]);
 
   useEffect(() => {
-    if (!completed || !interviewId || backendCompletionSyncedRef.current) return;
+    if (!completed || !interviewId || backendCompletionSyncedRef.current)
+      return;
     backendCompletionSyncedRef.current = true;
     markStakeholderCompleted();
     void endInterview(interviewId).catch(() => {
@@ -1105,7 +1113,10 @@ export default function CimmieSession() {
                     voiceCurrentPartOpenIdRef.current = mid;
                   }
                   while (q[0]?.type === "delta") {
-                    const d = q.shift() as Extract<VoiceAnswerQ, { type: "delta" }>;
+                    const d = q.shift() as Extract<
+                      VoiceAnswerQ,
+                      { type: "delta" }
+                    >;
                     appendStreamDelta(d.text);
                     feedVoiceTtsDelta(d.text);
                   }
@@ -1249,44 +1260,36 @@ export default function CimmieSession() {
         setLoading(true);
         setError(null);
 
-        const engagementId =
-          sessionStorage.getItem("ciassist_engagement_id") || undefined;
-        if (!engagementId) {
-          throw new Error(
-            "Missing engagement id. Please go back and start again.",
-          );
+        if (!interviewId) {
+          navigate("/");
+          return;
         }
 
-        // (1) Create a new interview session (dummy identity for now)
-        const start = await startInterview({
-          engagement_id: engagementId,
-          stakeholder_name: "Guest Participant",
-          stakeholder_email: "guest@example.com",
-        });
-        if (!mounted) return;
-
-        setInterviewId(start.interview_id);
-        sessionStorage.setItem("ciassist_interview_id", start.interview_id);
-
-        // (2) Introduce CIMMIE + provide brief (optional from engagement summary)
+        // ✅ Validate interview by calling firstIntro
         const summaryRaw = sessionStorage.getItem(
           "ciassist_engagement_summary",
         );
-        const summary = summaryRaw
-          ? (() => {
-              try {
-                return JSON.parse(summaryRaw);
-              } catch {
-                return null;
-              }
-            })()
-          : null;
+        const summary = summaryRaw ? JSON.parse(summaryRaw) : null;
 
-        const briefText: string | undefined =
+        const briefText =
           summary?.summary && typeof summary.summary === "string"
-            ? summary.summary.slice(0, 800) // keep intro short
+            ? summary.summary.slice(0, 800)
             : undefined;
 
+        const intro = await firstIntro(interviewId, briefText);
+
+        if (!mounted) return;
+
+        setMessages([
+          {
+            id: "m-welcome",
+            from: "bot",
+            text:
+              "Welcome to CIMMIE. This is your scheduled Change Impact Assessment interview. " +
+              "We will proceed topic by topic and capture evidence across People, Process, Technology, and Data.",
+          },
+          { id: "m-intro", from: "bot", text: intro.context_brief },
+        ]);
         const modeBoot = getStoredInterviewMode();
 
         if (modeBoot === "text") {
@@ -1300,7 +1303,7 @@ export default function CimmieSession() {
             },
           ]);
 
-          await firstIntroStream(start.interview_id, briefText, {
+          await firstIntroStream(interviewId, briefText, {
             onBeginPart: appendStreamBeginPart,
             onDelta: appendStreamDelta,
             onDone: () => {
@@ -1367,7 +1370,7 @@ export default function CimmieSession() {
             ]);
             setVoiceDisplayedBotId("voice-tts-unsupported");
           }
-          await firstIntroStream(start.interview_id, briefText, {
+          await firstIntroStream(interviewId, briefText, {
             onBeginPart: (_part: string) => {
               appendStreamBeginPart(_part);
               const mid = lastCreatedBotStreamIdRef.current ?? "";
@@ -1400,11 +1403,11 @@ export default function CimmieSession() {
 
         if (!mounted) return;
 
-        // (3) Fetch the first question (consent Q1 will appear here in strict order)
-        const firstQ = await getNextQuestion(start.interview_id);
+        // ✅ Load the first question (existing interview)
+        const firstQ = await getNextQuestion(interviewId);
+
         if (!mounted) return;
 
-        // Handle sentinel completion (unlikely here but defensive)
         if (firstQ.section === "DONE" || firstQ.question_id === "-1") {
           setCompleted(true);
           setMessages((prev) => [
@@ -1435,14 +1438,6 @@ export default function CimmieSession() {
                   streamComplete: true,
                 },
           ]);
-          if (modeBoot === "voice") {
-            const qid = `q-${firstQ.question_id}`;
-            setVoiceDisplayedBotId(qid);
-            await Promise.all([
-              voiceBootRef.current.speakUtteranceSimple(firstQ.question_text),
-              waitVoiceTypewriter(qid),
-            ]);
-          }
         }
 
         // (4) start timer
@@ -1450,9 +1445,9 @@ export default function CimmieSession() {
       } catch (e: any) {
         console.error(e);
         setError(
-          e?.message ||
-            "Failed to initialize interview. Ensure context extraction is complete for this engagement.",
+          "Invalid or expired interview link. Please contact your facilitator.",
         );
+        navigate("/");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -2038,8 +2033,7 @@ export default function CimmieSession() {
                       : null) ?? voiceBots.at(-1);
                   if (!vm) return null;
                   const streaming =
-                    vm.streamTotal !== undefined &&
-                    vm.streamComplete === false;
+                    vm.streamTotal !== undefined && vm.streamComplete === false;
                   return (
                     <div
                       key={vm.id}
