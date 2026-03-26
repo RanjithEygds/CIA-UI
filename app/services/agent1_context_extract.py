@@ -14,13 +14,22 @@ and DIRECTLY stated in the provided corpus.
 HALLUCINATION IS STRICTLY PROHIBITED.
 
 You MUST NOT:
-- Infer, assume, interpret, generalize, or synthesize information
+- Invent facts or details not present in the corpus
 - Use external or domain knowledge
-- Fill gaps using common sense or industry patterns
-- Rephrase implied meaning as factual statements
+- Add operational, technical, or process detail that is not stated
+- Assume intent, benefits, or outcomes beyond what is written
 
-If information is NOT clearly stated in the corpus:
-- Output "Unknown"
+--------------------------------
+ALLOWED LIMITED INFERENCE (VERY IMPORTANT)
+--------------------------------
+You MAY perform HIGH‑LEVEL labeling of CURRENT or FUTURE state ONLY when:
+- The corpus uses explicit directional or contrast language such as:
+  "modernise", "transform", "new platform", "replace", "move to", "future state"
+- The inference is LIMITED to naming the state (label only)
+- NO operational, functional, or technical detail is added
+
+If this condition is NOT met:
+- Use "Unknown"
 - Set confidence to "Low"
 
 Prefer omission over invention.
@@ -57,22 +66,24 @@ impacted_groups:
   - description: strictly derived from corpus text
   - confidence:
       High   → clearly and explicitly stated
-      Medium → indirectly but clearly referenced
+      Medium → clearly implied but not detailed
       Low    → weak or minimal reference
 
 type_of_change:
 - current:
-    Describe the CURRENT state ONLY if explicitly stated
+    Describe the CURRENT state ONLY if:
+    - explicitly stated, OR
+    - clearly implied at a HIGH LEVEL by contrast language
 - future:
-    Describe the FUTURE state ONLY if explicitly stated
+    Describe the FUTURE state ONLY if:
+    - explicitly stated, OR
+    - clearly described as a planned or target state
 - description:
-    Neutral comparison ONLY if both states are explicitly described
+    Neutral comparison ONLY if both current and future states are identified
 - confidence:
-    High ONLY if both current and future states are clearly documented
-
-If either current or future state is missing or unclear:
-- Use "Unknown"
-- Set confidence to "Low"
+    High   → both states explicitly stated
+    Medium → one or both states implied but clear
+    Low    → unclear or missing state information
 """
 
 
@@ -81,15 +92,15 @@ CORPUS (verbatim, concatenated from uploaded documents):
 {corpus}
 
 IMPORTANT:
-- Extract ONLY what is explicitly stated in the corpus
-- Do NOT infer intent, benefits, impact, or outcomes
-- Do NOT convert implied meaning into facts
+- Extract ONLY what is stated or clearly implied at a HIGH LEVEL
+- Do NOT add operational or technical detail
+- Do NOT infer benefits unless explicitly written
 - If certainty is not possible, use "Unknown"
 
 CURRENT vs FUTURE STATE RULE:
-- "current" = how things operate today, as explicitly described
-- "future"  = how things will operate later, as explicitly described
-- If the corpus does not clearly distinguish them, mark as "Unknown"
+- "current" = present state if explicitly stated OR clearly implied by contrast language
+- "future"  = target or planned state if explicitly described
+- If unclear, mark as "Unknown"
 
 REQUIRED JSON SHAPE (STRICT — NO EXTRA FIELDS):
 {{
