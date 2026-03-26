@@ -253,12 +253,12 @@ def get_engagement_heatmap(db: Session, engagement_id: str):
 
     # ✅ Check cache
     cached = db.query(EngagementHeatmap).filter_by(engagement_id=engagement_id).first()
-    # if cached and cached.transcript_hash == new_hash:
-    #     return {
-    #         "engagement_id": engagement_id,
-    #         "heatmap": json.loads(cached.data_json),
-    #         "cached": True
-    #     }
+    if cached and cached.transcript_hash == new_hash:
+        return {
+            "engagement_id": engagement_id,
+            "heatmap": json.loads(cached.data_json),
+            "cached": True
+        }
 
     # ✅ Build LLM request
     transcripts_flat = [
