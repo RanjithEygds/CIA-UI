@@ -1,7 +1,8 @@
 import os
 import json
 import time
-from typing import Optional, Dict, Any, List, Tuple, Union, Callable
+import asyncio
+from typing import Optional, Dict, Any, List, Tuple, Union, Callable, AsyncIterator
 
 from dotenv import load_dotenv
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
@@ -146,6 +147,63 @@ def llm_call(
         return resp.content
 
     return _retry_loop(_do, max_retries, DEFAULT_RETRY_BACKOFF_BASE)
+
+
+def _chunk_content_from_message_chunk(chunk) -> str:
+    """Extract incremental text from a LangChain AIMessageChunk (handles str or block lists)."""
+    c = getattr(chunk, "content", None)
+    if c is None:
+        return ""
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list):
+        parts: List[str] = []
+        for item in c:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict) and item.get("type") == "text":
+                t = item.get("text", "")
+                if isinstance(t, str):
+                    parts.append(t)
+        return "".join(parts)
+    return ""
+
+
+async def llm_stream(
+    system_prompt: str,
+    user_prompt: str,
+    temperature: float = DEFAULT_TEMPERATURE,
+    json_mode: bool = False,
+    history=None,
+    request_timeout: int = DEFAULT_REQUEST_TIMEOUT,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+) -> AsyncIterator[str]:
+    """
+    Stream plain text from the chat model. Do not use json_mode=True with streaming.
+    """
+    if json_mode:
+        raise ValueError("llm_stream does not support json_mode")
+
+    messages = _prepare_messages(system_prompt, user_prompt, history)
+    attempt = 0
+    while attempt < max_retries:
+        try:
+            chat = _get_chat_model(
+                temperature=temperature,
+                request_timeout=request_timeout,
+                max_retries=max_retries,
+                json_mode=False,
+            )
+            async for chunk in chat.astream(messages):
+                text = _chunk_content_from_message_chunk(chunk)
+                if text:
+                    yield text
+            return
+        except Exception:
+            attempt += 1
+            if attempt >= max_retries:
+                raise
+            await asyncio.sleep(DEFAULT_RETRY_BACKOFF_BASE ** (attempt - 1))
 
 
 async def llm_call_async(

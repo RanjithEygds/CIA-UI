@@ -1,9 +1,28 @@
 # app/services/agent2_interview.py
 import json
+import re
 
 from sqlalchemy.orm import Session
 from ..models import Engagement, QuestionCatalog, Answer, Interview
-from .llm import llm_call
+from .llm import llm_call, llm_stream
+
+async def stream_static_text(text: str, chunk_size: int = 18):
+    """Yield word-aligned chunks so voice/transcript UIs can update in near real time.
+
+    Long tokens (e.g. URLs) are split by *chunk_size* so payloads stay bounded.
+    """
+    if not text:
+        return
+    for m in re.finditer(r"\S+\s*", text):
+        piece = m.group()
+        if len(piece) > max(chunk_size * 2, 24):
+            rest = piece
+            while rest:
+                yield rest[:chunk_size]
+                rest = rest[chunk_size:]
+        else:
+            yield piece
+
 
 def initialize_interview_plan(db: Session, engagement_id: int):
     # sections ordered lexicographically (relies on 5.1, 5.2 ... naming)
@@ -230,6 +249,32 @@ def generate_clarification(db, interview, question_text):
     """
     user = f"Question: {question_text}\nPrevious: {prev_snippets or '(none)'}\nEng Summary: {eng.summary}"
     return llm_call(system, user)
+
+
+async def generate_clarification_stream(db, interview, question_text):
+    eng = db.query(Engagement).get(interview.engagement_id)
+    prev_answers = (
+        db.query(Answer)
+        .filter(Answer.interview_id == interview.id)
+        .order_by(Answer.timestamp_utc.asc())
+        .all()
+    )
+    prev_snippets = "\n".join(
+        [f"- {a.question_text}: {a.answer_text}" for a in prev_answers]
+    )
+    system = """
+        You are CIMMIE. Provide a helpful, simple clarification of the question.
+        Rules:
+        - Use ONLY the context provided.
+        - Explain what the question is asking for.
+        - Give 1 example answer.
+        - DO NOT repeat the question text.
+        - DO NOT rephrase the question.
+        - DO NOT invent new facts.
+    """
+    user = f"Question: {question_text}\nPrevious: {prev_snippets or '(none)'}\nEng Summary: {eng.summary}"
+    async for part in llm_stream(system, user, temperature=0.2):
+        yield part
 
 def evaluate_answer(db, interview, question_text, answer_text):
     eng = db.query(Engagement).get(interview.engagement_id)

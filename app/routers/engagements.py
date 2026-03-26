@@ -1,11 +1,21 @@
 from datetime import datetime, timezone
 import os
 import shutil
+import uuid
 from typing import List
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Body
 from sqlalchemy.orm import Session
 from ..db import SessionLocal
-from ..models import Engagement, Document, EngagementInsights, EngagementContext, Stakeholder, QuestionCatalog
+from ..models import (
+    Engagement,
+    Document,
+    EngagementInsights,
+    EngagementContext,
+    Stakeholder,
+    QuestionCatalog,
+    Answer,
+    Interview,
+)
 from ..services.agent1_prep import run_agent1_prep
 from ..schemas import (
     EngagementCreate,
@@ -13,6 +23,7 @@ from ..schemas import (
     EngagementSummaryOut,
     DocumentUploadResponse,
     QuestionUpdate,
+    QuestionCreate,
     UpdateContextRequest,
 )
 
@@ -20,6 +31,62 @@ router = APIRouter()
 
 # Default questions master file (ensure this exists!)
 DEFAULT_QUESTIONS_PATH = "./app/storage/default/questions.xlsx"
+
+# User-added questions share one synthetic section, ordered after parsed catalog.
+CUSTOM_QUESTIONS_SECTION = "Custom questions"
+
+
+def _ordered_catalog_for_engagement(db: Session, engagement_id: str) -> List[QuestionCatalog]:
+    return (
+        db.query(QuestionCatalog)
+        .filter(QuestionCatalog.engagement_id == engagement_id)
+        .order_by(
+            QuestionCatalog.section_index.asc(),
+            QuestionCatalog.sequence_in_section.asc(),
+        )
+        .all()
+    )
+
+
+def _questions_preview_rows(items: List[QuestionCatalog]) -> List[dict]:
+    return [
+        {
+            "id": it.id,
+            "section_index": it.section_index,
+            "section": it.section,
+            "sequence_in_section": it.sequence_in_section,
+            "question_text": it.question_text,
+        }
+        for it in items
+    ]
+
+
+def _prune_question_id_from_engagement_plans(
+    db: Session, engagement_id: str, question_id: str
+) -> None:
+    """Remove a catalog id from all stored interview plans for this engagement."""
+    interviews = (
+        db.query(Interview)
+        .filter(Interview.engagement_id == engagement_id)
+        .all()
+    )
+    for iv in interviews:
+        plan = iv.questions_plan
+        if not plan or not isinstance(plan, dict):
+            continue
+        new_plan: dict = {}
+        changed = False
+        for section, qids in plan.items():
+            if isinstance(qids, list):
+                filtered = [x for x in qids if x != question_id]
+                if len(filtered) != len(qids):
+                    changed = True
+                if filtered:
+                    new_plan[section] = filtered
+            else:
+                new_plan[section] = qids
+        if changed:
+            iv.questions_plan = new_plan
 
 def get_db():
     db = SessionLocal()
@@ -184,33 +251,77 @@ def preview_questions(engagement_id: str, db: Session = Depends(get_db)):
     """
     View the parsed questions (from QuestionCatalog) in strict numeric section order,
     then by sequence within each section. Useful for admin/debugging.
+    Returns an empty list if none exist yet (e.g. before prep or custom-only flow).
     """
 
-    items = (
-        db.query(QuestionCatalog)
-        .filter(QuestionCatalog.engagement_id == engagement_id)
-        # IMPORTANT: sort by numeric section_index first, then by sequence_in_section
-        .order_by(
-            QuestionCatalog.section_index.asc(),
-            QuestionCatalog.sequence_in_section.asc()
-        )
-        .all()
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found.")
+
+    items = _ordered_catalog_for_engagement(db, engagement_id)
+    return {
+        "engagement_id": engagement_id,
+        "questions": _questions_preview_rows(items),
+    }
+
+
+@router.post("/{engagement_id}/questions", response_model=dict)
+def create_question(
+    engagement_id: str,
+    payload: QuestionCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Add a custom question to the catalog for this engagement.
+    New rows sort after parsed sections; multiple custom questions share one section.
+    Returns the full ordered question list for the engagement.
+    """
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found.")
+
+    text = (payload.question_text or "").strip()
+    if not text:
+        raise HTTPException(400, "question_text is required.")
+
+    existing = _ordered_catalog_for_engagement(db, engagement_id)
+    custom_rows = [r for r in existing if r.section == CUSTOM_QUESTIONS_SECTION]
+
+    if custom_rows:
+        section_index = custom_rows[0].section_index
+        sequence_in_section = max(r.sequence_in_section for r in custom_rows) + 1
+    elif not existing:
+        section_index = 1
+        sequence_in_section = 1
+    else:
+        section_index = max(r.section_index for r in existing) + 1
+        sequence_in_section = 1
+
+    new_id = str(uuid.uuid4())
+    q = QuestionCatalog(
+        id=new_id,
+        engagement_id=engagement_id,
+        section=CUSTOM_QUESTIONS_SECTION,
+        section_index=section_index,
+        sequence_in_section=sequence_in_section,
+        question_text=text,
     )
+    db.add(q)
+    db.commit()
 
-    if not items:
-        raise HTTPException(404, "No questions parsed for this engagement.")
-
-    result = [
-        {
-            "id": it.id,
-            "section_index": it.section_index,        # e.g., 10
-            "section": it.section,                    # e.g., "Wrap-up & Validation (3 min)"
-            "sequence_in_section": it.sequence_in_section,
-            "question_text": it.question_text,
-        }
-        for it in items
-    ]
-    return {"engagement_id": engagement_id, "questions": result}
+    items = _ordered_catalog_for_engagement(db, engagement_id)
+    return {
+        "status": "created",
+        "engagement_id": engagement_id,
+        "question": {
+            "id": q.id,
+            "section": q.section,
+            "section_index": q.section_index,
+            "question_text": q.question_text,
+            "sequence_in_section": q.sequence_in_section,
+        },
+        "questions": _questions_preview_rows(items),
+    }
 
 
 @router.get("", response_model=List[EngagementListItem])
@@ -391,6 +502,7 @@ def update_question(
     db.commit()
     db.refresh(q)
 
+    items = _ordered_catalog_for_engagement(db, engagement_id)
     return {
         "status": "updated",
         "question": {
@@ -399,6 +511,51 @@ def update_question(
             "section_index": q.section_index,
             "question_text": q.question_text,
             "sequence_in_section": q.sequence_in_section,
-        }
+        },
+        "questions": _questions_preview_rows(items),
+    }
+
+
+@router.delete("/{engagement_id}/questions/{question_id}", response_model=dict)
+def delete_question(
+    engagement_id: str,
+    question_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Remove a question from the catalog for this engagement.
+    Deletes related answers and prunes the question id from any stored interview plans.
+    """
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found.")
+
+    q = (
+        db.query(QuestionCatalog)
+        .filter(
+            QuestionCatalog.id == question_id,
+            QuestionCatalog.engagement_id == engagement_id,
+        )
+        .first()
+    )
+    if not q:
+        raise HTTPException(404, "Question not found for this engagement.")
+
+    db.query(Answer).filter(
+        Answer.question_catalog_id == question_id,
+        Answer.engagement_id == engagement_id,
+    ).delete(synchronize_session=False)
+
+    _prune_question_id_from_engagement_plans(db, engagement_id, question_id)
+
+    db.delete(q)
+    db.commit()
+
+    items = _ordered_catalog_for_engagement(db, engagement_id)
+    return {
+        "status": "deleted",
+        "engagement_id": engagement_id,
+        "removed_id": question_id,
+        "questions": _questions_preview_rows(items),
     }
 

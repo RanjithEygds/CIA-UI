@@ -101,3 +101,7 @@ class QuestionUpdate(BaseModel):
     question_text: Optional[str] = None
     sequence_in_section: Optional[int] = None
 
+class QuestionCreate(BaseModel):
+    question_text: str = Field(..., min_length=1)
+
+    
