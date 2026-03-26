@@ -5,6 +5,8 @@ import uuid
 from typing import List
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Body
 from sqlalchemy.orm import Session
+
+from app.services.agent2_interview import initialize_interview_plan
 from ..db import SessionLocal
 from ..models import (
     Engagement,
@@ -557,5 +559,157 @@ def delete_question(
         "engagement_id": engagement_id,
         "removed_id": question_id,
         "questions": _questions_preview_rows(items),
+    }
+
+
+@router.post("/{engagement_id}/stakeholders/manual", response_model=dict)
+def create_stakeholder_and_interview(
+    engagement_id: str,
+    name: str = Form(...),
+    email: str = Form(None),
+    role: str = Form(None),
+    department: str = Form(None),
+    engagement_level: str = Form(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Manually add a stakeholder AND immediately create an interview session.
+    Enforces rule: A stakeholder can complete ONLY ONE interview.
+    """
+
+    # ✅ Validate engagement
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found")
+
+    # ✅ Check if stakeholder already exists (name + email recommended)
+    existing = (
+        db.query(Stakeholder)
+        .filter(
+            Stakeholder.engagement_id == engagement_id,
+            Stakeholder.name == name,
+            Stakeholder.email == email,
+        )
+        .first()
+    )
+
+    # ✅ If they already have an interview → restrict duplicate participation
+    if existing:
+        existing_interview = (
+            db.query(Interview)
+            .filter(
+                Interview.engagement_id == engagement_id,
+                Interview.stakeholder_email == existing.email,
+            )
+            .order_by(Interview.created_at.desc())
+            .first()
+        )
+
+        if existing_interview and existing_interview.status == "completed":
+            raise HTTPException(
+                403,
+                "This stakeholder has already completed their interview and cannot take it again."
+            )
+
+        if existing_interview and existing_interview.status in ("in_progress", "created"):
+            return {
+                "status": "exists",
+                "message": "Stakeholder already has an active interview.",
+                "stakeholder_id": existing.id,
+                "interview_id": existing_interview.id,
+            }
+
+    # ✅ Create new stakeholder
+    stakeholder = Stakeholder(
+        engagement_id=engagement_id,
+        name=name,
+        email=email,
+        role=role,
+        department=department,
+        engagement_level=engagement_level,
+        source_document_id=None
+    )
+    db.add(stakeholder)
+    db.commit()
+    db.refresh(stakeholder)
+
+    # ✅ Create interview and auto-start plan
+    interview = Interview(
+        engagement_id=engagement_id,
+        stakeholder_name=name,
+        stakeholder_email=email,
+        status="in_progress",
+        consent_captured=False,
+        questions_plan=initialize_interview_plan(db, engagement_id),
+        started_at=datetime.now(timezone.utc)
+    )
+    db.add(interview)
+    db.commit()
+    db.refresh(interview)
+
+    return {
+        "status": "created",
+        "stakeholder_id": stakeholder.id,
+        "interview_id": interview.id,
+        "message": "Stakeholder created & interview session initialized successfully."
+    }
+
+
+@router.get("/{engagement_id}/stakeholders", response_model=dict)
+def list_stakeholders_with_interviews(
+    engagement_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns a list of stakeholders for an engagement, 
+    each with their interview (if any).
+    """
+
+    eng = db.query(Engagement).get(engagement_id)
+    if not eng:
+        raise HTTPException(404, "Engagement not found")
+
+    # ✅ Fetch stakeholders for this engagement
+    stakeholders = (
+        db.query(Stakeholder)
+        .filter(Stakeholder.engagement_id == engagement_id)
+        .order_by(Stakeholder.created_at.asc())
+        .all()
+    )
+
+    stakeholder_rows = []
+
+    for s in stakeholders:
+        # ✅ Find interview for this stakeholder (email-based linkage)
+        interview = (
+            db.query(Interview)
+            .filter(
+                Interview.engagement_id == engagement_id,
+                Interview.stakeholder_email == s.email,
+            )
+            .order_by(Interview.started_at.desc())
+            .first()
+        )
+
+        stakeholder_rows.append({
+            "stakeholder_id": s.id,
+            "name": s.name,
+            "email": s.email,
+            "role": s.role,
+            "department": s.department,
+            "engagement_level": s.engagement_level,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+
+            # ✅ Interview fields
+            "interview_id": interview.id if interview else None,
+            "interview_status": interview.status if interview else None,
+            "interview_started_at": interview.started_at.isoformat() if interview and interview.started_at else None,
+            "interview_ended_at": interview.ended_at.isoformat() if interview and interview.ended_at else None,
+        })
+
+    return {
+        "engagement_id": engagement_id,
+        "count": len(stakeholder_rows),
+        "stakeholders": stakeholder_rows
     }
 
