@@ -17,6 +17,8 @@ import {
   type AnswerStreamDonePayload,
   type NextQuestionResponse,
   firstIntroStream,
+  getInterviewSections,
+  type InterviewSectionRow,
 } from "../api/interviews";
 import { useNavigate, useParams } from "react-router-dom";
 import { DEFAULT_TTS_VOICE } from "../config";
@@ -205,62 +207,30 @@ function BotTypewriterBlock({
   );
 }
 
-type Section = {
-  sectionId: string;
-  title: string;
-  fullTitle: string;
-  status: string;
-  totalQuestions: number;
-  answeredQuestions: number;
-};
-
-const sections: Section[] = [
-  {
-    sectionId: "1",
-    title: "Opening & Consent",
-    fullTitle: "1. Opening & Consent",
-    status: "not_started",
-    totalQuestions: 1,
-    answeredQuestions: 0,
-  },
-  {
-    sectionId: "2",
-    title: "Role impact",
-    fullTitle: "2. Role impact",
-    status: "in_progress",
-    totalQuestions: 3,
-    answeredQuestions: 1,
-  },
-  {
-    sectionId: "3",
-    title: "Process & technology",
-    fullTitle: "3. Process & technology",
-    status: "not_started",
-    totalQuestions: 2,
-    answeredQuestions: 0,
-  },
-  {
-    sectionId: "4",
-    title: "Data & closure",
-    fullTitle: "4. Data & closure",
-    status: "not_started",
-    totalQuestions: 2,
-    answeredQuestions: 0,
-  },
-];
-
 /** Step state for the vertical progress pipe: completed, active, or upcoming */
 function getStepState(
   index: number,
-  sectionsList: Section[],
+  sectionsList: InterviewSectionRow[],
 ): "completed" | "active" | "upcoming" {
-  const currentIndex = sectionsList.findIndex(
-    (s) => s.status === "in_progress",
-  );
-  const effectiveCurrent = currentIndex >= 0 ? currentIndex : 0;
-  if (sectionsList[index]?.status === "completed" || index < effectiveCurrent)
+  // 1. Find the first section that is NOT completed.
+  const firstIncompleteIndex = sectionsList.findIndex((s) => !s.completed);
+
+  // ✅ All sections complete? Then all are completed.
+  if (firstIncompleteIndex === -1) {
     return "completed";
-  if (index === effectiveCurrent) return "active";
+  }
+
+  // ✅ Completed sections
+  if (sectionsList[index].completed) {
+    return "completed";
+  }
+
+  // ✅ The first section with completed=false is the ACTIVE section
+  if (index === firstIncompleteIndex) {
+    return "active";
+  }
+
+  // ✅ Anything after the first incomplete is upcoming
   return "upcoming";
 }
 
@@ -360,6 +330,7 @@ function formatRemaining(seconds: number) {
 
 export default function CimmieSession() {
   const navigate = useNavigate();
+  const [sections, setSections] = useState<InterviewSectionRow[]>([]);
   const { interviewId } = useParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -1265,6 +1236,14 @@ export default function CimmieSession() {
           return;
         }
 
+        // ✅ Load real section progress
+        try {
+          const sec = await getInterviewSections(interviewId);
+          setSections(sec.sections);
+        } catch (err) {
+          console.error("Failed to load sections:", err);
+        }
+
         // ✅ Validate interview by calling firstIntro
         const summaryRaw = sessionStorage.getItem(
           "ciassist_engagement_summary",
@@ -1576,6 +1555,13 @@ export default function CimmieSession() {
         // 3) Recorded → show readback and possibly a “moving on” nudge
         if (result.status === "recorded") {
           if (result.readback) {
+            try {
+              const sec = await getInterviewSections(interviewId);
+              setSections(sec.sections);
+            } catch (err) {
+              console.error("Failed to refresh sections:", err);
+            }
+
             setMessages((prev) => [
               ...prev,
               {
@@ -1745,7 +1731,7 @@ export default function CimmieSession() {
                 const isLast = index === sections.length - 1;
                 return (
                   <div
-                    key={section.sectionId}
+                    key={section.section_index}
                     className="progress-pipe-step"
                     role="listitem"
                   >
@@ -1778,7 +1764,7 @@ export default function CimmieSession() {
                     <span
                       className={`progress-pipe-label progress-pipe-label-${state}`}
                     >
-                      {section.title}
+                      {section.section_title}
                     </span>
                   </div>
                 );

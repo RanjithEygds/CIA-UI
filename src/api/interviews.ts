@@ -21,28 +21,27 @@ export type RecordedResponse = {
 export type AnswerRecorded = {
   reason?: string;
   status: "recorded";
-  requires_followup: boolean;        // backend sends this flag
-  readback?: string | null;          // may appear at end of section
-  stay_on_question?: false;          // explicitly FALSE or omitted
+  requires_followup: boolean; // backend sends this flag
+  readback?: string | null; // may appear at end of section
+  stay_on_question?: false; // explicitly FALSE or omitted
 };
 
 export type AnswerClarified = {
   status: "clarification";
-  bot_reply: string;                 // what bot says to clarify the question
-  stay_on_question: true;            // important: UI must not advance
+  bot_reply: string; // what bot says to clarify the question
+  stay_on_question: true; // important: UI must not advance
 };
 
 export type AnswerFollowup = {
   status: "followup";
-  bot_reply: string;                 // follow-up probe
-  stay_on_question: true;            // important: UI must not advance
+  bot_reply: string; // follow-up probe
+  stay_on_question: true; // important: UI must not advance
 };
 
 export type SubmitAnswerResponse =
   | AnswerRecorded
   | AnswerClarified
   | AnswerFollowup;
-
 
 export type StartInterviewRequest = {
   engagement_id: string;
@@ -154,13 +153,31 @@ export type SseAnswerStreamHandlers = {
   onError?: (message: string) => void;
 };
 
+export type InterviewSectionRow = {
+  section_index: number;
+  section_title: string;
+  total_questions: number;
+  answered: number;
+  remaining: number;
+  completed: boolean;
+};
+
+export type InterviewSectionsResponse = {
+  interview_id: string;
+  engagement_id: string;
+  sections: InterviewSectionRow[];
+};
+
 export type AnswerStreamDonePayload = {
   result: SubmitAnswerResponse;
   next_question: NextQuestionResponse | null;
   interview_completed: boolean;
 };
 
-function takeNextSseBlock(carry: string): { rest: string; block: string | null } {
+function takeNextSseBlock(carry: string): {
+  rest: string;
+  block: string | null;
+} {
   const lf = carry.indexOf("\n\n");
   const crlf = carry.indexOf("\r\n\r\n");
   let sep = -1;
@@ -291,9 +308,8 @@ export async function submitAnswerStream(
       onDelta: handlers.onDelta,
       onDone: (data) => {
         const result = data.result as SubmitAnswerResponse;
-        const next_question = (data.next_question ?? null) as
-          | NextQuestionResponse
-          | null;
+        const next_question = (data.next_question ??
+          null) as NextQuestionResponse | null;
         const interview_completed = data.interview_completed === true;
         handlers.onDone({
           result,
@@ -322,7 +338,7 @@ export async function getNextQuestion(
 
 export async function submitAnswer(
   interviewId: string,
-  payload: { question_id: string; answer_text: string }
+  payload: { question_id: string; answer_text: string },
 ): Promise<SubmitAnswerResponse> {
   const res = await fetch(
     `${API_BASE}/interviews/${encodeURIComponent(interviewId)}/answer`,
@@ -330,7 +346,7 @@ export async function submitAnswer(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    }
+    },
   );
   return okJson<SubmitAnswerResponse>(res);
 }
@@ -431,7 +447,9 @@ export function isLikelyEngagementUuid(id: string): boolean {
   return UUID_RE.test(id.trim());
 }
 
-export function formatInterviewDuration(seconds: number | null | undefined): string {
+export function formatInterviewDuration(
+  seconds: number | null | undefined,
+): string {
   if (seconds == null || Number.isNaN(seconds)) return "—";
   const s = Math.max(0, Math.floor(seconds));
   const m = Math.floor(s / 60);
@@ -443,4 +461,15 @@ export function formatInterviewDuration(seconds: number | null | undefined): str
   }
   if (m === 0) return `${rem}s`;
   return `${m}m ${rem}s`;
+}
+
+export async function getInterviewSections(
+  interviewId: string,
+): Promise<InterviewSectionsResponse> {
+  const res = await fetch(
+    `${API_BASE}/interviews/${encodeURIComponent(interviewId)}/sections`,
+    { method: "GET" },
+  );
+
+  return okJson<InterviewSectionsResponse>(res);
 }
