@@ -194,23 +194,23 @@ export default function AddStakeholders() {
   return (
     <div className="add-stakeholders-page">
       <header className="add-stakeholders-header card">
-        <div>
+        <div className="add-stakeholders-header-content">
           <p className="add-stakeholders-kicker">Interview setup</p>
           <h1>Add Stakeholders</h1>
           <p>
             Manage stakeholders for this engagement. Create, edit, or delete
             participants.
           </p>
-        </div>
-        <div className="add-stakeholders-meta">
-          <span className="badge">{stakeholders.length} stakeholders</span>
-          <button
-            className="btn btn-primary"
-            onClick={handleContinue}
-            disabled={stakeholders.length === 0}
-          >
-            Continue to launch
-          </button>
+          <div className="add-stakeholders-meta">
+            <span className="badge">{stakeholders.length} stakeholders</span>
+            <button
+              className="btn btn-primary"
+              onClick={handleContinue}
+              disabled={stakeholders.length === 0}
+            >
+              Continue to launch
+            </button>
+          </div>
         </div>
       </header>
 
@@ -222,7 +222,7 @@ export default function AddStakeholders() {
 
         <div className="add-stakeholders-form">
           <div className="add-stakeholders-input-row">
-            <label>Name</label>
+            <label className="add-stakeholders-label">Name</label>
             <input
               id="stakeholder-name"
               type="text"
@@ -236,7 +236,7 @@ export default function AddStakeholders() {
           </div>
 
           <div className="add-stakeholders-input-row">
-            <label>Email</label>
+            <label className="add-stakeholders-label">Email</label>
             <input
               id="stakeholder-email"
               type="email"
@@ -253,8 +253,10 @@ export default function AddStakeholders() {
             )}
           </div>
           <div className="add-stakeholders-input-row">
-            <label>User Group</label>
-            <span className="add-stakeholders-optional">(optional)</span>
+            <div className="add-stakeholders-label-row">
+              <label className="add-stakeholders-label">User Group</label>
+              <span className="add-stakeholders-optional">(Optional)</span>
+            </div>
             <input
               id="stakeholder-user-group"
               type="text"
@@ -266,8 +268,10 @@ export default function AddStakeholders() {
             />
           </div>
           <div className="add-stakeholders-input-row">
-            <label>Sub-Group</label>
-            <span className="add-stakeholders-optional">(optional)</span>
+            <div className="add-stakeholders-label-row">
+              <label className="add-stakeholders-label">Sub-Group</label>
+              <span className="add-stakeholders-optional">(Optional)</span>
+            </div>
             <input
               id="stakeholder-sub-group"
               type="text"
@@ -290,7 +294,7 @@ export default function AddStakeholders() {
 
         {/* LIST */}
         {stakeholders.length === 0 ? (
-          <p>No stakeholders added yet.</p>
+          <p className="add-stakeholders-empty">No stakeholder record</p>
         ) : (
           <ul className="add-stakeholders-list">
             {stakeholders.map((s, idx) => {
@@ -328,7 +332,7 @@ export default function AddStakeholders() {
 
                         <div>
                           <button
-                            className="btn btn-ghost"
+                            className="btn btn-ghost add-stakeholders-delete-btn"
                             onClick={() =>
                               handleDelete(s.stakeholder_id, s.name)
                             }
@@ -336,7 +340,7 @@ export default function AddStakeholders() {
                             <TrashIcon /> Delete
                           </button>
                           <button
-                            className="btn btn-ghost"
+                            className="btn btn-ghost add-stakeholders-edit-btn"
                             onClick={() => startEdit(s)}
                           >
                             <PenIcon /> Edit
@@ -365,7 +369,7 @@ export default function AddStakeholders() {
                   {isEditing && (
                     <div className="add-stakeholders-edit-grid">
                       <div className="add-stakeholders-input-row">
-                        <label>Name</label>
+                        <label className="add-stakeholders-label">Name</label>
                         <input
                           id={`stakeholder-edit-name-${s.stakeholder_id}`}
                           type="text"
@@ -376,7 +380,7 @@ export default function AddStakeholders() {
                       </div>
 
                       <div className="add-stakeholders-input-row">
-                        <label>Email</label>
+                        <label className="add-stakeholders-label">Email</label>
                         <input
                           id={`stakeholder-edit-email-${s.stakeholder_id}`}
                           type="email"
@@ -387,7 +391,14 @@ export default function AddStakeholders() {
                       </div>
 
                       <div className="add-stakeholders-input-row">
-                        <label>User Group (optional)</label>
+                        <div className="add-stakeholders-label-row">
+                          <label className="add-stakeholders-label">
+                            User Group
+                          </label>
+                          <span className="add-stakeholders-optional">
+                            (Optional)
+                          </span>
+                        </div>
                         <input
                           id={`stakeholder-edit-user-group-${s.stakeholder_id}`}
                           type="text"
@@ -398,7 +409,14 @@ export default function AddStakeholders() {
                       </div>
 
                       <div className="add-stakeholders-input-row">
-                        <label>Sub-Group (optional)</label>
+                        <div className="add-stakeholders-label-row">
+                          <label className="add-stakeholders-label">
+                            Sub-Group
+                          </label>
+                          <span className="add-stakeholders-optional">
+                            (Optional)
+                          </span>
+                        </div>
                         <input
                           id={`stakeholder-edit-sub-group-${s.stakeholder_id}`}
                           type="text"

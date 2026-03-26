@@ -4,10 +4,7 @@
 }
 
 .add-stakeholders-header {
-  display: flex;
-  justify-content: flex-start;
-  gap: 0.6rem;
-  flex-wrap: wrap;
+  display: block;
   background:
     radial-gradient(
       circle at right top,
@@ -15,6 +12,10 @@
       transparent 34%
     ),
     linear-gradient(180deg, #ffffff, #f9fcff);
+}
+
+.add-stakeholders-header-content {
+  display: block;
 }
 
 .add-stakeholders-kicker {
@@ -42,11 +43,13 @@
 }
 
 .add-stakeholders-meta {
-  display: flex;
+  display: inline-flex;
   align-items: flex-start;
   gap: 0.35rem;
   flex-direction: column;
   margin-top: 0.5rem;
+  vertical-align: top;
+  min-height: 4.25rem;
 }
 
 .add-stakeholders-block {
@@ -87,15 +90,26 @@
 }
 
 .add-stakeholders-label {
-  font-size: 0.72rem;
+  display: inline-block;
+  font-size: 0.75rem;
+  line-height: 1.35;
   font-weight: 600;
   color: var(--color-secondary);
+}
+
+.add-stakeholders-label-row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  width: fit-content;
 }
 
 .add-stakeholders-optional {
   font-weight: 400;
   color: var(--ink-400);
   font-size: 0.68rem;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 .add-stakeholders-input {
@@ -260,6 +274,13 @@
   margin: 0.2rem 0 0;
   color: var(--ink-300);
   font-size: 0.68rem;
+}
+
+.add-stakeholders-empty {
+  margin: 0.2rem 0 0;
+  color: var(--ink-300);
+  font-size: 0.68rem;
+  font-weight: 400;
 }
 
 @media (max-width: 680px) {

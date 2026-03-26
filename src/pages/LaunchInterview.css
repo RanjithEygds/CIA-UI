@@ -73,6 +73,7 @@
   width: 100%;
   border-collapse: collapse;
   margin-top: 0.4rem;
+  table-layout: fixed;
 }
 
 .stakeholder-table th,
@@ -80,7 +81,7 @@
   border-bottom: 1px solid var(--border);
   text-align: left;
   padding: 0.4rem 0.5rem;
-  vertical-align: top;
+  vertical-align: middle;
   font-size: 0.72rem;
 }
 
@@ -89,6 +90,45 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ink-700);
+}
+
+.stakeholder-table th:nth-child(1),
+.stakeholder-table td:nth-child(1) {
+  width: 16%;
+}
+
+.stakeholder-table th:nth-child(2),
+.stakeholder-table td:nth-child(2) {
+  width: 20%;
+}
+
+.stakeholder-table th:nth-child(3),
+.stakeholder-table td:nth-child(3) {
+  width: 13%;
+}
+
+.stakeholder-table th:nth-child(4),
+.stakeholder-table td:nth-child(4) {
+  width: 13%;
+}
+
+.stakeholder-table th:nth-child(5),
+.stakeholder-table td:nth-child(5) {
+  width: 12%;
+}
+
+.stakeholder-table th:nth-child(6),
+.stakeholder-table td:nth-child(6) {
+  width: 11%;
+}
+
+.stakeholder-table th:nth-child(7),
+.stakeholder-table td:nth-child(7) {
+  width: 15%;
+}
+
+.stakeholder-table td {
+  overflow-wrap: anywhere;
 }
 
 .stakeholder-table .compact {
@@ -158,10 +198,17 @@
 
 .status-chip {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
-  padding: 0.15rem 0.4rem;
+  padding: 0.19rem 0.5rem;
+  min-height: 1.6rem;
   font-size: 0.65rem;
-  font-weight: 700;
+  line-height: 1.3;
+  font-weight: 600;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
 }
 
 .status-queued {
@@ -177,6 +224,11 @@
 .status-in-progress {
   color: #0c5672;
   background: rgba(39, 159, 217, 0.2);
+}
+
+.status-pending {
+  color: #4a5565;
+  background: rgba(148, 163, 184, 0.24);
 }
 
 .status-completed {
@@ -196,6 +248,7 @@
     display: block;
     overflow-x: auto;
     white-space: nowrap;
+    table-layout: auto;
   }
 
   .launch-header-actions {
