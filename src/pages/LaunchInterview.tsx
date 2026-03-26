@@ -9,44 +9,29 @@ type Stakeholder = {
   email?: string;
   userGroup?: string;
   subGroup?: string;
-  role: string;
-  depth: 'High-level' | 'Detailed';
-  slot: string;
-  status: 'Queued' | 'Invited' | 'In Progress' | 'Completed';
+  status: 'Queued' | 'Completed';
 };
 
 const stakeholderSeed: Stakeholder[] = [
   {
     id: 'st-1',
     name: 'Nina Patel',
-    role: 'Head of Operations',
-    depth: 'Detailed',
-    slot: '08 Mar 2026, 10:00',
     status: 'Queued',
   },
   {
     id: 'st-2',
     name: 'Marcus Lee',
-    role: 'Regional Service Lead',
-    depth: 'Detailed',
-    slot: '08 Mar 2026, 11:30',
-    status: 'Invited',
+    status: 'Queued',
   },
   {
     id: 'st-3',
     name: 'Asha Nair',
-    role: 'Data Governance Manager',
-    depth: 'High-level',
-    slot: '08 Mar 2026, 14:00',
     status: 'Queued',
   },
   {
     id: 'st-4',
     name: 'Daniel Brooks',
-    role: 'Technology Workstream Lead',
-    depth: 'Detailed',
-    slot: '08 Mar 2026, 15:30',
-    status: 'Completed',
+    status: 'Queued',
   },
 ];
 
@@ -56,9 +41,26 @@ function statusClass(status: Stakeholder['status']) {
 
 const COPY_FEEDBACK_MS = 2500;
 const TOAST_DURATION_MS = 2500;
+const ACTIVE_STAKEHOLDER_KEY = 'ciassist_active_stakeholder_id';
+const COMPLETED_STAKEHOLDERS_KEY = 'ciassist_completed_stakeholders';
+function getCompletedStakeholderIds(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(COMPLETED_STAKEHOLDERS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((id): id is string => typeof id === 'string'));
+  } catch {
+    return new Set();
+  }
+}
 
 function useStakeholders(): { stakeholders: Stakeholder[]; fromSaved: boolean } {
   return useMemo(() => {
+    const completedIds = getCompletedStakeholderIds();
+    const toStatus = (id: string): Stakeholder['status'] =>
+      completedIds.has(id) ? 'Completed' : 'Queued';
+
     const saved = loadStakeholders();
     if (saved.length > 0) {
       const mapped: Stakeholder[] = saved.map((s) => ({
@@ -67,23 +69,25 @@ function useStakeholders(): { stakeholders: Stakeholder[]; fromSaved: boolean } 
         email: s.email,
         userGroup: s.userGroup,
         subGroup: s.subGroup,
-        role: '—',
-        depth: 'Detailed',
-        slot: '—',
-        status: 'Queued' as const,
+        status: toStatus(s.id),
       }));
       return { stakeholders: mapped, fromSaved: true };
     }
-    return { stakeholders: stakeholderSeed, fromSaved: false };
+    return {
+      stakeholders: stakeholderSeed.map((s) => ({
+        ...s,
+        status: toStatus(s.id),
+      })),
+      fromSaved: false,
+    };
   }, []);
 }
 
 export default function LaunchInterview() {
   const navigate = useNavigate();
-  const { stakeholders, fromSaved } = useStakeholders();
+  const { stakeholders } = useStakeholders();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showCopyToast, setShowCopyToast] = useState(false);
-
   function copyStakeholderLink(stakeholder: Stakeholder) {
     const url = `${window.location.origin}/cimmie/${stakeholder.id}`;
     void navigator.clipboard.writeText(url);
@@ -91,6 +95,11 @@ export default function LaunchInterview() {
     setShowCopyToast(true);
     setTimeout(() => setCopiedId(null), COPY_FEEDBACK_MS);
     setTimeout(() => setShowCopyToast(false), TOAST_DURATION_MS);
+  }
+
+  function initiateStakeholderSession(stakeholderId: string) {
+    sessionStorage.setItem(ACTIVE_STAKEHOLDER_KEY, stakeholderId);
+    navigate('/cimmie');
   }
 
   return (
@@ -120,27 +129,24 @@ export default function LaunchInterview() {
           <thead>
             <tr>
               <th>Name</th>
-              {fromSaved && <th>Email</th>}
-              {fromSaved && <th>User Group</th>}
-              {fromSaved && <th>Sub-Group</th>}
-              <th>Role</th>
+              <th>Email</th>
+              <th>User Group</th>
+              <th>Sub-Group</th>
               <th>Depth</th>
-              <th>Session slot</th>
               <th>Status</th>
               <th>Link</th>
               <th>Action</th>
+              <th>Extend Session</th>
             </tr>
           </thead>
           <tbody>
             {stakeholders.map((stakeholder) => (
               <tr key={stakeholder.id}>
                 <td>{stakeholder.name}</td>
-                {fromSaved && <td>{stakeholder.email ?? '—'}</td>}
-                {fromSaved && <td>{stakeholder.userGroup ?? '—'}</td>}
-                {fromSaved && <td>{stakeholder.subGroup ?? '—'}</td>}
-                <td>{stakeholder.role}</td>
-                <td>{stakeholder.depth}</td>
-                <td>{stakeholder.slot}</td>
+                <td>{stakeholder.email ?? '—'}</td>
+                <td>{stakeholder.userGroup ?? '—'}</td>
+                <td>{stakeholder.subGroup ?? '—'}</td>
+                <td>Detailed</td>
                 <td>
                   <span className={`status-chip ${statusClass(stakeholder.status)}`}>
                     {stakeholder.status}
@@ -159,9 +165,18 @@ export default function LaunchInterview() {
                   <button
                     className="btn btn-primary compact"
                     type="button"
-                    onClick={() => navigate('/cimmie')}
+                    onClick={() => initiateStakeholderSession(stakeholder.id)}
                   >
                     Initiate Session
+                  </button>
+                </td>
+                <td>
+                  <button
+                    className="btn btn-primary compact launch-extend-session-btn"
+                    type="button"
+                    disabled
+                  >
+                    Extend Session
                   </button>
                 </td>
               </tr>

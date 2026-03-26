@@ -54,6 +54,25 @@ function TrashIcon() {
   );
 }
 
+function PenIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function AddStakeholders() {
@@ -64,6 +83,12 @@ export default function AddStakeholders() {
   const [userGroup, setUserGroup] = useState('');
   const [subGroup, setSubGroup] = useState('');
   const [touched, setTouched] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editUserGroup, setEditUserGroup] = useState('');
+  const [editSubGroup, setEditSubGroup] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     saveStakeholders(stakeholders);
@@ -98,6 +123,48 @@ export default function AddStakeholders() {
     setStakeholders((prev) => prev.filter((s) => s.id !== id));
   };
 
+  const handleStartEdit = (s: StakeholderEntry) => {
+    setEditError(null);
+    setEditingId(s.id);
+    setEditName(s.name);
+    setEditEmail(s.email);
+    setEditUserGroup(s.userGroup ?? '');
+    setEditSubGroup(s.subGroup ?? '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditError(null);
+  };
+
+  const handleSaveEdit = (id: string) => {
+    const nextName = editName.trim();
+    const nextEmail = editEmail.trim();
+    if (!nextName) {
+      setEditError('Name is required.');
+      return;
+    }
+    if (!nextEmail || !EMAIL_REGEX.test(nextEmail)) {
+      setEditError('Please enter a valid email address.');
+      return;
+    }
+    setStakeholders((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              name: nextName,
+              email: nextEmail,
+              userGroup: editUserGroup.trim() || undefined,
+              subGroup: editSubGroup.trim() || undefined,
+            }
+          : s,
+      ),
+    );
+    setEditingId(null);
+    setEditError(null);
+  };
+
   const handleContinue = () => {
     navigate('/launch');
   };
@@ -112,17 +179,17 @@ export default function AddStakeholders() {
             Add the names and email addresses of stakeholders who will participate in the interviews.
             You can add or remove entries before proceeding to launch and track sessions.
           </p>
-        </div>
-        <div className="add-stakeholders-meta">
-          <span className="badge">{stakeholders.length} stakeholder{stakeholders.length !== 1 ? 's' : ''}</span>
-          <button
-            className="btn btn-primary"
-            type="button"
-            onClick={handleContinue}
-            disabled={stakeholders.length === 0}
-          >
-            Continue to launch
-          </button>
+          <div className="add-stakeholders-meta">
+            <span className="badge">{stakeholders.length} stakeholder{stakeholders.length !== 1 ? 's' : ''}</span>
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={handleContinue}
+              disabled={stakeholders.length === 0}
+            >
+              Continue to launch
+            </button>
+          </div>
         </div>
       </header>
 
@@ -208,26 +275,126 @@ export default function AddStakeholders() {
           <p className="empty-row">No stakeholders added yet. Enter a name and email above, then click Add stakeholder.</p>
         ) : (
           <ul className="add-stakeholders-list">
-            {stakeholders.map((s) => (
-              <li key={s.id} className="add-stakeholders-item">
-                <span className="add-stakeholders-item-name">{s.name}</span>
-                <span className="add-stakeholders-item-email">{s.email}</span>
-                {(s.userGroup || s.subGroup) && (
-                  <span className="add-stakeholders-item-meta">
-                    {[s.userGroup, s.subGroup].filter(Boolean).join(' · ')}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-ghost add-stakeholders-remove"
-                  onClick={() => handleRemove(s.id)}
-                  aria-label={`Remove ${s.name}`}
-                >
-                  <TrashIcon />
-                  Remove
-                </button>
-              </li>
-            ))}
+            {stakeholders.map((s, i) => {
+              const isEditing = editingId === s.id;
+              return (
+                <li key={s.id} className="card preview-block add-stakeholders-item">
+                  <div className="preview-block-header add-stakeholders-item-header">
+                    <div className="add-stakeholders-item-main">
+                      <span className="badge add-stakeholders-s-badge" aria-label={`Stakeholder ${i + 1}`}>
+                        S{i + 1}
+                      </span>
+                      {!isEditing ? (
+                        <div className="add-stakeholders-item-text">
+                          <p className="add-stakeholders-item-name">{s.name}</p>
+                          <p className="add-stakeholders-item-email">{s.email}</p>
+                          {s.userGroup ? (
+                            <p className="add-stakeholders-item-meta">
+                              <span>User Group:</span> {s.userGroup}
+                            </p>
+                          ) : null}
+                          {s.subGroup ? (
+                            <p className="add-stakeholders-item-meta">
+                              <span>Sub-Group:</span> {s.subGroup}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="preview-block-actions add-stakeholders-item-actions">
+                      {isEditing ? (
+                        <>
+                          <button type="button" className="btn btn-ghost add-stakeholders-edit-btn" onClick={handleCancelEdit}>
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-primary add-stakeholders-save-btn"
+                            onClick={() => handleSaveEdit(s.id)}
+                          >
+                            Save
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-ghost add-stakeholders-delete-btn"
+                            onClick={() => handleRemove(s.id)}
+                            aria-label={`Remove ${s.name}`}
+                          >
+                            <TrashIcon />
+                            Delete
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost add-stakeholders-edit-btn"
+                            onClick={() => handleStartEdit(s)}
+                            aria-label={`Edit ${s.name}`}
+                          >
+                            <PenIcon />
+                            Edit
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {isEditing ? (
+                    <div className="add-stakeholders-edit-grid">
+                      <div className="add-stakeholders-input-row">
+                        <label htmlFor={`stakeholder-edit-name-${s.id}`} className="add-stakeholders-label">
+                          Name
+                        </label>
+                        <input
+                          id={`stakeholder-edit-name-${s.id}`}
+                          type="text"
+                          className="add-stakeholders-input"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                        />
+                      </div>
+                      <div className="add-stakeholders-input-row">
+                        <label htmlFor={`stakeholder-edit-email-${s.id}`} className="add-stakeholders-label">
+                          Email
+                        </label>
+                        <input
+                          id={`stakeholder-edit-email-${s.id}`}
+                          type="email"
+                          className="add-stakeholders-input"
+                          value={editEmail}
+                          onChange={(e) => setEditEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="add-stakeholders-input-row">
+                        <label htmlFor={`stakeholder-edit-user-group-${s.id}`} className="add-stakeholders-label">
+                          User Group <span className="add-stakeholders-optional">(optional)</span>
+                        </label>
+                        <input
+                          id={`stakeholder-edit-user-group-${s.id}`}
+                          type="text"
+                          className="add-stakeholders-input"
+                          value={editUserGroup}
+                          onChange={(e) => setEditUserGroup(e.target.value)}
+                        />
+                      </div>
+                      <div className="add-stakeholders-input-row">
+                        <label htmlFor={`stakeholder-edit-sub-group-${s.id}`} className="add-stakeholders-label">
+                          Sub-Group <span className="add-stakeholders-optional">(optional)</span>
+                        </label>
+                        <input
+                          id={`stakeholder-edit-sub-group-${s.id}`}
+                          type="text"
+                          className="add-stakeholders-input"
+                          value={editSubGroup}
+                          onChange={(e) => setEditSubGroup(e.target.value)}
+                        />
+                      </div>
+                      {editError ? <p className="add-stakeholders-error">{editError}</p> : null}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -242,7 +409,7 @@ export default function AddStakeholders() {
           onClick={handleContinue}
           disabled={stakeholders.length === 0}
         >
-          Continue to launch interview
+          Continue to launch
         </button>
       </footer>
     </div>

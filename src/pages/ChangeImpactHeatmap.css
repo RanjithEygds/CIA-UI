@@ -221,3 +221,144 @@
   font-size: 0.7rem;
   color: var(--color-text-muted);
 }
+
+/* Key findings — full-width insight card below impact matrix */
+.cia-heatmap-findings.card {
+  width: 100%;
+  margin: 0;
+  padding: 1.35rem 1.5rem 1.45rem;
+  background: linear-gradient(165deg, #f6f9fb 0%, #ffffff 48%, #fafcfd 100%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(209, 220, 230, 0.75);
+}
+
+.cia-heatmap-findings-title {
+  margin: 0 0 1.1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.cia-heatmap-findings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cia-heatmap-findings-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+}
+
+.cia-heatmap-findings-bullet {
+  flex-shrink: 0;
+  margin-top: 0.12rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+}
+
+.cia-heatmap-findings-bullet-svg {
+  display: block;
+}
+
+.cia-heatmap-findings-bullet-disc {
+  fill: rgba(13, 115, 119, 0.14);
+}
+
+.cia-heatmap-findings-bullet-mark {
+  stroke: var(--color-primary);
+}
+
+.cia-heatmap-findings-text {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--color-text);
+  font-weight: 400;
+}
+
+/* Closing summary — visually separated from bullet list */
+.cia-heatmap-findings-summary {
+  margin-top: 1.35rem;
+  padding: 1.1rem 1.2rem 1.15rem 1.25rem;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    120deg,
+    rgba(13, 115, 119, 0.09) 0%,
+    rgba(13, 115, 119, 0.04) 42%,
+    rgba(45, 53, 97, 0.05) 100%
+  );
+  border: 1px solid rgba(13, 115, 119, 0.14);
+  box-shadow: 0 2px 10px rgba(13, 115, 119, 0.07);
+  position: relative;
+}
+
+.cia-heatmap-findings-summary::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.65rem;
+  bottom: 0.65rem;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  opacity: 0.9;
+}
+
+.cia-heatmap-findings-summary-kicker {
+  margin: 0 0 0.45rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.cia-heatmap-findings-summary-text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.58;
+  font-weight: 500;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 640px) {
+  .cia-heatmap-findings.card {
+    padding: 1.15rem 1.2rem 1.25rem;
+  }
+
+  .cia-heatmap-findings-list {
+    gap: 0.85rem;
+  }
+
+  .cia-heatmap-findings-item {
+    gap: 0.75rem;
+  }
+
+  .cia-heatmap-findings-text {
+    font-size: 0.78rem;
+  }
+
+  .cia-heatmap-findings-summary {
+    margin-top: 1.15rem;
+    padding: 0.95rem 1rem 1rem 1.1rem;
+  }
+
+  .cia-heatmap-findings-summary-text {
+    font-size: 0.8rem;
+  }
+}

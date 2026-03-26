@@ -27,12 +27,51 @@ const SEVERITY_BLUE: Record<number, string> = {
 
 /** Demo data: 0 = none, 1 = low, 2 = medium, 3 = high */
 export const HEATMAP_MATRIX_DATA: HeatMapRow[] = [
-  { function: 'HR', People: 3, Process: 2, Technology: 1, Organization: 2 },
-  { function: 'Finance', People: 2, Process: 3, Technology: 2, Organization: 1 },
-  { function: 'IT', People: 1, Process: 2, Technology: 3, Organization: 2 },
-  { function: 'Operations', People: 2, Process: 3, Technology: 2, Organization: 3 },
-  { function: 'Sales', People: 2, Process: 1, Technology: 2, Organization: 1 },
+  {
+    function: 'Claims Department',
+    People: 3,
+    Process: 3,
+    Technology: 2,
+    Organization: 2,
+  },
+  {
+    function: 'Underwriting Team',
+    People: 2,
+    Process: 3,
+    Technology: 3,
+    Organization: 2,
+  },
+  {
+    function: 'Policy Servicing',
+    People: 3,
+    Process: 2,
+    Technology: 2,
+    Organization: 3,
+  },
+  {
+    function: 'Support Functions',
+    People: 2,
+    Process: 2,
+    Technology: 1,
+    Organization: 3,
+  },
+  {
+    function: 'Senior Leaders',
+    People: 3,
+    Process: 2,
+    Technology: 1,
+    Organization: 3,
+  },
 ];
+
+/** Row labels on the heatmap Y-axis (matches each row's `function`). */
+const HEATMAP_FUNCTION_AXIS_IDS = HEATMAP_MATRIX_DATA.map((row) => row.function);
+
+function heatmapLeftMarginPx(): number {
+  const maxChars = HEATMAP_FUNCTION_AXIS_IDS.reduce((m, id) => Math.max(m, id.length), 0);
+  /* Room for end-anchored tick text (~7.5px/char at 12px) + padding inside SVG margin */
+  return Math.min(320, Math.max(180, Math.ceil(maxChars * 7.5) + 52));
+}
 
 function cellFill(cell: Omit<ComputedCell<{ x: string; y?: number | null }>, 'color' | 'opacity' | 'borderColor' | 'labelTextColor'>): string {
   const v = cell.value;
@@ -70,6 +109,37 @@ const legendItems: { level: number; label: string }[] = [
   { level: 2, label: 'Medium' },
   { level: 3, label: 'High' },
 ];
+
+/** Point-wise summary aligned with heatmap narrative (demo copy). */
+const HEATMAP_KEY_FINDINGS: string[] = [
+  'The heatmap analysis indicates a moderate to high change impact, primarily driven by People and Organizational dimensions across all functions. Stakeholders broadly recognize the need for change and perceive it as necessary and beneficial, resulting in a cautiously optimistic overall sentiment.',
+  'People impact is consistently high, signaling strong awareness of role changes and a clear expectation for enablement through communication, training, and support. This reflects a sentiment of engagement rather than resistance.',
+  'Process impacts are moderate, suggesting that while workflows will evolve, the change is viewed as manageable and structured. Stakeholders expect improvement without significant disruption.',
+  'Technology impact remains low to moderate, indicating minimal anxiety around system changes. Technology is largely perceived as an enabler rather than a source of disruption.',
+  'Organizational impact is notable, particularly among Senior Leaders and core operational teams, highlighting the importance of leadership alignment, governance, and clear communication throughout the transition.',
+];
+
+/** Closing executive summary — shown in a separate callout below the bullet list. */
+const HEATMAP_FINDINGS_CLOSING_SUMMARY =
+  'The perceived sentiment across all fields is cautiously positive, with confidence in the change direction, a strong people focus, manageable process evolution, and limited technology-related concern. Successful adoption will depend on sustained leadership engagement and targeted people-centric change interventions.';
+
+function KeyFindingCheckIcon() {
+  return (
+    <span className="cia-heatmap-findings-bullet" aria-hidden>
+      <svg className="cia-heatmap-findings-bullet-svg" viewBox="0 0 22 22" width={22} height={22}>
+        <circle className="cia-heatmap-findings-bullet-disc" cx="11" cy="11" r="11" />
+        <path
+          className="cia-heatmap-findings-bullet-mark"
+          d="M6.5 11.2 9.3 14 15.5 7.8"
+          fill="none"
+          strokeWidth="1.85"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
 
 export default function ChangeImpactHeatmap() {
   const transformedData = HEATMAP_MATRIX_DATA.map((row) => ({
@@ -126,7 +196,7 @@ export default function ChangeImpactHeatmap() {
         <div className="cia-heatmap-chart-wrap">
           <ResponsiveHeatMap
             data={transformedData}
-            margin={{ top: 72, right: 24, bottom: 48, left: 100 }}
+            margin={{ top: 72, right: 28, bottom: 52, left: heatmapLeftMarginPx() }}
             valueFormat=">-.0f"
             axisTop={{
               tickRotation: 0,
@@ -135,7 +205,8 @@ export default function ChangeImpactHeatmap() {
             }}
             axisLeft={{
               tickSize: 0,
-              tickPadding: 10,
+              tickPadding: 14,
+              tickValues: HEATMAP_FUNCTION_AXIS_IDS,
             }}
             theme={{
               background: 'transparent',
@@ -147,9 +218,9 @@ export default function ChangeImpactHeatmap() {
               axis: {
                 ticks: {
                   text: {
-                    fill: 'var(--color-text-muted)',
-                    fontSize: 11,
-                    fontWeight: 500,
+                    fill: 'var(--color-text)',
+                    fontSize: 12,
+                    fontWeight: 600,
                   },
                 },
               },
@@ -171,6 +242,32 @@ export default function ChangeImpactHeatmap() {
             yInnerPadding={0}
             yOuterPadding={0}
           />
+        </div>
+      </section>
+
+      <section
+        className="cia-heatmap-findings card"
+        aria-labelledby="heatmap-key-findings-heading"
+      >
+        <h2 id="heatmap-key-findings-heading" className="cia-heatmap-findings-title">
+          Summary of key findings
+        </h2>
+        <ul className="cia-heatmap-findings-list">
+          {HEATMAP_KEY_FINDINGS.map((text, index) => (
+            <li key={index} className="cia-heatmap-findings-item">
+              <KeyFindingCheckIcon />
+              <p className="cia-heatmap-findings-text">{text}</p>
+            </li>
+          ))}
+        </ul>
+
+        <div
+          className="cia-heatmap-findings-summary"
+          role="region"
+          aria-label="Closing summary"
+        >
+          <p className="cia-heatmap-findings-summary-kicker">In summary</p>
+          <p className="cia-heatmap-findings-summary-text">{HEATMAP_FINDINGS_CLOSING_SUMMARY}</p>
         </div>
       </section>
     </div>

@@ -77,52 +77,6 @@
   margin-top: 0.75rem;
 }
 
-/* Section A – Lens grid */
-.lens-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 0.75rem;
-}
-
-.lens-card {
-  padding: 1rem;
-}
-
-.lens-card .lens-label {
-  margin: 0 0 0.4rem 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--color-primary);
-}
-
-.lens-card .badge {
-  display: inline-block;
-  margin-bottom: 0.5rem;
-}
-
-.lens-evidence {
-  margin: 0;
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
-  line-height: 1.4;
-}
-
-/* Severity badges (colour-coded) */
-.badge.severity-high {
-  background: rgba(230, 82, 60, 0.18);
-  color: #b85443;
-}
-
-.badge.severity-medium {
-  background: rgba(230, 162, 60, 0.2);
-  color: #9a6b1a;
-}
-
-.badge.severity-low {
-  background: rgba(46, 157, 100, 0.18);
-  color: var(--color-success);
-}
-
 /* Section B – Template content */
 .engagement-template-content {
   margin: 0;

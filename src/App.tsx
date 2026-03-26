@@ -13,6 +13,7 @@ import CimmieSession from './pages/CimmieSession';
 import AllCIAs from './pages/AllCIAs';
 import EngagementDetail from './pages/EngagementDetail';
 import ChangeImpactHeatmap from './pages/ChangeImpactHeatmap';
+import StakeholderResponses from './pages/StakeholderResponses';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="cimmie" element={<CimmieSession />} />
         <Route path="all-cias" element={<AllCIAs />} />
         <Route path="all-cias/:engagementId" element={<EngagementDetail />} />
+        <Route path="stakeholder/:stakeholderId/responses" element={<StakeholderResponses />} />
         <Route path="impact-heatmap" element={<ChangeImpactHeatmap />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

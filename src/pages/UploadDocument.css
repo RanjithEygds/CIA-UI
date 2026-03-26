@@ -80,6 +80,35 @@
     0 4px 8px rgba(0, 0, 0, 0.06);
 }
 
+/* Section cards with selected files: expanded shell + file list (empty cards unchanged) */
+.upload-doc-card.upload-doc-card--with-files {
+  padding: 1rem 1.15rem 1.1rem;
+  transition:
+    padding 0.28s ease,
+    transform 0.2s ease,
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.upload-doc-card.upload-doc-card--with-files .upload-section-shell {
+  padding: 0.85rem 1rem 0.25rem;
+}
+
+.upload-doc-card.upload-doc-card--with-files .upload-file-list {
+  animation: upload-file-list-enter 0.28s ease-out;
+}
+
+@keyframes upload-file-list-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .upload-doc-card h3 {
   margin: 0 0 0.3rem 0;
   font-size: 0.85rem;
@@ -227,43 +256,58 @@
   box-shadow: 0 1px 2px rgba(45, 53, 97, 0.06);
 }
 
-.upload-file-type-badge {
+.upload-file-row--error {
+  background: #fef2f2;
+  border-color: rgba(180, 35, 24, 0.45);
+  box-shadow: 0 0 0 1px rgba(180, 35, 24, 0.12);
+}
+
+.upload-file-type-icon-wrap {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 2.35rem;
-  padding: 0.2rem 0.35rem;
-  font-size: 0.58rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: 8px;
   color: #fff;
-  border-radius: 4px;
-  line-height: 1.1;
+  box-shadow: 0 1px 3px rgba(45, 53, 97, 0.15);
 }
 
-.upload-file-type-badge--pdf {
-  background: #b42318;
+.upload-file-type-icon-wrap svg {
+  display: block;
 }
-.upload-file-type-badge--docx {
-  background: #185abd;
+
+.upload-file-type-icon-wrap--pdf {
+  background: linear-gradient(145deg, #dc2626 0%, #b42318 100%);
 }
-.upload-file-type-badge--xlsx {
-  background: #1d6f42;
+.upload-file-type-icon-wrap--docx {
+  background: linear-gradient(145deg, #2563eb 0%, #185abd 100%);
 }
-.upload-file-type-badge--pptx {
-  background: #d24726;
+.upload-file-type-icon-wrap--xlsx {
+  background: linear-gradient(145deg, #22c55e 0%, #1d6f42 100%);
 }
-.upload-file-type-badge--text {
-  background: #5c6b7a;
+.upload-file-type-icon-wrap--pptx {
+  background: linear-gradient(145deg, #f97316 0%, #d24726 100%);
 }
-.upload-file-type-badge--image {
-  background: #7c3aed;
+.upload-file-type-icon-wrap--txt {
+  background: linear-gradient(145deg, #64748b 0%, #475569 100%);
 }
-.upload-file-type-badge--zip {
-  background: #b45309;
+.upload-file-type-icon-wrap--csv {
+  background: linear-gradient(145deg, #0d9488 0%, #0f766e 100%);
 }
-.upload-file-type-badge--generic {
-  background: var(--color-secondary);
+.upload-file-type-icon-wrap--image {
+  background: linear-gradient(145deg, #a78bfa 0%, #7c3aed 100%);
+}
+.upload-file-type-icon-wrap--zip {
+  background: linear-gradient(145deg, #ea580c 0%, #b45309 100%);
+}
+.upload-file-type-icon-wrap--generic {
+  background: linear-gradient(
+    145deg,
+    #5c6478 0%,
+    var(--color-secondary) 100%
+  );
 }
 
 .upload-file-row-main {
@@ -342,6 +386,11 @@
 .upload-file-success-icon {
   display: flex;
   color: var(--color-success);
+}
+
+.upload-file-error-icon {
+  display: flex;
+  color: #b42318;
 }
 
 .upload-file-status-placeholder {

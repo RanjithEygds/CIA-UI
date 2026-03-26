@@ -90,10 +90,6 @@ export default function Home() {
                 links, complete their interview, and receive a real‑time conversational 
                 read‑back of the captured evidence organized by topic.
               </p>
-              {/* <p className="cimmie-note">
-                Access is session-scoped and time-limited. Stakeholders cannot request post-interview
-                outputs, view other transcripts, or access internal knowledge sources.
-              </p> */}
             </div>
           </div>
         </div>

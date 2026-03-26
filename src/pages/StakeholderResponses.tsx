@@ -1,0 +1,259 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import {
+  fetchInterviewResponsesDetail,
+  formatInterviewDuration,
+  type InterviewResponsesDetailOut,
+} from '../api/interviews';
+import { getDemoResponsesDetail } from '../data/demoStakeholderInterviews';
+import './StakeholderResponses.css';
+
+function isDemoInterviewId(id: string): boolean {
+  return id.startsWith('demo-iv-');
+}
+
+function buildTranscriptExport(d: InterviewResponsesDetailOut): string {
+  const lines: string[] = [];
+  lines.push('CIA — Stakeholder interview transcript');
+  lines.push('=====================================');
+  lines.push('');
+  lines.push(`Stakeholder name: ${d.stakeholder_name}`);
+  if (d.stakeholder_email) lines.push(`Email: ${d.stakeholder_email}`);
+  lines.push(`Interview date: ${d.interview_date ?? '—'}`);
+  lines.push(`Sentiment: ${d.sentiment}`);
+  lines.push(`Duration: ${formatInterviewDuration(d.duration_seconds ?? null)}`);
+  lines.push(`Status: ${d.status}`);
+  lines.push('');
+  if (d.final_summary) {
+    lines.push('Summary');
+    lines.push('-------');
+    lines.push(d.final_summary);
+    lines.push('');
+  }
+  lines.push('Question-by-question transcript');
+  lines.push('---------------------------------');
+  d.questions.forEach((q, i) => {
+    lines.push('');
+    lines.push(`Q${i + 1}. ${q.question_text}`);
+    if (q.timestamp_utc) lines.push(`    Timestamp: ${q.timestamp_utc}`);
+    if (q.section) lines.push(`    Section: ${q.section}`);
+    lines.push(`    Answer:`);
+    const answerLines = (q.answer_text || '(no response)').split('\n');
+    answerLines.forEach((ln) => lines.push(`    ${ln}`));
+  });
+  lines.push('');
+  lines.push('— End of transcript —');
+  return lines.join('\n');
+}
+
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function safeFilenamePart(s: string): string {
+  return s.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_').slice(0, 60) || 'transcript';
+}
+
+export default function StakeholderResponses() {
+  const { stakeholderId } = useParams<{ stakeholderId: string }>();
+  const location = useLocation();
+  const returnTo =
+    (location.state as { returnTo?: string } | null)?.returnTo ?? '/all-cias';
+
+  const [detail, setDetail] = useState<InterviewResponsesDetailOut | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState('');
+  const [openMap, setOpenMap] = useState<Record<number, boolean>>({});
+
+  const load = useCallback(async (id: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (isDemoInterviewId(id)) {
+        const demo = getDemoResponsesDetail(id);
+        if (!demo) {
+          setDetail(null);
+          setError('Interview not found.');
+        } else {
+          setDetail(demo);
+        }
+        return;
+      }
+      const data = await fetchInterviewResponsesDetail(id);
+      setDetail(data);
+    } catch (e) {
+      setDetail(null);
+      setError(e instanceof Error ? e.message : 'Could not load transcript.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!stakeholderId) {
+      setError('Missing interview id.');
+      setLoading(false);
+      return;
+    }
+    void load(stakeholderId);
+  }, [stakeholderId, load]);
+
+  useEffect(() => {
+    if (!detail?.questions.length) {
+      setOpenMap({});
+      return;
+    }
+    const init: Record<number, boolean> = {};
+    detail.questions.forEach((_, i) => {
+      init[i] = true;
+    });
+    setOpenMap(init);
+  }, [detail?.interview_id]);
+
+  const filteredQuestions = useMemo(() => {
+    if (!detail) return [];
+    const q = filter.trim().toLowerCase();
+    if (!q) return detail.questions.map((item, index) => ({ item, index }));
+    return detail.questions
+      .map((item, index) => ({ item, index }))
+      .filter(
+        ({ item }) =>
+          item.question_text.toLowerCase().includes(q) ||
+          (item.answer_text || '').toLowerCase().includes(q),
+      );
+  }, [detail, filter]);
+
+  const handleExport = () => {
+    if (!detail) return;
+    const body = buildTranscriptExport(detail);
+    const datePart = (detail.interview_date || new Date().toISOString()).slice(0, 10);
+    const name = safeFilenamePart(detail.stakeholder_name);
+    downloadTextFile(`CIA_Transcript_${name}_${datePart}.txt`, body);
+  };
+
+  if (!stakeholderId) {
+    return (
+      <div className="stakeholder-responses-page">
+        <p className="stakeholder-responses-not-found">Invalid link.</p>
+        <Link to={returnTo} className="stakeholder-responses-back">
+          ← Back
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stakeholder-responses-page">
+      <Link to={returnTo} className="stakeholder-responses-back">
+        ← Back
+      </Link>
+
+      {loading && <p className="stakeholder-responses-empty">Loading transcript…</p>}
+      {!loading && error && (
+        <p className="stakeholder-responses-not-found">{error}</p>
+      )}
+
+      {!loading && detail && (
+        <>
+          <div className="card stakeholder-responses-header-card">
+            <h1 className="stakeholder-responses-title">{detail.stakeholder_name}</h1>
+            <div className="stakeholder-responses-meta-row">
+              <span>
+                <strong>Sentiment:</strong> {detail.sentiment}
+              </span>
+              <span>
+                <strong>Duration:</strong> {formatInterviewDuration(detail.duration_seconds ?? null)}
+              </span>
+              <span>
+                <strong>Interview date:</strong>{' '}
+                {detail.interview_date
+                  ? new Date(detail.interview_date).toLocaleString()
+                  : '—'}
+              </span>
+            </div>
+
+            <div className="stakeholder-responses-toolbar">
+              <input
+                type="search"
+                className="stakeholder-responses-search"
+                placeholder="Search questions or answers…"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                aria-label="Filter questions"
+              />
+              <button type="button" className="btn btn-primary" onClick={handleExport}>
+                Export transcript
+              </button>
+            </div>
+
+            {detail.final_summary && (
+              <div style={{ marginTop: '0.85rem' }}>
+                <h2 className="stakeholder-responses-subheading">Interview summary</h2>
+                <p className="stakeholder-responses-summary">{detail.final_summary}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="stakeholder-responses-scroll">
+            {filteredQuestions.length === 0 && (
+              <p className="stakeholder-responses-empty">
+                {detail.questions.length === 0
+                  ? 'No responses recorded yet for this interview.'
+                  : 'No questions match your search.'}
+              </p>
+            )}
+
+            {filteredQuestions.map(({ item, index }) => {
+              const open = openMap[index] !== false;
+              return (
+                <div key={index} className="stakeholder-question-card">
+                  <button
+                    type="button"
+                    className="stakeholder-question-toggle"
+                    onClick={() =>
+                      setOpenMap((m) => ({
+                        ...m,
+                        [index]: !open,
+                      }))
+                    }
+                    aria-expanded={open}
+                  >
+                    <span className="stakeholder-question-chevron" aria-hidden="true">
+                      {open ? '▲' : '▼'}
+                    </span>
+                    <span className="stakeholder-question-heading">
+                      <div className="stakeholder-question-index">Question {index + 1}</div>
+                      <p className="stakeholder-question-text">{item.question_text}</p>
+                    </span>
+                  </button>
+                  {open && (
+                    <div className="stakeholder-question-body">
+                      {item.timestamp_utc && (
+                        <div className="stakeholder-question-timestamp">
+                          {new Date(item.timestamp_utc).toLocaleString()}
+                        </div>
+                      )}
+                      <p className="stakeholder-question-answer">
+                        {item.answer_text || '—'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

@@ -13,14 +13,15 @@
   display: block;
 }
 
-.preview-questions-header h1 {
+/* Match Preview page title stack when paired with `.preview-header` */
+.preview-questions-header.preview-header h1 {
   margin: 0.25rem 0;
   font-size: clamp(1rem, 2.2vw, 1.35rem);
   line-height: 1.15;
   color: var(--color-secondary);
 }
 
-.preview-questions-header p {
+.preview-questions-header.preview-header p {
   margin: 0;
   max-width: 720px;
   color: var(--ink-500);
@@ -33,114 +34,274 @@
   margin-top: 0.5rem;
 }
 
-.preview-questions-block {
+/* Outer “Questions” panel — same white surface as Preview upload column */
+.preview-questions-section.card.preview-block {
   margin: 0;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+  padding: 0.75rem 1rem;
 }
 
-.preview-questions-block h2 {
-  margin: 0 0 0.4rem;
+.preview-questions-section.preview-block h2 {
+  margin: 0 0 0.75rem;
   font-size: 0.9rem;
   color: var(--color-secondary);
 }
 
-.preview-questions-block-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
+/* Vertical rhythm between question cards (inherits `.preview-extracted` gap) */
+.preview-questions-stack.preview-extracted {
+  gap: 1rem;
 }
 
-.preview-questions-block-header h2 {
-  margin: 0;
+.preview-questions-empty-hint {
+  margin: 0 0 0.25rem;
 }
 
-.preview-questions-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.preview-questions-q-badge--new {
+  background: rgba(13, 115, 119, 0.14);
+  color: var(--color-primary);
+  text-transform: none;
+  letter-spacing: 0.03em;
 }
 
-.preview-questions-item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border);
+.preview-questions-card--draft.card.preview-block:hover {
+  border-color: rgba(45, 53, 97, 0.32);
+  box-shadow:
+    0 1px 2px rgba(13, 115, 119, 0.06),
+    0 4px 12px rgba(45, 53, 97, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.04);
+  background: #e8f0f4;
+}
+
+.preview-questions-add-row {
+  margin-top: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+.preview-questions-add-btn.btn {
   font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
 }
 
-.preview-questions-item:last-child {
-  border-bottom: none;
+/* Soft elevated row cards — same language as Preview extracted context cards */
+.preview-questions-card.card.preview-block {
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
 }
 
-.preview-questions-text {
+.preview-questions-card.card.preview-block:hover:not(.preview-questions-card--leaving) {
+  border-color: rgba(45, 53, 97, 0.42);
+  box-shadow:
+    0 1px 2px rgba(13, 115, 119, 0.08),
+    0 6px 16px rgba(45, 53, 97, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+  background: #eef4f7;
+}
+
+.preview-questions-card--leaving.card.preview-block {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.99);
+  margin-bottom: 0;
+  transition:
+    opacity 0.24s ease,
+    transform 0.24s ease,
+    margin 0.24s ease;
+}
+
+.preview-questions-card-header.preview-block-header {
+  align-items: flex-start;
+  margin-bottom: 0;
+}
+
+.preview-questions-card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
   flex: 1;
   min-width: 0;
-  line-height: 1.35;
-  color: var(--ink-700);
 }
 
-.preview-questions-edit {
-  width: 100%;
-  min-height: 3rem;
-  padding: 0.4rem 0.5rem;
+/* Stylized index — distinct from header count badge */
+.preview-questions-q-badge {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: var(--radius);
+  background: rgba(45, 53, 97, 0.12);
+  color: var(--color-secondary);
+}
+
+/* Body copy tokens aligned with `.preview-extracted .summary-points--header-body` */
+.preview-questions-card-text {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
   font-size: 0.75rem;
   line-height: 1.35;
-  color: var(--ink-700);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  resize: vertical;
+  color: #4e5c6b;
 }
 
-.preview-questions-edit:focus {
-  outline: none;
-  border-color: var(--color-primary);
+.preview-questions-card-actions.preview-block-actions {
+  margin-left: 0.75rem;
+  padding-top: 0.05rem;
 }
 
-.preview-questions-item-actions {
+.preview-questions-edit-btn.btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  gap: 0.4rem;
+}
+
+.preview-questions-delete-btn.btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  gap: 0.4rem;
+  color: #b42318;
+}
+
+.preview-questions-delete-btn.btn:hover:not(:disabled) {
+  background: rgba(180, 35, 24, 0.08);
+  color: #912018;
+}
+
+.preview-questions-delete-btn.btn:disabled {
+  opacity: 0.45;
+}
+
+.preview-questions-save-btn.btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+}
+
+/* Inline edit — mirrors Preview extracted card editor */
+.preview-questions-inline-edit.preview-block-edit--full {
+  margin-top: 0.5rem;
+  min-height: 7rem;
+  flex: 1;
+}
+
+/* Delete confirmation */
+.preview-questions-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  flex-shrink: 0;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  animation: preview-questions-backdrop-in 0.2s ease;
 }
 
-.preview-questions-remove {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.68rem;
+@keyframes preview-questions-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.preview-questions-add-wrap {
-  margin-bottom: 0.5rem;
-  padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.preview-questions-add-actions {
+.preview-questions-modal.card {
+  width: min(100%, 26rem);
+  max-height: min(90vh, 22rem);
+  overflow: auto;
+  padding: 1rem 1.15rem;
   display: flex;
-  gap: 0.4rem;
-  margin-top: 0.4rem;
+  flex-direction: column;
+  gap: 0.45rem;
+  animation: preview-questions-modal-in 0.22s ease;
 }
 
-.preview-questions-actions {
+@keyframes preview-questions-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.preview-questions-modal-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.preview-questions-modal-body {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--ink-500);
+}
+
+.preview-questions-modal-preview {
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--ink-700);
+  background: rgba(45, 53, 97, 0.06);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  max-height: 6.5rem;
+  overflow: auto;
+}
+
+.preview-questions-modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.4rem;
+  margin-top: 0.35rem;
+  padding-top: 0.25rem;
 }
 
-.empty-row {
-  margin: 0.2rem 0 0;
-  color: var(--ink-300);
-  font-size: 0.68rem;
+.preview-questions-delete-confirm-btn.btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.4rem 0.85rem;
+  background: linear-gradient(135deg, #c42b2b 0%, #912018 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(180, 35, 24, 0.35);
+}
+
+.preview-questions-delete-confirm-btn.btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #a82525 0%, #7a1812 100%);
+}
+
+.preview-questions-delete-confirm-btn.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 @media (max-width: 680px) {
-  .preview-questions-actions {
+  .preview-questions-card-header.preview-block-header {
     flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
   }
 
-  .preview-questions-actions .btn {
-    width: 100%;
+  .preview-questions-card-actions.preview-block-actions {
+    margin-left: 0;
+    padding-top: 0;
+    justify-content: flex-end;
   }
 }

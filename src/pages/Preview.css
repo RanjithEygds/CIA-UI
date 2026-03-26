@@ -3,9 +3,11 @@
   gap: 0.6rem;
 }
 
-.preview-header {  background:
-  radial-gradient(circle at right top, rgba(238, 155, 0, 0.18), transparent 44%),
-  linear-gradient(180deg, #ffffff, #f9fcff);
+.preview-header {
+  display: block;
+  background:
+    radial-gradient(circle at right top, rgba(238, 155, 0, 0.18), transparent 44%),
+    linear-gradient(180deg, #ffffff, #f9fcff);
 }
 
 .preview-kicker {
@@ -36,9 +38,16 @@
   line-height: 1.35;
 }
 
-.preview-header-badge {
+/* Intro copy only; keeps kicker typography independent of this rule */
+.preview-header-lead {
+  margin-top: 0.25rem;
+}
+
+/* Single placement: directly under `.preview-header-lead`, normal flow (unaffected by grid/cards below) */
+.preview-header-files-badge {
   display: inline-block;
   margin-top: 0.5rem;
+  vertical-align: top;
 }
 
 .preview-grid {
@@ -123,18 +132,40 @@
   resize: vertical;
 }
 
+.preview-block-edit--full {
+  min-height: 11rem;
+  flex: 1;
+  font-family: inherit;
+  background: #ffffff;
+}
+
 .preview-block-edit:focus {
   outline: none;
   border-color: var(--color-primary);
+}
+
+.preview-block-edit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.preview-block-edit-error {
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #b42318;
 }
 
 .upload-group {
   margin-bottom: 0.4rem;
 }
 
+/* Match Upload page `.upload-doc-card h3` section titles */
 .upload-group h3 {
-  margin: 0;
-  font-size: 0.8rem;
+  margin: 0 0 0.3rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--color-secondary);
 }
 
@@ -160,19 +191,24 @@
   font-size: 0.68rem;
 }
 
-.summary-points p {
-  margin: 0 0 0.4rem;
+/* Extracted agent output: same size/weight/line-height as `.preview-header` body copy */
+.preview-extracted .summary-points--header-body {
   font-size: 0.75rem;
   line-height: 1.35;
-  color: var(--ink-700);
+  /* Slightly darker than --ink-500 for readability */
+  color: #4e5c6b;
 }
 
-/* Extracted cards body text – match Upload card description hierarchy */
-.preview-extracted .summary-points p {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  color: #4e5c6b;
+.preview-extracted .summary-points--header-body :where(p, div) {
+  margin: 0 0 0.4rem;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+.preview-extracted .summary-points--header-body :where(strong) {
+  font-weight: 600;
+  color: inherit;
 }
 
 .preview-stakeholders-wrap {

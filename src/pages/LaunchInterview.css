@@ -100,6 +100,29 @@
   line-height: 1.3;
 }
 
+/* Extend Session column only: disabled grey / no hover; enabled matches Initiate Session (.btn-primary.compact) */
+.stakeholder-table .launch-extend-session-btn.btn-primary.compact:disabled,
+.stakeholder-table .launch-extend-session-btn.btn-primary.compact[disabled] {
+  opacity: 1;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, #5f6b78 0%, #3d4653 100%);
+  color: #fff;
+  box-shadow: none;
+  filter: grayscale(0.12);
+}
+
+.stakeholder-table .launch-extend-session-btn.btn-primary.compact:disabled:hover,
+.stakeholder-table .launch-extend-session-btn.btn-primary.compact[disabled]:hover,
+.stakeholder-table .launch-extend-session-btn.btn-primary.compact:disabled:focus,
+.stakeholder-table .launch-extend-session-btn.btn-primary.compact[disabled]:focus,
+.stakeholder-table .launch-extend-session-btn.btn-primary.compact:disabled:active,
+.stakeholder-table .launch-extend-session-btn.btn-primary.compact[disabled]:active {
+  background: linear-gradient(135deg, #5f6b78 0%, #3d4653 100%);
+  color: #fff;
+  box-shadow: none;
+  filter: grayscale(0.12);
+}
+
 /* Copy feedback: soft teal/green highlight only; no size/typography/layout changes */
 .stakeholder-table .btn.copy-copied {
   background-color: rgba(42, 157, 143, 0.45);

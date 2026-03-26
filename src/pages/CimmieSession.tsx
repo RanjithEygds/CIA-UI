@@ -1,5 +1,24 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import './CimmieSession.css';
+import React, {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import "./CimmieSession.css";
+
+import {
+  startInterview,
+  firstIntroStream,
+  getNextQuestion,
+  submitAnswer,
+  submitAnswerStream,
+  endInterview,
+  type AnswerStreamDonePayload,
+  type NextQuestionResponse,
+} from "../api/interviews";
+import { DEFAULT_TTS_VOICE } from "../config";
 
 /** Minimal type for Web Speech API SpeechRecognition. */
 interface SpeechRecognitionLike {
@@ -40,8 +59,10 @@ interface SpeechRecognitionErrorEvent {
 }
 
 /** Browser Speech Recognition (Web Speech API); may be prefixed. */
-function getSpeechRecognitionConstructor(): (new () => SpeechRecognitionLike) | null {
-  if (typeof window === 'undefined') return null;
+function getSpeechRecognitionConstructor():
+  | (new () => SpeechRecognitionLike)
+  | null {
+  if (typeof window === "undefined") return null;
   const w = window as unknown as {
     SpeechRecognition?: new () => SpeechRecognitionLike;
     webkitSpeechRecognition?: new () => SpeechRecognitionLike;
@@ -49,11 +70,140 @@ function getSpeechRecognitionConstructor(): (new () => SpeechRecognitionLike) | 
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+function getSpeechSynthesis(): SpeechSynthesis | null {
+  if (typeof window === "undefined") return null;
+  return window.speechSynthesis ?? null;
+}
+
+/** Chrome/Safari often return an empty voice list until voiceschanged fires. */
+function waitForSpeechSynthesisVoices(maxWaitMs = 2500): Promise<void> {
+  const synth = getSpeechSynthesis();
+  if (!synth) return Promise.resolve();
+  if (synth.getVoices().length > 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      synth.removeEventListener("voiceschanged", onVoices);
+      resolve();
+    };
+    const onVoices = () => {
+      if (synth.getVoices().length > 0) finish();
+    };
+    synth.addEventListener("voiceschanged", onVoices);
+    void synth.getVoices();
+    setTimeout(finish, maxWaitMs);
+  });
+}
+
+function configureSpeechUtterance(u: SpeechSynthesisUtterance) {
+  u.volume = 1;
+  u.rate = 1;
+  const preferred = DEFAULT_TTS_VOICE.trim();
+  const synth = getSpeechSynthesis();
+  const voices = synth?.getVoices() ?? [];
+  if (preferred) {
+    const v =
+      voices.find((x) => x.name === preferred) ??
+      voices.find((x) => x.voiceURI === preferred) ??
+      voices.find((x) => x.lang === preferred);
+    if (v) {
+      u.voice = v;
+      u.lang = v.lang || "en-US";
+      return;
+    }
+  }
+  u.lang = "en-US";
+}
+
 type Message = {
   id: string;
-  from: 'bot' | 'user';
+  from: "bot" | "user";
   text: string;
+  /** Full text target from SSE (or local); typewriter reveals into view */
+  streamTotal?: string;
+  /** When false, network may still append to streamTotal */
+  streamComplete?: boolean;
 };
+
+const WELCOME_BOT_TEXT =
+  "Welcome to CIMMIE. This is your scheduled Change Impact Assessment interview. " +
+  "We will proceed topic by topic and capture evidence across People, Process, Technology, and Data.";
+
+function BotTypewriterBlock({
+  messageId,
+  streamTotal,
+  streamComplete,
+  onTick,
+  onSettled,
+}: {
+  messageId: string;
+  streamTotal: string;
+  streamComplete: boolean;
+  onTick: () => void;
+  onSettled: (id: string, final: string) => void;
+}) {
+  const [displayed, setDisplayed] = useState("");
+  const posRef = useRef(0);
+  const totalRef = useRef(streamTotal);
+  const scRef = useRef(streamComplete);
+  const settledRef = useRef(false);
+  totalRef.current = streamTotal;
+  scRef.current = streamComplete;
+
+  useEffect(() => {
+    settledRef.current = false;
+    posRef.current = 0;
+    setDisplayed("");
+  }, [messageId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const step = () => {
+      if (cancelled) return;
+      const target = totalRef.current;
+      const i = posRef.current;
+      if (i >= target.length) {
+        if (!scRef.current) {
+          requestAnimationFrame(step);
+          return;
+        }
+        if (!settledRef.current) {
+          settledRef.current = true;
+          onSettled(messageId, target);
+        }
+        return;
+      }
+      const c = target[i]!;
+      posRef.current = i + 1;
+      setDisplayed(target.slice(0, i + 1));
+      onTick();
+      const ms = c === " " ? 0 : Math.round(30 + Math.random() * 20);
+      window.setTimeout(step, ms);
+    };
+    step();
+    return () => {
+      cancelled = true;
+    };
+  }, [messageId, onSettled, onTick]);
+
+  const showTyping =
+    displayed.length < streamTotal.length || !streamComplete;
+
+  return (
+    <span className="chat-bubble-text cimmie-streaming-wrap">
+      <span>{displayed}</span>
+      {showTyping ? (
+        <span className="cimmie-typing" aria-hidden="true">
+          <span className="cimmie-typing-dot" />
+          <span className="cimmie-typing-dot" />
+          <span className="cimmie-typing-dot" />
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 type Section = {
   sectionId: string;
@@ -66,52 +216,70 @@ type Section = {
 
 const sections: Section[] = [
   {
-    sectionId: '1',
-    title: 'Opening & Consent',
-    fullTitle: '1. Opening & Consent',
-    status: 'not_started',
+    sectionId: "1",
+    title: "Opening & Consent",
+    fullTitle: "1. Opening & Consent",
+    status: "not_started",
     totalQuestions: 1,
     answeredQuestions: 0,
   },
   {
-    sectionId: '2',
-    title: 'Role impact',
-    fullTitle: '2. Role impact',
-    status: 'in_progress',
+    sectionId: "2",
+    title: "Role impact",
+    fullTitle: "2. Role impact",
+    status: "in_progress",
     totalQuestions: 3,
     answeredQuestions: 1,
   },
   {
-    sectionId: '3',
-    title: 'Process & technology',
-    fullTitle: '3. Process & technology',
-    status: 'not_started',
+    sectionId: "3",
+    title: "Process & technology",
+    fullTitle: "3. Process & technology",
+    status: "not_started",
     totalQuestions: 2,
     answeredQuestions: 0,
   },
   {
-    sectionId: '4',
-    title: 'Data & closure',
-    fullTitle: '4. Data & closure',
-    status: 'not_started',
+    sectionId: "4",
+    title: "Data & closure",
+    fullTitle: "4. Data & closure",
+    status: "not_started",
     totalQuestions: 2,
     answeredQuestions: 0,
   },
 ];
 
 /** Step state for the vertical progress pipe: completed, active, or upcoming */
-function getStepState(index: number, sectionsList: Section[]): 'completed' | 'active' | 'upcoming' {
-  const currentIndex = sectionsList.findIndex((s) => s.status === 'in_progress');
+function getStepState(
+  index: number,
+  sectionsList: Section[],
+): "completed" | "active" | "upcoming" {
+  const currentIndex = sectionsList.findIndex(
+    (s) => s.status === "in_progress",
+  );
   const effectiveCurrent = currentIndex >= 0 ? currentIndex : 0;
-  if (sectionsList[index]?.status === 'completed' || index < effectiveCurrent) return 'completed';
-  if (index === effectiveCurrent) return 'active';
-  return 'upcoming';
+  if (sectionsList[index]?.status === "completed" || index < effectiveCurrent)
+    return "completed";
+  if (index === effectiveCurrent) return "active";
+  return "upcoming";
 }
 
 function StepCheckmark() {
   return (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-      <path d="M1.5 5.5L4 8L8.5 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M1.5 5.5L4 8L8.5 3"
+        stroke="white"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -158,92 +326,247 @@ function MicIcon() {
   );
 }
 
-const seedMessages: Message[] = [
-  {
-    id: 'm1',
-    from: 'bot',
-    text: 'Hi, I’m CIMMIE, your Change Impact Assessment assistant. Welcome, and thank you for joining today.',
-  },
-  {
-    id: 'm2',
-    from: 'bot',
-    text: 'The purpose of this session is to understand how the upcoming change will affect your part of the business, your teams, your customers, and your own role. We’ll explore impacts on people, processes, technology, skills and behaviours so we can plan the right support and mitigations. This is a collaborative conversation - your insights will help us make the change successful for everyone. ',
-  },
-  {
-    id: 'm3',
-    from: 'bot',
-    text: 'May I proceed and capture notes? Please type "yes" to continue.',
-  },
-  {
-    id: 'm4',
-    from: 'user',
-    text: 'Yes',
-  },
-  {
-    id: 'm5',
-    from: 'bot',
-    text: 'To start us off, could you tell me a bit about your role and responsibilities, and what your main priorities are at the moment?',
-  },
-];
-
 const SESSION_MINUTES = 30;
-const INTERVIEW_MODE_KEY = 'cimmie-interview-mode';
+const INTERVIEW_MODE_KEY = "cimmie-interview-mode";
+const ACTIVE_STAKEHOLDER_KEY = "ciassist_active_stakeholder_id";
+const COMPLETED_STAKEHOLDERS_KEY = "ciassist_completed_stakeholders";
 const SILENCE_TIMEOUT_MS = 7000;
+const VOICE_PANEL_SILENCE_TIMEOUT_MS = 2500;
 const MIC_TOGGLE_DEBOUNCE_MS = 400;
 
-type InterviewMode = 'text' | 'voice';
+type InterviewMode = "text" | "voice";
 
 /** Mic status under Text mode: idle, just started (Speak Now), or user speaking (I am listening…) */
-type ComposerMicStatus = 'idle' | 'speak_now' | 'listening';
+type ComposerMicStatus = "idle" | "speak_now" | "listening";
 
 /** Mic status under Voice mode: idle, recording (Speak Now), or speech detected (I am listening…) */
-type VoicePanelMicStatus = 'idle' | 'speak_now' | 'listening';
+type VoicePanelMicStatus = "idle" | "speak_now" | "listening";
 
 function getStoredInterviewMode(): InterviewMode {
-  if (typeof window === 'undefined') return 'text';
+  if (typeof window === "undefined") return "text";
   const stored = window.localStorage.getItem(INTERVIEW_MODE_KEY);
-  return stored === 'voice' ? 'voice' : 'text';
+  return stored === "voice" ? "voice" : "text";
 }
 
 function formatRemaining(seconds: number) {
   const mins = Math.floor(seconds / 60)
     .toString()
-    .padStart(2, '0');
+    .padStart(2, "0");
   const secs = Math.floor(seconds % 60)
     .toString()
-    .padStart(2, '0');
+    .padStart(2, "0");
   return `${mins}:${secs}`;
 }
 
 export default function CimmieSession() {
-  const [messages, setMessages] = useState<Message[]>(seedMessages);
-  const [draft, setDraft] = useState('');
-  const [remainingSeconds, setRemainingSeconds] = useState(SESSION_MINUTES * 60);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [draft, setDraft] = useState("");
+  const [remainingSeconds, setRemainingSeconds] = useState(
+    SESSION_MINUTES * 60,
+  );
   const [timeBannerDismissed, setTimeBannerDismissed] = useState(false);
-  const [interviewMode, setInterviewMode] = useState<InterviewMode>(() => getStoredInterviewMode());
+  const [interviewMode, setInterviewMode] = useState<InterviewMode>(() =>
+    getStoredInterviewMode(),
+  );
   const [voicePanelListening, setVoicePanelListening] = useState(false);
-  const [voicePanelMicStatus, setVoicePanelMicStatus] = useState<VoicePanelMicStatus>('idle');
-  const [voicePanelTranscript, setVoicePanelTranscript] = useState('');
+  const [voicePanelMicStatus, setVoicePanelMicStatus] =
+    useState<VoicePanelMicStatus>("idle");
+  const [voicePanelTranscript, setVoicePanelTranscript] = useState("");
   const [voiceVolume, setVoiceVolume] = useState(0);
   const [composerListening, setComposerListening] = useState(false);
-  const [composerMicStatus, setComposerMicStatus] = useState<ComposerMicStatus>('idle');
-  const [composerSpeechError, setComposerSpeechError] = useState<string | null>(null);
+  const [composerMicStatus, setComposerMicStatus] =
+    useState<ComposerMicStatus>("idle");
+  const [composerSpeechError, setComposerSpeechError] = useState<string | null>(
+    null,
+  );
+  const [interviewId, setInterviewId] = useState<string | null>(null);
+  const [completed, setCompleted] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentQuestion, setCurrentQuestion] =
+    useState<NextQuestionResponse | null>(null);
+  const hasEndedRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const logRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const sessionTranscriptRef = useRef('');
+  const sessionTranscriptRef = useRef("");
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMicToggleTimeRef = useRef(0);
   /* Voice panel: recognition, stream, transcript, and audio analysis */
   const voiceRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const voiceMediaStreamRef = useRef<MediaStream | null>(null);
-  const voiceTranscriptRef = useRef('');
+  const voiceTranscriptRef = useRef("");
+  const voiceSilenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const voiceAudioContextRef = useRef<AudioContext | null>(null);
   const voiceAnalyserRef = useRef<AnalyserNode | null>(null);
   const voiceAnimationFrameRef = useRef<number | null>(null);
+  const voiceAgentLogRef = useRef<HTMLDivElement | null>(null);
+  const voiceTtsBufferRef = useRef("");
+  const voiceTtsUtteranceCountRef = useRef(0);
+  const voiceAfterTtsRef = useRef<(() => void) | null>(null);
+  const voiceAnswerInFlightRef = useRef(false);
+  /** Id of the bot stream bubble last created by `appendStreamBeginPart` (voice sequencing). */
+  const lastCreatedBotStreamIdRef = useRef<string | null>(null);
+  /** Bot message id currently receiving streamed deltas in a voice answer (null between parts). */
+  const voiceCurrentPartOpenIdRef = useRef<string | null>(null);
+  const voiceAnswerPumpLockRef = useRef(false);
+  const voiceSubmitCycleResolveRef = useRef<(() => void) | null>(null);
+  const voiceTwResolversRef = useRef(new Map<string, () => void>());
+  const [voiceDisplayedBotId, setVoiceDisplayedBotId] = useState<string | null>(
+    null,
+  );
+  /** Browsers require a user gesture before speechSynthesis; boot waits on this. */
+  const voiceAudioUnlockResolveRef = useRef<(() => void) | null>(null);
+  const [voiceAwaitingAudioUnlock, setVoiceAwaitingAudioUnlock] =
+    useState(false);
+  const interviewModeRef = useRef(interviewMode);
+  const completedRef = useRef(completed);
+  const backendCompletionSyncedRef = useRef(false);
+  const sessionExpiredRef = useRef(false);
+  const voiceBootRef = useRef({
+    feedVoiceTtsDelta: (_c: string) => {},
+    flushVoiceTtsRemainder: () => {},
+    prepareVoiceAgentSpeech: () => {},
+    closeAndFinalizeBotStreams: () => {},
+    waitUntilSpeechIdle: async () => {},
+    speakUtteranceSimple: (_t: string) => Promise.resolve(),
+    startVoiceRecording: () => {},
+  });
+
+  const scrollChatToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = logRef.current;
+      if (!el) return;
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    });
+  }, []);
+
+  const handleBotStreamSettled = useCallback((id: string, final: string) => {
+    const r = voiceTwResolversRef.current.get(id);
+    if (r) {
+      voiceTwResolversRef.current.delete(id);
+      r();
+    }
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === id && m.streamTotal !== undefined
+          ? { id: m.id, from: "bot" as const, text: final }
+          : m,
+      ),
+    );
+  }, []);
+
+  const appendStreamBeginPart = useCallback((part: string) => {
+    const id = `bot-${part}-${Date.now()}`;
+    lastCreatedBotStreamIdRef.current = id;
+    setMessages((prev) => {
+      const closed = prev.map((m) =>
+        m.from === "bot" &&
+        m.streamTotal !== undefined &&
+        m.streamComplete === false
+          ? { ...m, streamComplete: true }
+          : m,
+      );
+      return [
+        ...closed,
+        {
+          id,
+          from: "bot" as const,
+          text: "",
+          streamTotal: "",
+          streamComplete: false,
+        },
+      ];
+    });
+  }, []);
+
+  const markStakeholderCompleted = useCallback(() => {
+    const stakeholderId = sessionStorage.getItem(ACTIVE_STAKEHOLDER_KEY);
+    if (!stakeholderId) return;
+    try {
+      const raw = sessionStorage.getItem(COMPLETED_STAKEHOLDERS_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const ids = new Set(
+        Array.isArray(parsed)
+          ? parsed.filter((id): id is string => typeof id === "string")
+          : [],
+      );
+      ids.add(stakeholderId);
+      sessionStorage.setItem(COMPLETED_STAKEHOLDERS_KEY, JSON.stringify([...ids]));
+    } catch {
+      sessionStorage.setItem(COMPLETED_STAKEHOLDERS_KEY, JSON.stringify([stakeholderId]));
+    }
+  }, []);
+
+  const appendStreamDelta = useCallback((t: string) => {
+    setMessages((prev) => {
+      let lastStreaming = -1;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        const m = prev[i]!;
+        if (
+          m.from === "bot" &&
+          m.streamTotal !== undefined &&
+          m.streamComplete === false
+        ) {
+          lastStreaming = i;
+          break;
+        }
+      }
+      if (lastStreaming < 0) return prev;
+      const next = [...prev];
+      const m = next[lastStreaming]!;
+      next[lastStreaming] = {
+        ...m,
+        streamTotal: (m.streamTotal ?? "") + t,
+      };
+      return next;
+    });
+  }, []);
+
+  const markOpenStreamsComplete = useCallback(() => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.from === "bot" &&
+        m.streamTotal !== undefined &&
+        m.streamComplete === false
+          ? { ...m, streamComplete: true }
+          : m,
+      ),
+    );
+  }, []);
+
+  /** Voice mode: collapse streaming bot bubbles to final text immediately (no typewriter). */
+  const closeAndFinalizeBotStreams = useCallback(() => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.from === "bot" && m.streamTotal !== undefined
+          ? { id: m.id, from: "bot" as const, text: m.streamTotal ?? "" }
+          : m,
+      ),
+    );
+  }, []);
+
+  const waitVoiceTypewriter = useCallback((id: string) => {
+    return new Promise<void>((resolve) => {
+      voiceTwResolversRef.current.set(id, resolve);
+    });
+  }, []);
+
+  function flushVoiceTypewriterResolvers() {
+    voiceTwResolversRef.current.forEach((fn) => {
+      fn();
+    });
+    voiceTwResolversRef.current.clear();
+  }
 
   function setInterviewModeAndPersist(mode: InterviewMode) {
     setInterviewMode(mode);
-    if (typeof window !== 'undefined') window.localStorage.setItem(INTERVIEW_MODE_KEY, mode);
+    if (typeof window !== "undefined")
+      window.localStorage.setItem(INTERVIEW_MODE_KEY, mode);
   }
 
   function clearSilenceTimeout() {
@@ -267,11 +590,13 @@ export default function CimmieSession() {
 
     const Ctor = getSpeechRecognitionConstructor();
     if (!Ctor) {
-      setComposerSpeechError('Speech recognition is not supported in this browser.');
+      setComposerSpeechError(
+        "Speech recognition is not supported in this browser.",
+      );
       return;
     }
     setComposerSpeechError(null);
-    sessionTranscriptRef.current = '';
+    sessionTranscriptRef.current = "";
     clearSilenceTimeout();
     stopMediaTracks();
 
@@ -286,12 +611,13 @@ export default function CimmieSession() {
         for (let i = 0; i < event.results.length; i++) {
           const result = event.results[i];
           if (result.length > 0) {
-            const text = result[0].transcript?.trim?.() ?? '';
+            const text = result[0].transcript?.trim?.() ?? "";
             if (text) {
               hadSpeech = true;
-              setComposerMicStatus('listening');
+              setComposerMicStatus("listening");
               if (result.isFinal) {
-                sessionTranscriptRef.current += (sessionTranscriptRef.current ? ' ' : '') + text;
+                sessionTranscriptRef.current +=
+                  (sessionTranscriptRef.current ? " " : "") + text;
               }
             }
           }
@@ -301,7 +627,7 @@ export default function CimmieSession() {
           silenceTimeoutRef.current = setTimeout(() => {
             silenceTimeoutRef.current = null;
             stopComposerListening();
-            setComposerSpeechError('No input detected.');
+            setComposerSpeechError("No input detected.");
           }, SILENCE_TIMEOUT_MS);
         }
       };
@@ -310,34 +636,41 @@ export default function CimmieSession() {
         stopMediaTracks();
         recognitionRef.current = null;
         setComposerListening(false);
-        setComposerMicStatus('idle');
-        if (event.error === 'not-allowed') setComposerSpeechError('Microphone access denied.');
-        else if (event.error === 'no-speech') setComposerSpeechError('No speech detected.');
-        else if (event.error === 'network') setComposerSpeechError('Network error. Check your connection.');
+        setComposerMicStatus("idle");
+        if (event.error === "not-allowed")
+          setComposerSpeechError("Microphone access denied.");
+        else if (event.error === "no-speech")
+          setComposerSpeechError("No speech detected.");
+        else if (event.error === "network")
+          setComposerSpeechError("Network error. Check your connection.");
         else if (event.message) setComposerSpeechError(event.message);
-        else setComposerSpeechError('Speech recognition error.');
+        else setComposerSpeechError("Speech recognition error.");
       };
-      recognition.onend = () => {
+      recognition.onend = async () => {
         clearSilenceTimeout();
         stopMediaTracks();
         recognitionRef.current = null;
         setComposerListening(false);
-        setComposerMicStatus('idle');
+        setComposerMicStatus("idle");
         const text = sessionTranscriptRef.current.trim();
+        setVoicePanelTranscript("");
         if (text) setDraft((prev) => (prev ? `${prev} ${text}` : text));
+
+        if (!text) return;
+        await handleVoiceAnswerSubmit(text);
       };
       try {
         recognition.start();
         setComposerListening(true);
-        setComposerMicStatus('speak_now');
+        setComposerMicStatus("speak_now");
         silenceTimeoutRef.current = setTimeout(() => {
           silenceTimeoutRef.current = null;
           stopComposerListening();
-          setComposerSpeechError('No input detected.');
+          setComposerSpeechError("No input detected.");
         }, SILENCE_TIMEOUT_MS);
       } catch {
         stopMediaTracks();
-        setComposerSpeechError('Could not start microphone.');
+        setComposerSpeechError("Could not start microphone.");
       }
     };
 
@@ -345,7 +678,11 @@ export default function CimmieSession() {
       .getUserMedia({ audio: true })
       .then(startRecognition)
       .catch((err: Error) => {
-        setComposerSpeechError(err.name === 'NotAllowedError' ? 'Microphone access denied.' : 'Microphone unavailable.');
+        setComposerSpeechError(
+          err.name === "NotAllowedError"
+            ? "Microphone access denied."
+            : "Microphone unavailable.",
+        );
       });
   }
 
@@ -359,7 +696,7 @@ export default function CimmieSession() {
       } catch {
         recognitionRef.current = null;
         setComposerListening(false);
-        setComposerMicStatus('idle');
+        setComposerMicStatus("idle");
       }
     }
   }
@@ -385,16 +722,28 @@ export default function CimmieSession() {
     }
   }
 
+  function clearVoiceSilenceTimeout() {
+    if (voiceSilenceTimeoutRef.current) {
+      clearTimeout(voiceSilenceTimeoutRef.current);
+      voiceSilenceTimeoutRef.current = null;
+    }
+  }
+
   function startVoiceRecording() {
     const Ctor = getSpeechRecognitionConstructor();
     if (!Ctor) return;
-    voiceTranscriptRef.current = '';
-    setVoicePanelTranscript('');
+    voiceTranscriptRef.current = "";
+    setVoicePanelTranscript("");
     stopVoicePanelTracks();
+    clearVoiceSilenceTimeout();
 
     const startRecognition = (stream: MediaStream) => {
       voiceMediaStreamRef.current = stream;
-      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const ctx = new (
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext
+      )();
       voiceAudioContextRef.current = ctx;
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
@@ -408,23 +757,33 @@ export default function CimmieSession() {
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.onresult = (event: SpeechRecognitionEvent) => {
-        let display = '';
+        let display = "";
+        let hadSpeech = false;
         for (let i = 0; i < event.results.length; i++) {
           const result = event.results[i];
           if (result.length > 0) {
-            const text = result[0].transcript?.trim?.() ?? '';
+            const text = result[0].transcript?.trim?.() ?? "";
             if (text) {
-              setVoicePanelMicStatus('listening');
+              hadSpeech = true;
               if (result.isFinal) {
-                voiceTranscriptRef.current += (voiceTranscriptRef.current ? ' ' : '') + text;
+                voiceTranscriptRef.current +=
+                  (voiceTranscriptRef.current ? " " : "") + text;
               }
-              display += (display ? ' ' : '') + text;
+              display += (display ? " " : "") + text;
             }
           }
         }
         if (display) setVoicePanelTranscript(display);
+        if (hadSpeech) {
+          clearVoiceSilenceTimeout();
+          voiceSilenceTimeoutRef.current = setTimeout(() => {
+            voiceSilenceTimeoutRef.current = null;
+            stopVoiceRecording();
+          }, VOICE_PANEL_SILENCE_TIMEOUT_MS);
+        }
       };
       recognition.onerror = () => {
+        clearVoiceSilenceTimeout();
         stopVoicePanelTracks();
         if (voiceRecognitionRef.current) {
           try {
@@ -435,23 +794,32 @@ export default function CimmieSession() {
           voiceRecognitionRef.current = null;
         }
         setVoicePanelListening(false);
-        setVoicePanelMicStatus('idle');
-        setVoicePanelTranscript('');
+        setVoicePanelMicStatus("idle");
+        setVoicePanelTranscript("");
       };
-      recognition.onend = () => {
+      recognition.onend = async () => {
+        clearVoiceSilenceTimeout();
         stopVoicePanelTracks();
         voiceRecognitionRef.current = null;
         setVoicePanelListening(false);
-        setVoicePanelMicStatus('idle');
+        setVoicePanelMicStatus("idle");
         setVoiceVolume(0);
-        setVoicePanelTranscript('');
+        setVoicePanelTranscript("");
         const text = voiceTranscriptRef.current.trim();
+        setVoicePanelTranscript("");
         if (text) setDraft((prev) => (prev ? `${prev} ${text}` : text));
+
+        if (!text) return;
+        await handleVoiceAnswerSubmit(text);
       };
       try {
         recognition.start();
         setVoicePanelListening(true);
-        setVoicePanelMicStatus('speak_now');
+        setVoicePanelMicStatus("listening");
+        voiceSilenceTimeoutRef.current = setTimeout(() => {
+          voiceSilenceTimeoutRef.current = null;
+          stopVoiceRecording();
+        }, VOICE_PANEL_SILENCE_TIMEOUT_MS);
         voiceAnimationFrameRef.current = requestAnimationFrame(function tick() {
           const analyserNode = voiceAnalyserRef.current;
           if (!analyserNode) return;
@@ -464,9 +832,10 @@ export default function CimmieSession() {
           voiceAnimationFrameRef.current = requestAnimationFrame(tick);
         });
       } catch {
+        clearVoiceSilenceTimeout();
         stopVoicePanelTracks();
         setVoicePanelListening(false);
-        setVoicePanelMicStatus('idle');
+        setVoicePanelMicStatus("idle");
       }
     };
 
@@ -474,12 +843,14 @@ export default function CimmieSession() {
       .getUserMedia({ audio: true })
       .then(startRecognition)
       .catch(() => {
+        clearVoiceSilenceTimeout();
         setVoicePanelListening(false);
-        setVoicePanelMicStatus('idle');
+        setVoicePanelMicStatus("idle");
       });
   }
 
   function stopVoiceRecording() {
+    clearVoiceSilenceTimeout();
     stopVoicePanelTracks();
     const recognition = voiceRecognitionRef.current;
     if (recognition) {
@@ -488,7 +859,7 @@ export default function CimmieSession() {
       } catch {
         voiceRecognitionRef.current = null;
         setVoicePanelListening(false);
-        setVoicePanelMicStatus('idle');
+        setVoicePanelMicStatus("idle");
         setVoiceVolume(0);
       }
     }
@@ -523,6 +894,7 @@ export default function CimmieSession() {
         recognitionRef.current = null;
       }
       stopVoicePanelTracks();
+      clearVoiceSilenceTimeout();
       if (voiceRecognitionRef.current) {
         try {
           voiceRecognitionRef.current.stop();
@@ -534,49 +906,810 @@ export default function CimmieSession() {
     };
   }, []);
 
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (interviewMode !== "voice") return;
+    requestAnimationFrame(() => {
+      const el = voiceAgentLogRef.current;
+      if (!el) return;
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    });
+  }, [messages, interviewMode, voiceDisplayedBotId]);
+
   const sessionExpired = remainingSeconds <= 0;
-  const countdown = useMemo(() => formatRemaining(remainingSeconds), [remainingSeconds]);
+  const countdown = useMemo(
+    () => formatRemaining(remainingSeconds),
+    [remainingSeconds],
+  );
 
-  function submitMessage(event: React.FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    interviewModeRef.current = interviewMode;
+  }, [interviewMode]);
+
+  useEffect(() => {
+    completedRef.current = completed;
+  }, [completed]);
+
+  useEffect(() => {
+    if (!completed || !interviewId || backendCompletionSyncedRef.current) return;
+    backendCompletionSyncedRef.current = true;
+    markStakeholderCompleted();
+    void endInterview(interviewId).catch(() => {
+      // non-fatal: UI completion should still be reflected locally
+    });
+  }, [completed, interviewId, markStakeholderCompleted]);
+
+  useEffect(() => {
+    sessionExpiredRef.current = sessionExpired;
+  }, [sessionExpired]);
+
+  function prepareVoiceAgentSpeech() {
+    const synth = getSpeechSynthesis();
+    if (synth) synth.cancel();
+    voiceTtsBufferRef.current = "";
+    voiceTtsUtteranceCountRef.current = 0;
+    voiceAfterTtsRef.current = null;
+  }
+
+  function speakUtteranceCounted(text: string) {
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const u = new SpeechSynthesisUtterance(trimmed);
+    configureSpeechUtterance(u);
+    voiceTtsUtteranceCountRef.current += 1;
+    u.onend = () => {
+      voiceTtsUtteranceCountRef.current -= 1;
+      if (voiceTtsUtteranceCountRef.current <= 0) {
+        voiceTtsUtteranceCountRef.current = 0;
+        const fn = voiceAfterTtsRef.current;
+        if (fn) {
+          voiceAfterTtsRef.current = null;
+          fn();
+        }
+      }
+    };
+    synth.speak(u);
+  }
+
+  /** Accumulate streamed text only; one utterance is spoken in flushVoiceTtsRemainder when the stream ends. */
+  function feedVoiceTtsDelta(chunk: string) {
+    voiceTtsBufferRef.current += chunk;
+  }
+
+  function flushVoiceTtsRemainder() {
+    const rest = voiceTtsBufferRef.current.trim();
+    voiceTtsBufferRef.current = "";
+    if (rest) speakUtteranceCounted(rest);
+  }
+
+  async function waitUntilSpeechIdle() {
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    for (let i = 0; i < 400; i++) {
+      if (!synth.speaking && !synth.pending) {
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 40));
+    }
+  }
+
+  function speakUtteranceSimple(text: string): Promise<void> {
+    return new Promise((resolve) => {
+      const synth = getSpeechSynthesis();
+      if (!synth) {
+        resolve();
+        return;
+      }
+      const trimmed = text.trim();
+      if (!trimmed) {
+        resolve();
+        return;
+      }
+      const u = new SpeechSynthesisUtterance(trimmed);
+      configureSpeechUtterance(u);
+      u.onend = () => resolve();
+      u.onerror = () => resolve();
+      synth.speak(u);
+    });
+  }
+
+  voiceBootRef.current = {
+    feedVoiceTtsDelta,
+    flushVoiceTtsRemainder,
+    prepareVoiceAgentSpeech,
+    closeAndFinalizeBotStreams,
+    waitUntilSpeechIdle,
+    speakUtteranceSimple,
+    startVoiceRecording,
+  };
+
+  async function handleVoiceAnswerSubmit(text: string) {
+    if (!interviewId || !currentQuestion || completed) return;
+    if (voiceAnswerInFlightRef.current) return;
+    voiceAnswerInFlightRef.current = true;
+
+    const isVoiceUi = interviewMode === "voice";
+
+    setMessages((prev) => [
+      ...prev,
+      { id: `voice-user-${Date.now()}`, from: "user", text },
+    ]);
+
+    const isVoice = isVoiceUi;
+    if (isVoice) prepareVoiceAgentSpeech();
+
+    const resolveVoiceSubmitCycle = () => {
+      const r = voiceSubmitCycleResolveRef.current;
+      if (r) {
+        voiceSubmitCycleResolveRef.current = null;
+        r();
+      }
+    };
+
+    type VoiceAnswerQ =
+      | { type: "begin"; part: string }
+      | { type: "delta"; text: string }
+      | { type: "done"; payload: AnswerStreamDonePayload };
+
+    try {
+      if (isVoice) {
+        const q: VoiceAnswerQ[] = [];
+
+        const finalizeOpenVoicePart = async () => {
+          const partId = voiceCurrentPartOpenIdRef.current;
+          if (!partId) return;
+          voiceCurrentPartOpenIdRef.current = null;
+          markOpenStreamsComplete();
+          flushVoiceTtsRemainder();
+          await Promise.all([
+            waitUntilSpeechIdle(),
+            waitVoiceTypewriter(partId),
+          ]);
+        };
+
+        const applyVoiceAnswerDone = (payload: AnswerStreamDonePayload) => {
+          const { result, next_question, interview_completed } = payload;
+          if (!result) return;
+          if (result.stay_on_question === true) return;
+          if (result.status === "recorded") {
+            if (interview_completed || !next_question) {
+              setCompleted(true);
+              setCurrentQuestion(null);
+            } else {
+              setCurrentQuestion(next_question);
+            }
+          }
+        };
+
+        const pumpVoiceAnswerQueue = async () => {
+          if (voiceAnswerPumpLockRef.current) return;
+          voiceAnswerPumpLockRef.current = true;
+          try {
+            outer: for (;;) {
+              while (q.length > 0) {
+                const item = q[0]!;
+                if (item.type === "begin") {
+                  await finalizeOpenVoicePart();
+                  q.shift();
+                  appendStreamBeginPart(item.part);
+                  const mid = lastCreatedBotStreamIdRef.current;
+                  if (mid) {
+                    setVoiceDisplayedBotId(mid);
+                    voiceCurrentPartOpenIdRef.current = mid;
+                  }
+                  while (q[0]?.type === "delta") {
+                    const d = q.shift() as Extract<VoiceAnswerQ, { type: "delta" }>;
+                    appendStreamDelta(d.text);
+                    feedVoiceTtsDelta(d.text);
+                  }
+                } else if (item.type === "delta") {
+                  const deltaEv = item;
+                  q.shift();
+                  appendStreamDelta(deltaEv.text);
+                  feedVoiceTtsDelta(deltaEv.text);
+                } else if (item.type === "done") {
+                  await finalizeOpenVoicePart();
+                  q.shift();
+                  applyVoiceAnswerDone(item.payload);
+                  resolveVoiceSubmitCycle();
+                  break outer;
+                }
+              }
+              break;
+            }
+          } finally {
+            voiceAnswerPumpLockRef.current = false;
+            if (q.length > 0) void pumpVoiceAnswerQueue();
+          }
+        };
+
+        const voiceSubmitDone = new Promise<void>((resolve) => {
+          voiceSubmitCycleResolveRef.current = resolve;
+        });
+
+        await submitAnswerStream(
+          interviewId,
+          {
+            question_id: currentQuestion.question_id,
+            answer_text: text,
+          },
+          {
+            onBeginPart: (part) => {
+              q.push({ type: "begin", part });
+              void pumpVoiceAnswerQueue();
+            },
+            onDelta: (t) => {
+              q.push({ type: "delta", text: t });
+              void pumpVoiceAnswerQueue();
+            },
+            onDone: (payload) => {
+              q.push({ type: "done", payload });
+              void pumpVoiceAnswerQueue();
+            },
+            onError: (msg) => {
+              q.length = 0;
+              flushVoiceTypewriterResolvers();
+              voiceCurrentPartOpenIdRef.current = null;
+              voiceAnswerPumpLockRef.current = false;
+              prepareVoiceAgentSpeech();
+              closeAndFinalizeBotStreams();
+              setError(msg || "Failed to submit response.");
+              const errId = `voice-error-${Date.now()}`;
+              setVoiceDisplayedBotId(errId);
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: errId,
+                  from: "bot",
+                  text: "Oops — something went wrong submitting your answer.",
+                },
+              ]);
+              resolveVoiceSubmitCycle();
+            },
+          },
+        );
+        await voiceSubmitDone;
+      } else {
+        await submitAnswerStream(
+          interviewId,
+          {
+            question_id: currentQuestion.question_id,
+            answer_text: text,
+          },
+          {
+            onBeginPart: appendStreamBeginPart,
+            onDelta: appendStreamDelta,
+            onDone: ({
+              result,
+              next_question,
+              interview_completed,
+            }: AnswerStreamDonePayload) => {
+              markOpenStreamsComplete();
+              if (!result) return;
+              if (result.stay_on_question === true) return;
+              if (result.status === "recorded") {
+                if (interview_completed || !next_question) {
+                  setCompleted(true);
+                  setCurrentQuestion(null);
+                } else {
+                  setCurrentQuestion(next_question);
+                }
+              }
+            },
+            onError: (msg) => {
+              setError(msg || "Failed to submit response.");
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: `voice-error-${Date.now()}`,
+                  from: "bot",
+                  text: "Oops — something went wrong submitting your answer.",
+                },
+              ]);
+            },
+          },
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      if (isVoice) {
+        prepareVoiceAgentSpeech();
+        flushVoiceTypewriterResolvers();
+        voiceCurrentPartOpenIdRef.current = null;
+        closeAndFinalizeBotStreams();
+      }
+      const errId = `voice-error-${Date.now()}`;
+      if (isVoice) setVoiceDisplayedBotId(errId);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: errId,
+          from: "bot",
+          text: "Oops — something went wrong submitting your answer.",
+        },
+      ]);
+      resolveVoiceSubmitCycle();
+    } finally {
+      voiceAnswerInFlightRef.current = false;
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function boot() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const engagementId =
+          sessionStorage.getItem("ciassist_engagement_id") || undefined;
+        if (!engagementId) {
+          throw new Error(
+            "Missing engagement id. Please go back and start again.",
+          );
+        }
+
+        // (1) Create a new interview session (dummy identity for now)
+        const start = await startInterview({
+          engagement_id: engagementId,
+          stakeholder_name: "Guest Participant",
+          stakeholder_email: "guest@example.com",
+        });
+        if (!mounted) return;
+
+        setInterviewId(start.interview_id);
+        sessionStorage.setItem("ciassist_interview_id", start.interview_id);
+
+        // (2) Introduce CIMMIE + provide brief (optional from engagement summary)
+        const summaryRaw = sessionStorage.getItem(
+          "ciassist_engagement_summary",
+        );
+        const summary = summaryRaw
+          ? (() => {
+              try {
+                return JSON.parse(summaryRaw);
+              } catch {
+                return null;
+              }
+            })()
+          : null;
+
+        const briefText: string | undefined =
+          summary?.summary && typeof summary.summary === "string"
+            ? summary.summary.slice(0, 800) // keep intro short
+            : undefined;
+
+        const modeBoot = getStoredInterviewMode();
+
+        if (modeBoot === "text") {
+          setMessages([
+            {
+              id: "m-welcome",
+              from: "bot",
+              text: "",
+              streamTotal: WELCOME_BOT_TEXT,
+              streamComplete: true,
+            },
+          ]);
+
+          await firstIntroStream(start.interview_id, briefText, {
+            onBeginPart: appendStreamBeginPart,
+            onDelta: appendStreamDelta,
+            onDone: () => {
+              markOpenStreamsComplete();
+            },
+            onError: (msg) => {
+              if (mounted && msg) {
+                setError(
+                  msg ||
+                    "Failed to load introduction. Ensure context extraction is complete.",
+                );
+              }
+            },
+          });
+        } else {
+          setMessages([
+            {
+              id: "m-welcome",
+              from: "bot",
+              text: "",
+              streamTotal: WELCOME_BOT_TEXT,
+              streamComplete: true,
+            },
+          ]);
+          setVoiceDisplayedBotId("m-welcome");
+          voiceBootRef.current.prepareVoiceAgentSpeech();
+          let introBotId = "";
+          const synthOk =
+            typeof window !== "undefined" && !!window.speechSynthesis;
+          if (synthOk) {
+            setVoiceAwaitingAudioUnlock(true);
+            await new Promise<void>((resolve) => {
+              if (!mounted) {
+                setVoiceAwaitingAudioUnlock(false);
+                resolve();
+                return;
+              }
+              voiceAudioUnlockResolveRef.current = () => {
+                voiceAudioUnlockResolveRef.current = null;
+                setVoiceAwaitingAudioUnlock(false);
+                resolve();
+              };
+            });
+            if (!mounted) return;
+            const s = getSpeechSynthesis();
+            if (s) void s.getVoices();
+            await waitForSpeechSynthesisVoices();
+            if (!mounted) return;
+            await Promise.all([
+              voiceBootRef.current.speakUtteranceSimple(WELCOME_BOT_TEXT),
+              waitVoiceTypewriter("m-welcome"),
+            ]);
+            if (!mounted) return;
+          } else {
+            await waitVoiceTypewriter("m-welcome");
+            if (!mounted) return;
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: "voice-tts-unsupported",
+                from: "bot",
+                text: "This browser does not support spoken readout. Switch to Text mode or use Chrome or Edge.",
+              },
+            ]);
+            setVoiceDisplayedBotId("voice-tts-unsupported");
+          }
+          await firstIntroStream(start.interview_id, briefText, {
+            onBeginPart: (_part: string) => {
+              appendStreamBeginPart(_part);
+              const mid = lastCreatedBotStreamIdRef.current ?? "";
+              introBotId = mid;
+              if (mid) setVoiceDisplayedBotId(mid);
+            },
+            onDelta: (t) => {
+              appendStreamDelta(t);
+              voiceBootRef.current.feedVoiceTtsDelta(t);
+            },
+            onDone: () => {
+              markOpenStreamsComplete();
+              voiceBootRef.current.flushVoiceTtsRemainder();
+            },
+            onError: (msg) => {
+              if (mounted && msg) {
+                setError(
+                  msg ||
+                    "Failed to load introduction. Ensure context extraction is complete.",
+                );
+              }
+            },
+          });
+          if (!mounted) return;
+          await voiceBootRef.current.waitUntilSpeechIdle();
+          if (!mounted) return;
+          if (introBotId) await waitVoiceTypewriter(introBotId);
+          if (!mounted) return;
+        }
+
+        if (!mounted) return;
+
+        // (3) Fetch the first question (consent Q1 will appear here in strict order)
+        const firstQ = await getNextQuestion(start.interview_id);
+        if (!mounted) return;
+
+        // Handle sentinel completion (unlikely here but defensive)
+        if (firstQ.section === "DONE" || firstQ.question_id === "-1") {
+          setCompleted(true);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `bot-complete-${Date.now()}`,
+              from: "bot",
+              text: "No questions available.",
+            },
+          ]);
+        } else {
+          setCurrentQuestion(firstQ);
+          setMessages((prev) => [
+            ...prev,
+            modeBoot === "text"
+              ? {
+                  id: `q-${firstQ.question_id}`,
+                  from: "bot",
+                  text: "",
+                  streamTotal: firstQ.question_text,
+                  streamComplete: true,
+                }
+              : {
+                  id: `q-${firstQ.question_id}`,
+                  from: "bot",
+                  text: "",
+                  streamTotal: firstQ.question_text,
+                  streamComplete: true,
+                },
+          ]);
+          if (modeBoot === "voice") {
+            const qid = `q-${firstQ.question_id}`;
+            setVoiceDisplayedBotId(qid);
+            await Promise.all([
+              voiceBootRef.current.speakUtteranceSimple(firstQ.question_text),
+              waitVoiceTypewriter(qid),
+            ]);
+          }
+        }
+
+        // (4) start timer
+        setRemainingSeconds(SESSION_MINUTES * 60);
+      } catch (e: any) {
+        console.error(e);
+        setError(
+          e?.message ||
+            "Failed to initialize interview. Ensure context extraction is complete for this engagement.",
+        );
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    boot();
+    return () => {
+      mounted = false;
+      const unlock = voiceAudioUnlockResolveRef.current;
+      if (unlock) {
+        voiceAudioUnlockResolveRef.current = null;
+        unlock();
+      }
+      setVoiceAwaitingAudioUnlock(false);
+    };
+  }, [
+    appendStreamBeginPart,
+    appendStreamDelta,
+    markOpenStreamsComplete,
+    closeAndFinalizeBotStreams,
+    waitVoiceTypewriter,
+  ]);
+
+  useEffect(() => {
+    if (sessionExpired && !hasEndedRef.current && interviewId && !completed) {
+      hasEndedRef.current = true;
+      (async () => {
+        try {
+          backendCompletionSyncedRef.current = true;
+          await endInterview(interviewId);
+        } catch (e) {
+          // non-fatal
+        } finally {
+          markStakeholderCompleted();
+          setCompleted(true);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `bot-ended-${Date.now()}`,
+              from: "bot",
+              text: "Session time has ended. Thank you for your participation.",
+            },
+          ]);
+        }
+      })();
+    }
+  }, [sessionExpired, interviewId, completed, markStakeholderCompleted]);
+
+  async function submitMessage(
+    event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>,
+  ) {
     event.preventDefault();
-    if (!draft.trim() || sessionExpired) return;
+    if (
+      !draft.trim() ||
+      sessionExpired ||
+      completed ||
+      !interviewId ||
+      !currentQuestion ||
+      submitting
+    )
+      return;
 
-    const nextUser: Message = {
-      id: `user-${Date.now()}`,
-      from: 'user',
-      text: draft.trim(),
-    };
+    const text = draft.trim();
+    const userMsg: Message = { id: `user-${Date.now()}`, from: "user", text };
+    setMessages((prev) => [...prev, userMsg]);
+    setDraft("");
+    setSubmitting(true);
 
-    const nextReadback: Message = {
-      id: `bot-${Date.now()}`,
-      from: 'bot',
-      text: `Captured evidence: ${draft.trim()} This entry is tagged for validation in post-interview synthesis where severity cannot yet be confirmed.`,
-    };
+    try {
+      if (interviewMode === "text") {
+        await submitAnswerStream(
+          interviewId,
+          {
+            question_id: currentQuestion.question_id,
+            answer_text: text,
+          },
+          {
+            onBeginPart: appendStreamBeginPart,
+            onDelta: appendStreamDelta,
+            onDone: ({ result, next_question, interview_completed }) => {
+              markOpenStreamsComplete();
+              if (!result) return;
+              if (result.stay_on_question === true) return;
+              if (result.status === "recorded") {
+                if (interview_completed || !next_question) {
+                  setCompleted(true);
+                  setCurrentQuestion(null);
+                } else {
+                  setCurrentQuestion(next_question);
+                }
+              }
+            },
+            onError: (msg) => {
+              setError(msg || "Failed to submit response.");
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: `bot-error-${Date.now()}`,
+                  from: "bot",
+                  text: "Sorry—there was an error capturing your response. Please try again.",
+                },
+              ]);
+            },
+          },
+        );
+      } else {
+        // 1) Submit answer to the current question
+        const result = await submitAnswer(interviewId, {
+          question_id: currentQuestion.question_id,
+          answer_text: text,
+        });
 
-    setMessages((prev) => [...prev, nextUser, nextReadback]);
-    setDraft('');
+        // 2) Clarification or Follow-up → STAY on same question
+        if (result.stay_on_question === true) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `bot-${Date.now()}`,
+              from: "bot",
+              text: result.bot_reply,
+            },
+          ]);
+          return; // IMPORTANT: do not fetch next question
+        }
+
+        // 3) Recorded → show readback and possibly a “moving on” nudge
+        if (result.status === "recorded") {
+          if (result.readback) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `readback-${Date.now()}`,
+                from: "bot",
+                text: result.readback!,
+              },
+            ]);
+          }
+
+          if (result?.reason === "max_followups_reached") {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `bot-${Date.now()}`,
+                from: "bot",
+                text: "Thanks — let's move ahead.",
+              },
+            ]);
+          }
+
+          // 4) Fetch NEXT question only after recorded
+          const nextQ = await getNextQuestion(interviewId);
+
+          if (nextQ.section === "DONE" || nextQ.question_id === "-1") {
+            setCompleted(true);
+            setCurrentQuestion(null);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `bot-complete-${Date.now()}`,
+                from: "bot",
+                text: "Interview completed. Thank you for your responses.",
+              },
+            ]);
+          } else {
+            setCurrentQuestion(nextQ);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `q-${nextQ.question_id}`,
+                from: "bot",
+                text: nextQ.question_text,
+              },
+            ]);
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error(e);
+      setError(e?.message || "Failed to submit response.");
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `bot-error-${Date.now()}`,
+          from: "bot",
+          text: "Sorry—there was an error capturing your response. Please try again.",
+        },
+      ]);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  function extendInterviewSession() {
-    // Placeholder: call backend "extend interview session" when implemented
+  async function handleEndInterviewClick() {
+    if (completed || !interviewId || ending) return;
+
+    const proceed = window.confirm(
+      "Are you sure you want to end this interview now? You won’t be able to add more responses.",
+    );
+    if (!proceed) return;
+
+    try {
+      setEnding(true);
+      hasEndedRef.current = true;
+      backendCompletionSyncedRef.current = true;
+      await endInterview(interviewId);
+      markStakeholderCompleted();
+      setCompleted(true);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `bot-ended-manual-${Date.now()}`,
+          from: "bot",
+          text: "Interview ended by facilitator. Thank you for your participation.",
+        },
+      ]);
+    } catch (e: any) {
+      console.error(e);
+      hasEndedRef.current = false;
+      alert(e?.message || "Failed to end the interview. Please try again.");
+    } finally {
+      setEnding(false);
+    }
   }
 
-  function endInterviewSession() {
-    // Placeholder: call backend "end interview session" when implemented
-  }
+  const handleVoiceAudioUnlockClick = useCallback(() => {
+    const s = getSpeechSynthesis();
+    if (s) void s.getVoices();
+    voiceAudioUnlockResolveRef.current?.();
+  }, []);
+
+  /** Text chat: only one bot stream bubble mounts at a time so typewriters run in order. */
+  const textChatFirstPendingStreamIndex = useMemo(
+    () =>
+      messages.findIndex(
+        (m) => m.from === "bot" && m.streamTotal !== undefined,
+      ),
+    [messages],
+  );
 
   return (
     <div className="cimmie-page">
       <header className="cimmie-header card">
         <div className="cimmie-header-top">
           <div className="cimmie-header-title-row">
-            <img src="/cimmie-robot.jpg" alt="" className="cimmie-page-robot-icon" aria-hidden="true" />
+            <img
+              src="/cimmie-robot.jpg"
+              alt=""
+              className="cimmie-page-robot-icon"
+              aria-hidden="true"
+            />
             <p className="cimmie-kicker">CIMMIE Interview Session</p>
           </div>
           <h1>Scheduled Stakeholder Interview</h1>
           <p>
-            One-time access link validated. This session is scoped to this interview only and is
-            time-limited. Post-interview outputs and internal sources are restricted.
+            One-time access link validated. This session is scoped to this
+            interview only and is time-limited. Post-interview outputs and
+            internal sources are restricted.
           </p>
         </div>
         <div className="cimmie-header-bottom">
@@ -584,7 +1717,7 @@ export default function CimmieSession() {
             <div className="session-panel">
               <div>
                 <span className="label">Session status</span>
-                <strong>{sessionExpired ? 'Closed' : 'Active'}</strong>
+                <strong>{sessionExpired ? "Closed" : "Active"}</strong>
               </div>
               <div>
                 <span className="label">Time remaining</span>
@@ -597,50 +1730,59 @@ export default function CimmieSession() {
             </div>
             <button
               type="button"
-              className="btn btn-extend-session"
-              onClick={extendInterviewSession}
-            >
-              Extend Session
-            </button>
-            <button
-              type="button"
               className="btn btn-extend-session btn-end-interview"
-              onClick={endInterviewSession}
+              onClick={handleEndInterviewClick}
             >
               End Interview
             </button>
           </div>
           <div className="interview-progress-card card">
-            <h2 className="interview-progress-card-title">Interview Progress</h2>
-            <div className="progress-pipe-vertical" role="list" aria-label="Interview topics">
+            <h2 className="interview-progress-card-title">
+              Interview Progress
+            </h2>
+            <div
+              className="progress-pipe-vertical"
+              role="list"
+              aria-label="Interview topics"
+            >
               {sections.map((section, index) => {
                 const state = getStepState(index, sections);
                 const isLast = index === sections.length - 1;
                 return (
-                  <div key={section.sectionId} className="progress-pipe-step" role="listitem">
+                  <div
+                    key={section.sectionId}
+                    className="progress-pipe-step"
+                    role="listitem"
+                  >
                     <div className="progress-pipe-step-track">
                       {index > 0 && (
                         <div
-                          className={`progress-pipe-connector progress-pipe-connector-above ${getStepState(index - 1, sections) === 'completed' ? 'progress-pipe-connector-completed' : ''}`}
+                          className={`progress-pipe-connector progress-pipe-connector-above ${getStepState(index - 1, sections) === "completed" ? "progress-pipe-connector-completed" : ""}`}
                           aria-hidden="true"
                         />
                       )}
                       <div
                         className={`progress-pipe-dot progress-pipe-dot-${state}`}
-                        aria-current={state === 'active' ? 'step' : undefined}
+                        aria-current={state === "active" ? "step" : undefined}
                       >
-                        {state === 'completed' && <StepCheckmark />}
-                        {state === 'active' && <StepActiveDot />}
-                        {state === 'upcoming' && <span className="progress-pipe-dot-number">{index + 1}</span>}
+                        {state === "completed" && <StepCheckmark />}
+                        {state === "active" && <StepActiveDot />}
+                        {state === "upcoming" && (
+                          <span className="progress-pipe-dot-number">
+                            {index + 1}
+                          </span>
+                        )}
                       </div>
                       {!isLast && (
                         <div
-                          className={`progress-pipe-connector progress-pipe-connector-below ${state === 'completed' ? 'progress-pipe-connector-completed' : ''}`}
+                          className={`progress-pipe-connector progress-pipe-connector-below ${state === "completed" ? "progress-pipe-connector-completed" : ""}`}
                           aria-hidden="true"
                         />
                       )}
                     </div>
-                    <span className={`progress-pipe-label progress-pipe-label-${state}`}>
+                    <span
+                      className={`progress-pipe-label progress-pipe-label-${state}`}
+                    >
                       {section.title}
                     </span>
                   </div>
@@ -654,7 +1796,8 @@ export default function CimmieSession() {
       {!timeBannerDismissed && (
         <section className="session-time-banner card" role="status">
           <p className="session-time-banner-text">
-            This session is time-bound. The link will expire in {SESSION_MINUTES} minutes.
+            This session is time-bound. The link will expire in{" "}
+            {SESSION_MINUTES} minutes.
           </p>
           <button
             type="button"
@@ -668,26 +1811,31 @@ export default function CimmieSession() {
       )}
 
       <section className="restriction-banner">
-        Stakeholder view restrictions: no access to summary outputs, populated template files,
-        synthesis from other interviews, or internal knowledge repositories.
+        {error
+          ? error
+          : "Stakeholder view restrictions: no access to summary outputs, populated template files, synthesis from other interviews, or internal knowledge repositories."}
       </section>
 
       <section className="mode-toggle-card card" aria-label="Input mode">
-        <div className="interview-mode-toggle" role="group" aria-label="Interview mode">
+        <div
+          className="interview-mode-toggle"
+          role="group"
+          aria-label="Interview mode"
+        >
           <button
             type="button"
-            className={`interview-mode-btn ${interviewMode === 'text' ? 'interview-mode-btn-active' : ''}`}
-            onClick={() => setInterviewModeAndPersist('text')}
-            aria-pressed={interviewMode === 'text'}
+            className={`interview-mode-btn ${interviewMode === "text" ? "interview-mode-btn-active" : ""}`}
+            onClick={() => setInterviewModeAndPersist("text")}
+            aria-pressed={interviewMode === "text"}
           >
             <TextMessageIcon />
             <span>Text</span>
           </button>
           <button
             type="button"
-            className={`interview-mode-btn ${interviewMode === 'voice' ? 'interview-mode-btn-active' : ''}`}
-            onClick={() => setInterviewModeAndPersist('voice')}
-            aria-pressed={interviewMode === 'voice'}
+            className={`interview-mode-btn ${interviewMode === "voice" ? "interview-mode-btn-active" : ""}`}
+            onClick={() => setInterviewModeAndPersist("voice")}
+            aria-pressed={interviewMode === "voice"}
           >
             <MicIcon />
             <span>Voice</span>
@@ -696,21 +1844,55 @@ export default function CimmieSession() {
       </section>
 
       {/* Exclusive rendering: only one mode mounted—no text chat when voice, no voice UI when text. */}
-      {interviewMode === 'text' && (
+      {interviewMode === "text" && (
         <section className="chat-shell card">
-          <div className="chat-log">
-            {messages.map((message) => (
-              <div key={message.id} className={`chat-bubble ${message.from}`}>
-                {message.from === 'bot' ? (
-                  <div className="chat-bubble-inner">
-                    <img src="/cimmie-robot.jpg" alt="" className="chat-bubble-avatar" aria-hidden="true" />
-                    <span className="chat-bubble-text">{message.text}</span>
+          <div className="chat-log" ref={logRef}>
+            {loading && messages.length === 0 ? (
+              <div className="chat-bubble bot">Preparing your interview…</div>
+            ) : (
+              messages.map((message, index) => {
+                const hideUntilPriorStreamSettled =
+                  textChatFirstPendingStreamIndex >= 0 &&
+                  message.from === "bot" &&
+                  message.streamTotal !== undefined &&
+                  index !== textChatFirstPendingStreamIndex;
+                if (hideUntilPriorStreamSettled) {
+                  return <Fragment key={message.id} />;
+                }
+                return (
+                  <div
+                    key={message.id}
+                    className={`chat-bubble ${message.from}`}
+                  >
+                    {message.from === "bot" ? (
+                      <div className="chat-bubble-inner">
+                        <img
+                          src="/cimmie-robot.jpg"
+                          alt=""
+                          className="chat-bubble-avatar"
+                          aria-hidden="true"
+                        />
+                        {message.streamTotal !== undefined ? (
+                          <BotTypewriterBlock
+                            messageId={message.id}
+                            streamTotal={message.streamTotal ?? ""}
+                            streamComplete={message.streamComplete ?? true}
+                            onTick={scrollChatToBottom}
+                            onSettled={handleBotStreamSettled}
+                          />
+                        ) : (
+                          <span className="chat-bubble-text">
+                            {message.text}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      message.text
+                    )}
                   </div>
-                ) : (
-                  message.text
-                )}
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
           <div className="chat-compose-wrap">
             <form className="chat-compose" onSubmit={submitMessage}>
@@ -722,28 +1904,38 @@ export default function CimmieSession() {
                 disabled={sessionExpired}
               />
               <p
-                className={`chat-compose-status ${composerListening ? 'chat-compose-status-listening' : ''} ${composerSpeechError ? 'chat-compose-status-error' : ''}`}
+                className={`chat-compose-status ${composerListening ? "chat-compose-status-listening" : ""} ${composerSpeechError ? "chat-compose-status-error" : ""}`}
                 role="status"
                 aria-live="polite"
                 aria-atomic="true"
               >
-                {composerMicStatus === 'speak_now' && 'Speak Now'}
-                {composerMicStatus === 'listening' && 'I am listening…'}
-                {composerMicStatus === 'idle' && composerSpeechError && composerSpeechError}
-                {composerMicStatus === 'idle' && !composerSpeechError && '\u00A0'}
+                {composerMicStatus === "speak_now" && "Speak Now"}
+                {composerMicStatus === "listening" && "I am listening…"}
+                {composerMicStatus === "idle" &&
+                  composerSpeechError &&
+                  composerSpeechError}
+                {composerMicStatus === "idle" &&
+                  !composerSpeechError &&
+                  "\u00A0"}
               </p>
               <div className="chat-compose-actions">
                 <button
                   type="button"
-                  className={`chat-compose-mic ${composerListening ? 'chat-compose-mic-active' : ''} ${composerMicStatus === 'listening' ? 'chat-compose-mic-listening' : ''}`}
+                  className={`chat-compose-mic ${composerListening ? "chat-compose-mic-active" : ""} ${composerMicStatus === "listening" ? "chat-compose-mic-listening" : ""}`}
                   onClick={toggleComposerListening}
                   disabled={sessionExpired}
-                  aria-label={composerListening ? 'Stop listening' : 'Dictate message'}
+                  aria-label={
+                    composerListening ? "Stop listening" : "Dictate message"
+                  }
                   aria-pressed={composerListening}
                 >
                   <MicIcon />
                 </button>
-                <button className="btn btn-primary" type="submit" disabled={sessionExpired || !draft.trim()}>
+                <button
+                  className="btn btn-primary"
+                  type="submit"
+                  disabled={sessionExpired || !draft.trim()}
+                >
                   Submit response
                 </button>
               </div>
@@ -752,23 +1944,54 @@ export default function CimmieSession() {
         </section>
       )}
 
-      {interviewMode === 'voice' && (
+      {interviewMode === "voice" && (
         <section className="voice-fullscreen" aria-label="Voice interview">
-          <div className="voice-ui-panel voice-ui-panel-fullscreen" aria-label="Voice input">
+          {voiceAwaitingAudioUnlock ? (
             <div
-              className={`voice-ui-orb ${voicePanelMicStatus === 'speak_now' ? 'voice-ui-orb-speak-now' : ''} ${voicePanelMicStatus === 'listening' ? 'voice-ui-orb-listening' : ''}`}
+              className="voice-audio-unlock-overlay"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="voice-audio-unlock-title"
+            >
+              <div className="voice-audio-unlock-panel card">
+                <h2
+                  id="voice-audio-unlock-title"
+                  className="voice-audio-unlock-title"
+                >
+                  Enable voice
+                </h2>
+                <p className="voice-audio-unlock-copy">
+                  Your browser needs a tap here before it can play CIMMIE&apos;s
+                  spoken questions and replies.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-primary voice-audio-unlock-btn"
+                  onClick={handleVoiceAudioUnlockClick}
+                >
+                  Start voice interview
+                </button>
+              </div>
+            </div>
+          ) : null}
+          <div
+            className="voice-ui-panel voice-ui-panel-fullscreen"
+            aria-label="Voice input"
+          >
+            <div
+              className={`voice-ui-orb ${voicePanelMicStatus === "speak_now" ? "voice-ui-orb-speak-now" : ""} ${voicePanelMicStatus === "listening" ? "voice-ui-orb-listening" : ""}`}
               style={
-                voicePanelMicStatus === 'listening'
-                  ? { ['--voice-level' as string]: voiceVolume }
+                voicePanelMicStatus === "listening"
+                  ? { ["--voice-level" as string]: voiceVolume }
                   : undefined
               }
             >
               <div
-                className={`voice-ui-orb-wave ${voicePanelMicStatus === 'listening' ? 'voice-ui-orb-wave-listening' : ''}`}
+                className={`voice-ui-orb-wave ${voicePanelMicStatus === "listening" ? "voice-ui-orb-wave-listening" : ""}`}
                 aria-hidden="true"
                 style={
-                  voicePanelMicStatus === 'listening'
-                    ? { ['--voice-level' as string]: voiceVolume }
+                  voicePanelMicStatus === "listening"
+                    ? { ["--voice-level" as string]: voiceVolume }
                     : undefined
                 }
               >
@@ -779,30 +2002,109 @@ export default function CimmieSession() {
                 />
               </div>
               <div className="voice-ui-orb-icon" aria-hidden="true">
-                <img src="/cimmie-robot.jpg" alt="" className="voice-ui-orb-icon-img" />
+                <img
+                  src="/cimmie-robot.jpg"
+                  alt=""
+                  className="voice-ui-orb-icon-img"
+                />
               </div>
             </div>
+            <div
+              className="voice-agent-transcript"
+              ref={voiceAgentLogRef}
+              aria-label="CIMMIE agent transcript"
+            >
+              {loading &&
+              messages.filter((m) => m.from === "bot").length === 0 ? (
+                <div className="voice-agent-bubble chat-bubble bot">
+                  <div className="chat-bubble-inner">
+                    <img
+                      src="/cimmie-robot.jpg"
+                      alt=""
+                      className="chat-bubble-avatar"
+                      aria-hidden="true"
+                    />
+                    <span className="chat-bubble-text">
+                      Preparing your interview…
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                (() => {
+                  const voiceBots = messages.filter((m) => m.from === "bot");
+                  const vm =
+                    (voiceDisplayedBotId != null
+                      ? voiceBots.find((m) => m.id === voiceDisplayedBotId)
+                      : null) ?? voiceBots.at(-1);
+                  if (!vm) return null;
+                  const streaming =
+                    vm.streamTotal !== undefined &&
+                    vm.streamComplete === false;
+                  return (
+                    <div
+                      key={vm.id}
+                      className={`voice-agent-bubble chat-bubble bot${streaming ? " voice-agent-bubble-streaming" : ""}`}
+                    >
+                      <div className="chat-bubble-inner">
+                        <img
+                          src="/cimmie-robot.jpg"
+                          alt=""
+                          className="chat-bubble-avatar"
+                          aria-hidden="true"
+                        />
+                        {vm.streamTotal !== undefined ? (
+                          <BotTypewriterBlock
+                            messageId={vm.id}
+                            streamTotal={vm.streamTotal ?? ""}
+                            streamComplete={vm.streamComplete ?? true}
+                            onTick={() => {
+                              requestAnimationFrame(() => {
+                                const el = voiceAgentLogRef.current;
+                                if (!el) return;
+                                el.scrollTo({
+                                  top: el.scrollHeight,
+                                  behavior: "smooth",
+                                });
+                              });
+                            }}
+                            onSettled={handleBotStreamSettled}
+                          />
+                        ) : (
+                          <span className="chat-bubble-text">{vm.text}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
+            </div>
             <p className="voice-ui-status" role="status" aria-live="polite">
-              {voicePanelMicStatus === 'idle' && '\u00A0'}
-              {voicePanelMicStatus === 'speak_now' && 'Speak Now'}
-              {voicePanelMicStatus === 'listening' && 'I am listening…'}
+              {voicePanelMicStatus === "idle" && "Speak now"}
+              {voicePanelMicStatus === "speak_now" && "Speak now"}
+              {voicePanelMicStatus === "listening" && "I am listening"}
             </p>
             {voicePanelTranscript && (
-              <div className="voice-ui-transcript" role="log" aria-live="polite">
+              <div
+                className="voice-ui-transcript"
+                role="log"
+                aria-live="polite"
+              >
                 {voicePanelTranscript}
               </div>
             )}
             <button
               type="button"
-              className={`voice-ui-mic ${voicePanelListening ? 'voice-ui-mic-active' : ''} ${voicePanelMicStatus === 'listening' ? 'voice-ui-mic-listening' : ''}`}
+              className={`voice-ui-mic ${voicePanelListening ? "voice-ui-mic-active" : ""} ${voicePanelMicStatus === "listening" ? "voice-ui-mic-listening" : ""}`}
               style={
-                voicePanelMicStatus === 'listening'
-                  ? { ['--voice-level' as string]: voiceVolume }
+                voicePanelMicStatus === "listening"
+                  ? { ["--voice-level" as string]: voiceVolume }
                   : undefined
               }
               onClick={toggleVoicePanelMic}
               disabled={sessionExpired}
-              aria-label={voicePanelListening ? 'Stop listening' : 'Start listening'}
+              aria-label={
+                voicePanelListening ? "Stop listening" : "Start listening"
+              }
               aria-pressed={voicePanelListening}
             >
               <MicIcon />

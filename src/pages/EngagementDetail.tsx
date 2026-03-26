@@ -1,17 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import * as XLSX from 'xlsx';
 import PptxGenJS from 'pptxgenjs';
 import { MOCK_ENGAGEMENTS } from './AllCIAs';
 import ChangeImpactHeatmap, { HEATMAP_IMPACT_KEYS, HEATMAP_MATRIX_DATA } from './ChangeImpactHeatmap';
+import StakeholderInterviewGrid from '../components/StakeholderInterviewGrid';
+import { isLikelyEngagementUuid } from '../api/interviews';
 import './EngagementDetail.css';
-
-const LENSES = [
-  { id: 'people', label: 'People', severity: 'High' as const, evidence: '12 interview responses; role redesign cited in 8.' },
-  { id: 'process', label: 'Process', severity: 'High' as const, evidence: 'Workflow changes in 6 process areas; 4 SOPs affected.' },
-  { id: 'technology', label: 'Technology', severity: 'Medium' as const, evidence: 'New ERP modules; 3 system integrations; training planned.' },
-  { id: 'data', label: 'Organisation', severity: 'Medium' as const, evidence: 'Data migration and access model changes; 2 data owners identified.' },
-];
 
 const MOCK_STAKEHOLDERS = [
   {
@@ -63,155 +57,13 @@ export default function EngagementDetail() {
 
   const [isPublished, setIsPublished] = useState(false);
   const [selectedStakeholderId, setSelectedStakeholderId] = useState<string>('');
-  const [excelColumns, setExcelColumns] = useState<string[]>([]);
-  const [excelRows, setExcelRows] = useState<Record<string, string>[]>([]);
-  const [expandedColumns, setExpandedColumns] = useState<Record<string, boolean>>({});
 
   const selectedStakeholder = selectedStakeholderId
     ? MOCK_STAKEHOLDERS.find((s) => s.id === selectedStakeholderId)
     : null;
-  const interviewColumns = useMemo(
-    () =>
-      excelColumns.filter((column, index) => {
-        const columnNumber = index + 1;
-        const isRemovedRange = columnNumber >= 27 && columnNumber <= 49;
-        const isRemovedColumn = columnNumber === 16 || columnNumber === 26;
-        const isInterviewee = column.trim().toLowerCase() === 'interviewee';
-        return !isRemovedRange && !isRemovedColumn && !isInterviewee;
-      }),
-    [excelColumns],
-  );
-  const allExpanded = useMemo(
-    () => interviewColumns.length > 0 && interviewColumns.every((column) => expandedColumns[column]),
-    [interviewColumns, expandedColumns],
-  );
-  const questionsByColumn = useMemo(() => {
-    return interviewColumns.reduce<Record<string, string[]>>((acc, column) => {
-      const isWrapUpColumn = column.trim().toLowerCase() === 'wrap up and validation';
-      acc[column] = excelRows.flatMap((row) => {
-        const rawQuestion = (row[column] ?? '').trim();
-        if (!rawQuestion) return [];
-
-        const lineParts = rawQuestion
-          .split(/\r?\n+/)
-          .map((part) => part.replace(/\s+/g, ' ').trim())
-          .filter((part) => part.length > 0);
-
-        if (!isWrapUpColumn) return lineParts;
-
-        return lineParts.flatMap((part) => {
-          const bulletSplit = part
-            .split(/\s*•\s*/g)
-            .map((entry) => entry.trim())
-            .filter((entry) => entry.length > 0);
-
-          return bulletSplit.flatMap((entry) => {
-            const questionMatches = entry.match(/[^?]+\?/g)?.map((match) => match.trim()) ?? [];
-            if (questionMatches.length > 1) {
-              const remainder = entry.replace(questionMatches.join(' '), '').trim();
-              return remainder ? [...questionMatches, remainder] : questionMatches;
-            }
-
-            return entry
-              .split(/(?<=\?)\s+(?=(What|Who|Which|When|How|Where|Why|Do|Does|Is|Are|Can|Will|Would|Could|Should)\b)/g)
-              .map((item) => item.trim())
-              .filter((item) => item.length > 0 && !/^(What|Who|Which|When|How|Where|Why|Do|Does|Is|Are|Can|Will|Would|Could|Should)$/i.test(item));
-          });
-        });
-      });
-      return acc;
-    }, {});
-  }, [interviewColumns, excelRows]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadExcel = async () => {
-      try {
-        const response = await fetch('/CIA Stakeholder Interview Questions and Guide.xlsx');
-        const buffer = await response.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-
-        if (!firstSheetName) return;
-
-        const worksheet = workbook.Sheets[firstSheetName];
-        const matrix = XLSX.utils.sheet_to_json<(string | number | boolean | null)[]>(worksheet, {
-          header: 1,
-          defval: '',
-        });
-
-        if (!matrix.length) return;
-
-        const headerRow = (matrix[0] || []).map((value, index) => {
-          const header = String(value ?? '').trim();
-          return header || `Column ${index + 1}`;
-        });
-
-        const rows = matrix.slice(1).map((row) => {
-          const record: Record<string, string> = {};
-          headerRow.forEach((header, columnIndex) => {
-            const value = row[columnIndex];
-            record[header] = value == null ? '' : String(value);
-          });
-          return record;
-        });
-
-        if (!isMounted) return;
-        setExcelColumns(headerRow);
-        setExcelRows(rows);
-        setExpandedColumns(
-          headerRow.reduce<Record<string, boolean>>((acc, column) => {
-            acc[column] = false;
-            return acc;
-          }, {}),
-        );
-      } catch (error) {
-        if (!isMounted) return;
-        setExcelColumns([]);
-        setExcelRows([]);
-        setExpandedColumns({});
-      }
-    };
-
-    loadExcel();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const handlePublish = () => {
     setIsPublished(true);
-  };
-
-  const handleExport = () => {
-    if (!interviewColumns.length) return;
-
-    const sheetData = [
-      interviewColumns,
-      ...excelRows.map((row) => interviewColumns.map((column) => row[column] ?? '')),
-    ];
-    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Interview Questions');
-    XLSX.writeFile(workbook, 'CIA Stakeholder Interview Questions and Guide Export.xlsx');
-  };
-
-  const toggleColumn = (column: string) => {
-    setExpandedColumns((prev) => ({
-      ...prev,
-      [column]: !prev[column],
-    }));
-  };
-
-  const toggleAllColumns = () => {
-    setExpandedColumns((prev) =>
-      interviewColumns.reduce<Record<string, boolean>>((acc, column) => {
-        acc[column] = !allExpanded;
-        return acc;
-      }, { ...prev }),
-    );
   };
 
   // PPT colors mapped to values 0-3 (kept aligned to provided export logic)
@@ -314,94 +166,12 @@ export default function EngagementDetail() {
         </div>
       </div>
 
-      {/* Section A – Lens-Based Impact Summary */}
-      <section className="engagement-section card" aria-labelledby="section-lens-heading">
-        <h2 id="section-lens-heading" className="engagement-section-title">
-          Lens-Based Impact Summary
-        </h2>
-        <div className="lens-grid">
-          {LENSES.map((lens) => (
-            <div key={lens.id} className="lens-card card">
-              <h3 className="lens-label">{lens.label}</h3>
-              <span className={`badge severity-${lens.severity.toLowerCase()}`}>
-                {lens.severity}
-              </span>
-              {lens.evidence && (
-                <p className="lens-evidence">{lens.evidence}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {engagement.id === '1' && (
-        <section className="engagement-section card interview-grid-card" aria-labelledby="section-interview-grid-heading">
-          <div className="interview-grid-header-row">
-            <h2 id="section-interview-grid-heading" className="engagement-section-title">
-              Stakeholder Interview Questions Grid
-            </h2>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={toggleAllColumns}
-              disabled={!interviewColumns.length}
-            >
-              {allExpanded ? 'Collapse' : 'Expand Full'}
-            </button>
-          </div>
-
-          <div className="interview-grid-columns-wrap">
-            {interviewColumns.map((column) => {
-              const isExpanded = !!expandedColumns[column];
-              const questions = questionsByColumn[column] ?? [];
-              return (
-                <div key={column} className="interview-grid-column">
-                  <button
-                    type="button"
-                    className="interview-grid-column-header"
-                    onClick={() => toggleColumn(column)}
-                    aria-expanded={isExpanded}
-                  >
-                    <span>{column}</span>
-                    <span className="interview-grid-chevron" aria-hidden="true">
-                      {isExpanded ? '▲' : '▼'}
-                    </span>
-                  </button>
-                  {isExpanded && (
-                    <div className="interview-grid-column-body">
-                      <ul className="interview-question-list">
-                        {questions.map((question, index) => (
-                          <li key={`${column}-q-${index}`} className="interview-question-item">
-                            <p className="interview-question-text">{question}</p>
-                            <label className="interview-answer-label">
-                              Answer:
-                              <textarea
-                                className="interview-answer-input"
-                                placeholder="Enter answer..."
-                                rows={3}
-                              />
-                            </label>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="interview-grid-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleExport}
-              disabled={!excelRows.length}
-            >
-              Export
-            </button>
-          </div>
-        </section>
+      {(engagement.id === '1' || isLikelyEngagementUuid(engagement.id)) && (
+        <StakeholderInterviewGrid
+          engagementId={engagement.id}
+          useDemoData={engagement.id === '1'}
+          returnPath={`/all-cias/${engagement.id}`}
+        />
       )}
 
       {engagement.id === '1' && (
