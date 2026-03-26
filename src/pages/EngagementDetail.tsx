@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import PptxGenJS from "pptxgenjs";
 import ChangeImpactHeatmap, {
@@ -6,117 +6,70 @@ import ChangeImpactHeatmap, {
   HEATMAP_MATRIX_DATA,
 } from "./ChangeImpactHeatmap";
 import StakeholderInterviewGrid from "../components/StakeholderInterviewGrid";
+
+import {
+  getEngagementSummary,
+  getEngagementTranscripts,
+  getEngagementInsights,
+  type InterviewTranscript,
+  type EngagementTranscriptsResponse,
+  type EngagementInsightsResponse,
+} from "../api/engagements";
+
 import { isLikelyEngagementUuid } from "../api/interviews";
 import "./EngagementDetail.css";
 
-export interface Engagement {
-  id: string;
-  title: string;
-  summary: string;
-}
-
-export const MOCK_ENGAGEMENTS: Engagement[] = [
-  {
-    id: "1",
-    title: "Finance ERP Rollout",
-    summary:
-      "Change Impact Assessment for the global Finance ERP implementation. Covers process, technology, and role changes across 12 countries.",
-  },
-  {
-    id: "2",
-    title: "HR Service Delivery Transformation",
-    summary:
-      "CIA for the move to shared services and self-service HR. Focus on People and Process impacts for HR and line managers.",
-  },
-  {
-    id: "3",
-    title: "Supply Chain Digitisation",
-    summary:
-      "Impact assessment for the new SCM platform and revised procurement workflows. Technology and Data lens emphasis.",
-  },
-  {
-    id: "4",
-    title: "Customer Portal Launch",
-    summary:
-      "Stakeholder and customer impact for the new B2B portal. High-level CIA to support adoption and training planning.",
-  },
-];
-
-const MOCK_STAKEHOLDERS = [
-  {
-    id: "sh1",
-    name: "Jane Smith (HR Lead)",
-    transcript: `[CIMMIE] How would you describe your role in relation to this change?
-[Jane Smith] I'm the HR Lead for the region. My team owns role design, RACI updates, and the people side of the ERP rollout. We're working with Finance on the new approval workflows.
-
-[CIMMIE] What are the main process or system changes you expect in your area?
-[Jane Smith] Month-end will change—new approval chains and system steps. We have four SOPs that need updating. Training is planned but we're concerned about timing with the pilot.
-
-[CIMMIE] Who do you see as most affected by this change?
-[Jane Smith] Frontline operations and service supervisors. Wave 2 is where the real role and workflow transition hits. We need adoption support and clear comms.`,
-    readback: `Role: HR Lead; owns role design, RACI, and people side of ERP rollout. Process: Month-end and approval workflows changing; four SOPs to update; training planned with timing concerns. Most affected: Frontline operations and service supervisors, especially in Wave 2; adoption support and clear comms needed.`,
-  },
-  {
-    id: "sh2",
-    name: "David Chen (Finance)",
-    transcript: `[CIMMIE] How would you describe your role in relation to this change?
-[David Chen] I'm in Finance, responsible for the month-end close process and the new ERP integration in our stream.
-
-[CIMMIE] What are the main process or system changes you expect?
-[David Chen] The new ERP modules replace our legacy reporting. We have three integrations going live. Access and data migration are the big unknowns—we're dependent on IT and Data Governance.
-
-[CIMMIE] Any concerns about timing or readiness?
-[David Chen] Yes—environment availability and cutover dates. We need the read-only environment earlier for training.`,
-    readback: `Role: Finance; month-end close and ERP integration. Process/Technology: New ERP modules replacing legacy reporting; three integrations; dependency on IT and Data Governance for access and data migration. Concerns: Environment availability and cutover; need read-only environment earlier for training.`,
-  },
-  {
-    id: "sh3",
-    name: "Maria Garcia (Ops Manager)",
-    transcript: `[CIMMIE] How would you describe your role in relation to this change?
-[Maria Garcia] I'm an Ops Manager. My team will use the new system for daily transactions and approvals.
-
-[CIMMIE] What level of disruption do you anticipate?
-[Maria Garcia] High for the first few months. Behaviour change and adoption are the main challenges. We need hands-on training and quick reference guides.
-
-[CIMMIE] Which teams are most affected?
-[Maria Garcia] Frontline and service supervisors. Role and workflow redesign in Wave 2 is the biggest impact.`,
-    readback: `Role: Ops Manager; team will use new system for transactions and approvals. Disruption: High for first few months; behaviour change and adoption are main challenges; need hands-on training and quick reference guides. Most affected: Frontline and service supervisors; Wave 2 role and workflow redesign.`,
-  },
-];
-
 export default function EngagementDetail() {
-  // const { engagementId } = useParams<{ engagementId: string }>();
-  const engagement = 1 ? MOCK_ENGAGEMENTS.find((e) => e.id === "1") : undefined;
+  const { engagementId } = useParams<{ engagementId: string }>();
 
+  const [loading, setLoading] = useState(true);
+
+  // Engagement details
+  const [engagement, setEngagement] = useState<{
+    id: string;
+    title: string;
+    summary: string;
+  } | null>(null);
+
+  // Completed interviews + transcripts
+  const [transcripts, setTranscripts] = useState<InterviewTranscript[]>([]);
+
+  // Insights (summary + key findings)
+  const [insights, setInsights] = useState<EngagementInsightsResponse | null>(
+    null,
+  );
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+
+  // UI States
   const [isPublished, setIsPublished] = useState(false);
   const [selectedStakeholderId, setSelectedStakeholderId] =
     useState<string>("");
 
-  const selectedStakeholder = selectedStakeholderId
-    ? MOCK_STAKEHOLDERS.find((s) => s.id === selectedStakeholderId)
-    : null;
+  const selectedStakeholder =
+    transcripts.find((t) => t.interview_id === selectedStakeholderId) || null;
 
+  // On Publish
   const handlePublish = () => {
     setIsPublished(true);
   };
 
-  // PPT colors mapped to values 0-3 (kept aligned to provided export logic)
+  // PPT Colors for heatmap (unchanged)
   const getPptFill = (value: number) => {
     switch (value) {
       case 0:
-        return "DBEAFE"; // Lightest Blue - No Change
+        return "DBEAFE";
       case 1:
-        return "93C5FD"; // Light Blue - Low
+        return "93C5FD";
       case 2:
-        return "3B82F6"; // Medium Blue - Medium
+        return "3B82F6";
       case 3:
-        return "1E40AF"; // Dark Blue (Nav Blue) - High
+        return "1E40AF";
       default:
         return "FFFFFF";
     }
   };
 
-  // Export function
+  // Export Heatmap to PPT (unchanged)
   const exportHeatmapPPT = (
     matrixData: typeof HEATMAP_MATRIX_DATA,
     impactKeys: typeof HEATMAP_IMPACT_KEYS,
@@ -165,6 +118,54 @@ export default function EngagementDetail() {
     void pptx.writeFile({ fileName: "CIA_Heatmap_Export.pptx" });
   };
 
+  // ✅ Load real engagement + transcripts + insights
+  useEffect(() => {
+    if (!engagementId) return;
+
+    async function load() {
+      try {
+        setLoading(true);
+
+        // 1. Engagement details
+        const eng = await getEngagementSummary(engagementId!);
+        console.log(eng);
+
+        setEngagement({
+          id: eng.engagement_id,
+          title: eng.name ?? "Untitled Engagement",
+          summary: eng.summary ?? "No summary available.",
+        });
+
+        // 2. Completed interviews + transcript
+        const tx: EngagementTranscriptsResponse =
+          await getEngagementTranscripts(engagementId!);
+        setTranscripts(tx.completed_interviews);
+
+        // 3. Insights (summary + key findings)
+        const ins = await getEngagementInsights(engagementId!);
+        setInsights(ins);
+
+        if (ins.message) {
+          setInsightsError(ins.message); // "No completed interviews..." case
+        }
+      } catch (err: any) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, [engagementId]);
+
+  if (loading) {
+    return (
+      <div className="engagement-detail-page">
+        <p>Loading engagement...</p>
+      </div>
+    );
+  }
+
   if (!engagement) {
     return (
       <div className="engagement-detail-page">
@@ -203,32 +204,30 @@ export default function EngagementDetail() {
         </div>
       </div>
 
-      {(engagement.id === "1" || isLikelyEngagementUuid(engagement.id)) && (
+      {/* ✅ Real stakeholder interviews grid */}
+      {engagement.id && isLikelyEngagementUuid(engagement.id) && (
         <StakeholderInterviewGrid
           engagementId={engagement.id}
-          useDemoData={engagement.id === "1"}
+          useDemoData={false}
           returnPath={`/all-cias/${engagement.id}`}
         />
       )}
 
-      {engagement.id === "1" && (
-        <>
-          <div className="engagement-heatmap-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() =>
-                exportHeatmapPPT(HEATMAP_MATRIX_DATA, HEATMAP_IMPACT_KEYS)
-              }
-            >
-              Export Heatmap to PPT
-            </button>
-          </div>
-          <ChangeImpactHeatmap />
-        </>
-      )}
+      {/* ✅ Keep heatmap dummy data unchanged */}
+      <div className="engagement-heatmap-actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() =>
+            exportHeatmapPPT(HEATMAP_MATRIX_DATA, HEATMAP_IMPACT_KEYS)
+          }
+        >
+          Export Heatmap to PPT
+        </button>
+      </div>
+      <ChangeImpactHeatmap />
 
-      {/* Post-Publish – Interview Records */}
+      {/* ✅ Post-Publish — Interview Records */}
       {isPublished && (
         <section
           className="engagement-section card"
@@ -240,6 +239,8 @@ export default function EngagementDetail() {
           >
             Interview Records
           </h2>
+
+          {/* Stakeholder Select */}
           <label
             htmlFor="interview-stakeholder-select"
             className="interview-records-label"
@@ -253,28 +254,58 @@ export default function EngagementDetail() {
             onChange={(e) => setSelectedStakeholderId(e.target.value)}
           >
             <option value="">Select a stakeholder</option>
-            {MOCK_STAKEHOLDERS.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
+            {transcripts.map((s) => (
+              <option key={s.interview_id} value={s.interview_id}>
+                {s.stakeholder_name}
               </option>
             ))}
           </select>
+
           {selectedStakeholder && (
             <div className="interview-records-panels">
+              {/* ✅ Full Transcript */}
               <div className="interview-records-block">
                 <h3 className="interview-records-subtitle">
                   Full interview transcript
                 </h3>
                 <div className="interview-records-scroll">
-                  {selectedStakeholder.transcript}
+                  {selectedStakeholder.transcript.map((row, idx) => (
+                    <p key={idx}>
+                      <strong>{row.question_text}</strong>
+                      <br />
+                      {row.answer_text}
+                    </p>
+                  ))}
                 </div>
               </div>
+
+              {/* ✅ Summary / Key Findings panel */}
               <div className="interview-records-block">
                 <h3 className="interview-records-subtitle">
                   Read-back summary
                 </h3>
                 <div className="interview-records-scroll">
-                  {selectedStakeholder.readback}
+                  {insightsError ? (
+                    <p>{insightsError}</p>
+                  ) : insights ? (
+                    <>
+                      <p>
+                        <strong>Summary:</strong>
+                        <br />
+                        {insights.summary}
+                      </p>
+                      <p>
+                        <strong>Key findings:</strong>
+                      </p>
+                      <ul>
+                        {insights.key_findings?.map((f, idx) => (
+                          <li key={idx}>{f.text}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : (
+                    "Loading insights..."
+                  )}
                 </div>
               </div>
             </div>

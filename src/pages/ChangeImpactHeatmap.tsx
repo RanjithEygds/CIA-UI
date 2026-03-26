@@ -1,62 +1,67 @@
-import { ResponsiveHeatMap } from '@nivo/heatmap';
-import type { ComputedCell, TooltipProps } from '@nivo/heatmap';
-import './ChangeImpactHeatmap.css';
+import { ResponsiveHeatMap } from "@nivo/heatmap";
+import type { ComputedCell, TooltipProps } from "@nivo/heatmap";
+import "./ChangeImpactHeatmap.css";
 
-type ImpactKey = 'People' | 'Process' | 'Technology' | 'Organization';
+type ImpactKey = "People" | "Process" | "Technology" | "Organization";
 
 type HeatMapRow = {
   function: string;
 } & Record<ImpactKey, number>;
 
-export const HEATMAP_IMPACT_KEYS: ImpactKey[] = ['People', 'Process', 'Technology', 'Organization'];
+export const HEATMAP_IMPACT_KEYS: ImpactKey[] = [
+  "People",
+  "Process",
+  "Technology",
+  "Organization",
+];
 
 const IMPACT_LABELS: Record<number, string> = {
-  0: 'No change',
-  1: 'Low',
-  2: 'Medium',
-  3: 'High',
+  0: "No change",
+  1: "Low",
+  2: "Medium",
+  3: "High",
 };
 
 /** Sidebar-aligned blues: same family as nav bar `--color-secondary` (#2d3561) */
 const SEVERITY_BLUE: Record<number, string> = {
-  0: '#e8eaf3',
-  1: '#b4bdd8',
-  2: '#6f7c9e',
-  3: '#2d3561',
+  0: "#e8eaf3",
+  1: "#b4bdd8",
+  2: "#6f7c9e",
+  3: "#2d3561",
 };
 
 /** Demo data: 0 = none, 1 = low, 2 = medium, 3 = high */
 export const HEATMAP_MATRIX_DATA: HeatMapRow[] = [
   {
-    function: 'Claims Department',
+    function: "Claims Department",
     People: 3,
     Process: 3,
     Technology: 2,
     Organization: 2,
   },
   {
-    function: 'Underwriting Team',
+    function: "Underwriting Team",
     People: 2,
     Process: 3,
     Technology: 3,
     Organization: 2,
   },
   {
-    function: 'Policy Servicing',
+    function: "Policy Servicing",
     People: 3,
     Process: 2,
     Technology: 2,
     Organization: 3,
   },
   {
-    function: 'Support Functions',
+    function: "Support Functions",
     People: 2,
     Process: 2,
     Technology: 1,
     Organization: 3,
   },
   {
-    function: 'Senior Leaders',
+    function: "Senior Leaders",
     People: 3,
     Process: 2,
     Technology: 1,
@@ -65,24 +70,37 @@ export const HEATMAP_MATRIX_DATA: HeatMapRow[] = [
 ];
 
 /** Row labels on the heatmap Y-axis (matches each row's `function`). */
-const HEATMAP_FUNCTION_AXIS_IDS = HEATMAP_MATRIX_DATA.map((row) => row.function);
+const HEATMAP_FUNCTION_AXIS_IDS = HEATMAP_MATRIX_DATA.map(
+  (row) => row.function,
+);
 
 function heatmapLeftMarginPx(): number {
-  const maxChars = HEATMAP_FUNCTION_AXIS_IDS.reduce((m, id) => Math.max(m, id.length), 0);
+  const maxChars = HEATMAP_FUNCTION_AXIS_IDS.reduce(
+    (m, id) => Math.max(m, id.length),
+    0,
+  );
   /* Room for end-anchored tick text (~7.5px/char at 12px) + padding inside SVG margin */
   return Math.min(320, Math.max(180, Math.ceil(maxChars * 7.5) + 52));
 }
 
-function cellFill(cell: Omit<ComputedCell<{ x: string; y?: number | null }>, 'color' | 'opacity' | 'borderColor' | 'labelTextColor'>): string {
+function cellFill(
+  cell: Omit<
+    ComputedCell<{ x: string; y?: number | null }>,
+    "color" | "opacity" | "borderColor" | "labelTextColor"
+  >,
+): string {
   const v = cell.value;
   if (v === 0 || v === 1 || v === 2 || v === 3) return SEVERITY_BLUE[v];
-  return '#ffffff';
+  return "#ffffff";
 }
 
-function HeatMapTooltip({ cell }: TooltipProps<{ x: string; y?: number | null }>) {
+function HeatMapTooltip({
+  cell,
+}: TooltipProps<{ x: string; y?: number | null }>) {
   const v = cell.value ?? 0;
-  const label = IMPACT_LABELS[v] ?? '—';
-  const xLabel = typeof cell.data.x === 'string' ? cell.data.x : String(cell.data.x);
+  const label = IMPACT_LABELS[v] ?? "—";
+  const xLabel =
+    typeof cell.data.x === "string" ? cell.data.x : String(cell.data.x);
   return (
     <div className="cia-heatmap-tooltip">
       <div className="cia-heatmap-tooltip-title">{cell.serieId}</div>
@@ -97,37 +115,49 @@ function HeatMapTooltip({ cell }: TooltipProps<{ x: string; y?: number | null }>
         </span>
       </div>
       {cell.formattedValue != null && (
-        <div className="cia-heatmap-tooltip-value">Score {cell.formattedValue}</div>
+        <div className="cia-heatmap-tooltip-value">
+          Score {cell.formattedValue}
+        </div>
       )}
     </div>
   );
 }
 
 const legendItems: { level: number; label: string }[] = [
-  { level: 0, label: 'No change' },
-  { level: 1, label: 'Low' },
-  { level: 2, label: 'Medium' },
-  { level: 3, label: 'High' },
+  { level: 0, label: "No change" },
+  { level: 1, label: "Low" },
+  { level: 2, label: "Medium" },
+  { level: 3, label: "High" },
 ];
 
 /** Point-wise summary aligned with heatmap narrative (demo copy). */
 const HEATMAP_KEY_FINDINGS: string[] = [
-  'The heatmap analysis indicates a moderate to high change impact, primarily driven by People and Organizational dimensions across all functions. Stakeholders broadly recognize the need for change and perceive it as necessary and beneficial, resulting in a cautiously optimistic overall sentiment.',
-  'People impact is consistently high, signaling strong awareness of role changes and a clear expectation for enablement through communication, training, and support. This reflects a sentiment of engagement rather than resistance.',
-  'Process impacts are moderate, suggesting that while workflows will evolve, the change is viewed as manageable and structured. Stakeholders expect improvement without significant disruption.',
-  'Technology impact remains low to moderate, indicating minimal anxiety around system changes. Technology is largely perceived as an enabler rather than a source of disruption.',
-  'Organizational impact is notable, particularly among Senior Leaders and core operational teams, highlighting the importance of leadership alignment, governance, and clear communication throughout the transition.',
+  "The heatmap analysis indicates a moderate to high change impact, primarily driven by People and Organizational dimensions across all functions. Stakeholders broadly recognize the need for change and perceive it as necessary and beneficial, resulting in a cautiously optimistic overall sentiment.",
+  "People impact is consistently high, signaling strong awareness of role changes and a clear expectation for enablement through communication, training, and support. This reflects a sentiment of engagement rather than resistance.",
+  "Process impacts are moderate, suggesting that while workflows will evolve, the change is viewed as manageable and structured. Stakeholders expect improvement without significant disruption.",
+  "Technology impact remains low to moderate, indicating minimal anxiety around system changes. Technology is largely perceived as an enabler rather than a source of disruption.",
+  "Organizational impact is notable, particularly among Senior Leaders and core operational teams, highlighting the importance of leadership alignment, governance, and clear communication throughout the transition.",
 ];
 
 /** Closing executive summary — shown in a separate callout below the bullet list. */
 const HEATMAP_FINDINGS_CLOSING_SUMMARY =
-  'The perceived sentiment across all fields is cautiously positive, with confidence in the change direction, a strong people focus, manageable process evolution, and limited technology-related concern. Successful adoption will depend on sustained leadership engagement and targeted people-centric change interventions.';
+  "The perceived sentiment across all fields is cautiously positive, with confidence in the change direction, a strong people focus, manageable process evolution, and limited technology-related concern. Successful adoption will depend on sustained leadership engagement and targeted people-centric change interventions.";
 
 function KeyFindingCheckIcon() {
   return (
     <span className="cia-heatmap-findings-bullet" aria-hidden>
-      <svg className="cia-heatmap-findings-bullet-svg" viewBox="0 0 22 22" width={22} height={22}>
-        <circle className="cia-heatmap-findings-bullet-disc" cx="11" cy="11" r="11" />
+      <svg
+        className="cia-heatmap-findings-bullet-svg"
+        viewBox="0 0 22 22"
+        width={22}
+        height={22}
+      >
+        <circle
+          className="cia-heatmap-findings-bullet-disc"
+          cx="11"
+          cy="11"
+          r="11"
+        />
         <path
           className="cia-heatmap-findings-bullet-mark"
           d="M6.5 11.2 9.3 14 15.5 7.8"
@@ -141,7 +171,13 @@ function KeyFindingCheckIcon() {
   );
 }
 
-export default function ChangeImpactHeatmap() {
+type ChangeImpactHeatmapProps = {
+  onExportPpt?: () => void;
+};
+
+export default function ChangeImpactHeatmap({
+  onExportPpt,
+}: ChangeImpactHeatmapProps) {
   const transformedData = HEATMAP_MATRIX_DATA.map((row) => ({
     id: row.function,
     data: HEATMAP_IMPACT_KEYS.map((key) => ({
@@ -150,34 +186,21 @@ export default function ChangeImpactHeatmap() {
     })),
   }));
 
-  const highCells = HEATMAP_MATRIX_DATA.reduce((acc, row) => {
-    HEATMAP_IMPACT_KEYS.forEach((k) => {
-      if (row[k] >= 3) acc += 1;
-    });
-    return acc;
-  }, 0);
-
   return (
     <div className="cia-heatmap-page">
-      <header className="cia-heatmap-hero">
-        <p className="cia-heatmap-kicker">Executive view</p>
-        <h1 className="cia-heatmap-title">Change Impact Heatmap</h1>
-        <p className="cia-heatmap-lead">
-          Cross-functional snapshot across People, Process, Technology, and Organization. Values are
-          illustrative for demo purposes.
-        </p>
-        <div className="cia-heatmap-meta">
-          <span className="cia-heatmap-pill">{HEATMAP_MATRIX_DATA.length} functions</span>
-          <span className="cia-heatmap-pill">{HEATMAP_IMPACT_KEYS.length} dimensions</span>
-          <span className="cia-heatmap-pill cia-heatmap-pill-accent">{highCells} high-impact cells</span>
-        </div>
-      </header>
-
-      <section className="cia-heatmap-card card" aria-label="Impact heatmap chart">
+      <section
+        className="cia-heatmap-card card"
+        aria-label="Impact heatmap chart"
+      >
         <div className="cia-heatmap-card-head">
           <div>
-            <h2 className="cia-heatmap-card-title">Impact matrix</h2>
-            <p className="cia-heatmap-card-sub">Hover a cell for function, dimension, and severity.</p>
+            <h2 className="engagement-section-title cia-heatmap-card-title">
+              Engagement Impact Heatmap
+            </h2>
+            <p className="cia-heatmap-card-sub">
+              Cross-functional snapshot across People, Process, Technology, and
+              Organization. Hover a cell for function, dimension, and severity.
+            </p>
           </div>
           <ul className="cia-heatmap-legend" aria-label="Severity legend">
             {legendItems.map(({ level, label }) => (
@@ -192,11 +215,27 @@ export default function ChangeImpactHeatmap() {
             ))}
           </ul>
         </div>
+        {onExportPpt && (
+          <div className="cia-heatmap-card-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={onExportPpt}
+            >
+              Export Heatmap to PPT
+            </button>
+          </div>
+        )}
 
         <div className="cia-heatmap-chart-wrap">
           <ResponsiveHeatMap
             data={transformedData}
-            margin={{ top: 72, right: 28, bottom: 52, left: heatmapLeftMarginPx() }}
+            margin={{
+              top: 72,
+              right: 28,
+              bottom: 52,
+              left: heatmapLeftMarginPx(),
+            }}
             valueFormat=">-.0f"
             axisTop={{
               tickRotation: 0,
@@ -209,16 +248,16 @@ export default function ChangeImpactHeatmap() {
               tickValues: HEATMAP_FUNCTION_AXIS_IDS,
             }}
             theme={{
-              background: 'transparent',
+              background: "transparent",
               text: {
-                fill: 'var(--color-text)',
+                fill: "var(--color-text)",
                 fontSize: 12,
-                fontFamily: 'var(--font-sans)',
+                fontFamily: "var(--font-sans)",
               },
               axis: {
                 ticks: {
                   text: {
-                    fill: 'var(--color-text)',
+                    fill: "var(--color-text)",
                     fontSize: 12,
                     fontWeight: 600,
                   },
@@ -228,9 +267,11 @@ export default function ChangeImpactHeatmap() {
             colors={cellFill}
             emptyColor="#ffffff"
             borderWidth={1}
-            borderColor={{ from: 'color', modifiers: [['darker', 0.15]] }}
+            borderColor={{ from: "color", modifiers: [["darker", 0.15]] }}
             borderRadius={0}
-            labelTextColor={(cell) => (cell.value === 3 ? '#ffffff' : '#1a2332')}
+            labelTextColor={(cell) =>
+              cell.value === 3 ? "#ffffff" : "#1a2332"
+            }
             enableLabels
             animate
             motionConfig="gentle"
@@ -249,7 +290,10 @@ export default function ChangeImpactHeatmap() {
         className="cia-heatmap-findings card"
         aria-labelledby="heatmap-key-findings-heading"
       >
-        <h2 id="heatmap-key-findings-heading" className="cia-heatmap-findings-title">
+        <h2
+          id="heatmap-key-findings-heading"
+          className="cia-heatmap-findings-title"
+        >
           Summary of key findings
         </h2>
         <ul className="cia-heatmap-findings-list">
@@ -267,7 +311,9 @@ export default function ChangeImpactHeatmap() {
           aria-label="Closing summary"
         >
           <p className="cia-heatmap-findings-summary-kicker">In summary</p>
-          <p className="cia-heatmap-findings-summary-text">{HEATMAP_FINDINGS_CLOSING_SUMMARY}</p>
+          <p className="cia-heatmap-findings-summary-text">
+            {HEATMAP_FINDINGS_CLOSING_SUMMARY}
+          </p>
         </div>
       </section>
     </div>

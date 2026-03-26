@@ -9,7 +9,11 @@
   gap: 0.6rem;
   flex-wrap: wrap;
   background:
-    radial-gradient(circle at right top, rgba(238, 155, 0, 0.18), transparent 34%),
+    radial-gradient(
+      circle at right top,
+      rgba(238, 155, 0, 0.18),
+      transparent 34%
+    ),
     linear-gradient(180deg, #ffffff, #f9fcff);
 }
 

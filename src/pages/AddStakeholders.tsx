@@ -64,6 +64,8 @@ export default function AddStakeholders() {
   // Create fields
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState("");
+  const [dept, setDept] = useState("");
   const canAdd = name.trim().length > 0 && EMAIL_REGEX.test(email.trim());
   const [touched, setTouched] = useState(false);
 
@@ -74,6 +76,9 @@ export default function AddStakeholders() {
   const [editRole, setEditRole] = useState("");
   const [editDept, setEditDept] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
+
+  const emailValid =
+    email.trim().length === 0 || EMAIL_REGEX.test(email.trim());
 
   useEffect(() => {
     if (!engagementId) {
@@ -109,11 +114,15 @@ export default function AddStakeholders() {
       await createStakeholderAndInterview(engagementId, {
         name: name.trim(),
         email: email.trim(),
+        role: role.trim(),
+        department: dept.trim(),
       });
 
       await refreshList();
       setName("");
       setEmail("");
+      setRole("");
+      setDept("");
       setTouched(false);
     } catch (err: any) {
       alert(err.message);
@@ -215,23 +224,59 @@ export default function AddStakeholders() {
           <div className="add-stakeholders-input-row">
             <label>Name</label>
             <input
+              id="stakeholder-name"
+              type="text"
+              className="add-stakeholders-input"
               value={name}
-              onBlur={() => setTouched(true)}
               onChange={(e) => setName(e.target.value)}
+              onBlur={() => setTouched(true)}
+              placeholder="Stakeholder name"
+              aria-label="Stakeholder name"
             />
           </div>
 
           <div className="add-stakeholders-input-row">
             <label>Email</label>
             <input
+              id="stakeholder-email"
+              type="email"
+              className={`add-stakeholders-input ${touched && !emailValid ? "add-stakeholders-input-invalid" : ""}`}
               value={email}
-              className={touched && !EMAIL_REGEX.test(email) ? "invalid" : ""}
-              onBlur={() => setTouched(true)}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => setTouched(true)}
+              placeholder="email@example.com"
+              aria-label="Stakeholder email"
+              aria-invalid={touched && !emailValid}
             />
             {touched && !EMAIL_REGEX.test(email) && (
               <span className="error">Invalid email</span>
             )}
+          </div>
+          <div className="add-stakeholders-input-row">
+            <label>User Group</label>
+            <span className="add-stakeholders-optional">(optional)</span>
+            <input
+              id="stakeholder-user-group"
+              type="text"
+              className="add-stakeholders-input"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              placeholder="e.g. Finance, IT"
+              aria-label="User group (optional)"
+            />
+          </div>
+          <div className="add-stakeholders-input-row">
+            <label>Sub-Group</label>
+            <span className="add-stakeholders-optional">(optional)</span>
+            <input
+              id="stakeholder-sub-group"
+              type="text"
+              className="add-stakeholders-input"
+              value={dept}
+              onChange={(e) => setDept(e.target.value)}
+              placeholder="e.g. Payables, Infrastructure"
+              aria-label="Sub-group (optional)"
+            />
           </div>
 
           <button
@@ -322,6 +367,9 @@ export default function AddStakeholders() {
                       <div className="add-stakeholders-input-row">
                         <label>Name</label>
                         <input
+                          id={`stakeholder-edit-name-${s.stakeholder_id}`}
+                          type="text"
+                          className="add-stakeholders-input"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                         />
@@ -330,6 +378,9 @@ export default function AddStakeholders() {
                       <div className="add-stakeholders-input-row">
                         <label>Email</label>
                         <input
+                          id={`stakeholder-edit-email-${s.stakeholder_id}`}
+                          type="email"
+                          className="add-stakeholders-input"
                           value={editEmail}
                           onChange={(e) => setEditEmail(e.target.value)}
                         />
@@ -338,6 +389,9 @@ export default function AddStakeholders() {
                       <div className="add-stakeholders-input-row">
                         <label>User Group (optional)</label>
                         <input
+                          id={`stakeholder-edit-user-group-${s.stakeholder_id}`}
+                          type="text"
+                          className="add-stakeholders-input"
                           value={editRole}
                           onChange={(e) => setEditRole(e.target.value)}
                         />
@@ -346,6 +400,9 @@ export default function AddStakeholders() {
                       <div className="add-stakeholders-input-row">
                         <label>Sub-Group (optional)</label>
                         <input
+                          id={`stakeholder-edit-sub-group-${s.stakeholder_id}`}
+                          type="text"
+                          className="add-stakeholders-input"
                           value={editDept}
                           onChange={(e) => setEditDept(e.target.value)}
                         />

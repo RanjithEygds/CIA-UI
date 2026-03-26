@@ -144,6 +144,35 @@ export type UpdateStakeholderResponse = {
   };
 };
 
+export type TranscriptRow = {
+  question_id: string;
+  section: string;
+  question_text: string;
+  answer_text: string;
+};
+
+export type InterviewTranscript = {
+  interview_id: string;
+  stakeholder_name: string;
+  stakeholder_email: string | null;
+  transcript: TranscriptRow[];
+};
+
+export type EngagementTranscriptsResponse = {
+  engagement_id: string;
+  engagement_name: string | null;
+  completed_interviews: InterviewTranscript[];
+};
+
+export type EngagementInsightsResponse = {
+  engagement_id: string;
+  engagement_name: string | null;
+  summary: string | null;
+  key_findings: { text: string }[];
+  cached: boolean;
+  message?: string; // appears when no completed interviews
+};
+
 /** Throw on non-2xx with readable message */
 async function okOrThrow(res: Response) {
   if (!res.ok) {
@@ -544,6 +573,30 @@ export async function updateStakeholder(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       },
+    ),
+  );
+
+  return res.json();
+}
+
+export async function getEngagementTranscripts(
+  engagementId: string,
+): Promise<EngagementTranscriptsResponse> {
+  const res = await okOrThrow(
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/transcripts`,
+    ),
+  );
+
+  return res.json();
+}
+
+export async function getEngagementInsights(
+  engagementId: string,
+): Promise<EngagementInsightsResponse> {
+  const res = await okOrThrow(
+    await fetch(
+      `${BASE_URL}/engagements/${encodeURIComponent(engagementId)}/insights`,
     ),
   );
 
