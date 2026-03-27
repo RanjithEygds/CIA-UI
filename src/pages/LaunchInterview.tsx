@@ -27,9 +27,9 @@ export default function LaunchInterview() {
     [],
   );
   const [loading, setLoading] = useState(true);
-  const [initiatedStakeholderIds, setInitiatedStakeholderIds] = useState<
-    Set<string>
-  >(new Set());
+  /** Row is "started" after Copy Link (success) or Initiate Session — enables Extend for that row only. */
+  const [sessionStartedStakeholderIds, setSessionStartedStakeholderIds] =
+    useState<Set<string>>(new Set());
   const [extendingInterviewIds, setExtendingInterviewIds] = useState<Set<string>>(
     new Set(),
   );
@@ -52,15 +52,23 @@ export default function LaunchInterview() {
     load();
   }, [engagementId]);
 
-  function copyStakeholderLink(stakeholder: StakeholderWithInterview) {
+  async function copyStakeholderLink(stakeholder: StakeholderWithInterview) {
     if (!stakeholder.interview_id) {
       alert("No interview ID assigned yet.");
       return;
     }
 
     const url = `${window.location.origin}/cimmie/${stakeholder.interview_id}`;
-    navigator.clipboard.writeText(url);
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      alert("Could not copy link to clipboard.");
+      return;
+    }
 
+    setSessionStartedStakeholderIds(
+      (prev) => new Set([...prev, stakeholder.stakeholder_id]),
+    );
     setCopiedId(stakeholder.stakeholder_id);
     setShowCopyToast(true);
 
@@ -73,7 +81,7 @@ export default function LaunchInterview() {
       alert("No interview session found for this stakeholder.");
       return;
     }
-    setInitiatedStakeholderIds(
+    setSessionStartedStakeholderIds(
       (prev) => new Set([...prev, stakeholder.stakeholder_id]),
     );
     sessionStorage.setItem(ACTIVE_STAKEHOLDER_KEY, stakeholder.stakeholder_id);
@@ -84,8 +92,7 @@ export default function LaunchInterview() {
     const interviewId = stakeholder.interview_id;
     if (!interviewId) return;
 
-    const hasInitiated = initiatedStakeholderIds.has(stakeholder.stakeholder_id);
-    if (!hasInitiated) return;
+    if (!sessionStartedStakeholderIds.has(stakeholder.stakeholder_id)) return;
 
     setExtendingInterviewIds((prev) => new Set([...prev, interviewId]));
     try {
@@ -190,12 +197,12 @@ export default function LaunchInterview() {
                       type="button"
                       disabled={
                         !s.interview_id ||
-                        !initiatedStakeholderIds.has(s.stakeholder_id) ||
+                        !sessionStartedStakeholderIds.has(s.stakeholder_id) ||
                         extendingInterviewIds.has(s.interview_id)
                       }
                       aria-disabled={
                         !s.interview_id ||
-                        !initiatedStakeholderIds.has(s.stakeholder_id) ||
+                        !sessionStartedStakeholderIds.has(s.stakeholder_id) ||
                         extendingInterviewIds.has(s.interview_id)
                       }
                       onClick={() => handleExtendSession(s)}
