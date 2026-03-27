@@ -106,6 +106,20 @@ function configureSpeechUtterance(u: SpeechSynthesisUtterance) {
   const preferred = DEFAULT_TTS_VOICE.trim();
   const synth = getSpeechSynthesis();
   const voices = synth?.getVoices() ?? [];
+  const femaleVoiceHints = [
+    "female",
+    "woman",
+    "zira",
+    "jenny",
+    "aria",
+    "sara",
+    "samantha",
+    "natasha",
+    "hazel",
+    "ava",
+    "karen",
+    "linda",
+  ];
   if (preferred) {
     const v =
       voices.find((x) => x.name === preferred) ??
@@ -116,6 +130,23 @@ function configureSpeechUtterance(u: SpeechSynthesisUtterance) {
       u.lang = v.lang || "en-US";
       return;
     }
+  }
+  const femaleVoice = voices.find((x) => {
+    const name = `${x.name} ${x.voiceURI}`.toLowerCase();
+    return femaleVoiceHints.some((hint) => name.includes(hint));
+  });
+  if (femaleVoice) {
+    u.voice = femaleVoice;
+    u.lang = femaleVoice.lang || "en-US";
+    return;
+  }
+  const englishVoice = voices.find((x) =>
+    (x.lang || "").toLowerCase().startsWith("en"),
+  );
+  if (englishVoice) {
+    u.voice = englishVoice;
+    u.lang = englishVoice.lang || "en-US";
+    return;
   }
   u.lang = "en-US";
 }

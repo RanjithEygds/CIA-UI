@@ -33,6 +33,65 @@
   font-size: 0.9rem;
   color: var(--color-text);
   line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.engagement-detail-content-stack {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.engagement-detail-section {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.engagement-detail-section + .engagement-detail-section {
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.engagement-detail-subheading {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.engagement-detail-doc-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.engagement-detail-doc-item {
+  font-size: 0.86rem;
+  color: var(--color-text);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.engagement-detail-summary-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.engagement-detail-summary-item {
+  font-size: 0.88rem;
+  color: var(--color-text);
+  line-height: 1.45;
+}
+
+.engagement-detail-empty-text {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
 }
 
 .engagement-detail-meta {
