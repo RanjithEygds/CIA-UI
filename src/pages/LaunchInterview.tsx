@@ -217,14 +217,6 @@ export default function LaunchInterview() {
           <Link className="btn btn-outline" to="/add-stakeholders">
             Back to Add Stakeholders
           </Link>
-          <button
-            className="btn btn-primary"
-            type="button"
-            onClick={() => navigate("/cimmie")}
-            disabled={stakeholders.length === 0}
-          >
-            Continue to Launch Interview
-          </button>
         </div>
       </footer>
 
