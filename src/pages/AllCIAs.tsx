@@ -53,7 +53,10 @@ export default function AllCIAs() {
             </p>
 
             <p className="engagement-tile-meta">
-              📄 {engagement.document_count} documents
+              <span className="engagement-tile-meta-icon" aria-hidden="true">
+              📂
+              </span>
+              <span>{engagement.document_count} documents</span>
             </p>
 
             <p className="engagement-tile-date">
