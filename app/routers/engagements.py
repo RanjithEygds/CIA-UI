@@ -333,27 +333,41 @@ def create_question(
 @router.get("", response_model=List[EngagementListItem])
 def list_engagements(db: Session = Depends(get_db)):
     """
-    Returns all engagements with key metadata:
-    id, name, summary, created_at, document_count
-    Sorted by newest first.
+    Returns all engagements with:
+    - id, name, summary, created_at, document_count
+    - change_brief, change_summary
+    - stakeholders (list)
     """
-    rows = (
+
+    engagements = (
         db.query(Engagement)
         .order_by(Engagement.created_at.desc())
         .all()
     )
 
-    return [
-        EngagementListItem(
-            id=e.id,
-            name=e.name,
-            summary=e.summary,
-            created_at=e.created_at.isoformat() if e.created_at else None,
-            document_count=e.document_count or 0,
-        )
-        for e in rows
-    ]
+    result = []
 
+    for e in engagements:
+        # Fetch context (may be null if not generated yet)
+        ctx = (
+            db.query(EngagementContext)
+            .filter(EngagementContext.engagement_id == e.id)
+            .first()
+        )
+
+        result.append(
+            EngagementListItem(
+                id=e.id,
+                name=e.name,
+                summary=e.summary,
+                created_at=e.created_at.isoformat() if e.created_at else None,
+                document_count=e.document_count or 0,
+                change_brief=ctx.change_brief if ctx else None,
+                change_summary=ctx.change_summary_json if ctx else [],
+            )
+        )
+
+    return result
 
 @router.get("/{engagement_id}/details")
 def engagement_details(engagement_id: str, db: Session = Depends(get_db)):

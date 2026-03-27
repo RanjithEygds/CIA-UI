@@ -183,7 +183,6 @@ def generate_heatmap_with_llm(groups, transcripts):
         json_mode=False,
         temperature=0
     )
-    print(raw)
     try:
         return json.loads(repair_json(raw))
     except Exception as e:
@@ -270,7 +269,6 @@ def get_engagement_heatmap(db: Session, engagement_id: str):
     ]
 
     heatmap = generate_heatmap_with_llm(groups, transcripts_flat)
-    print(heatmap)
     heatmap = normalize_heatmap_output(heatmap)
     heatmap = ensure_all_groups_present(groups, heatmap)
 

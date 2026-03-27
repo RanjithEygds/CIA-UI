@@ -31,6 +31,9 @@ class EngagementListItem(BaseModel):
     summary: Optional[str]
     document_count: int
     created_at: Optional[str]
+    change_brief: Optional[str] = None
+    change_summary: List[Any] = []
+
 
 class EngagementListOut(BaseModel):
     engagements: List[EngagementListItem]
