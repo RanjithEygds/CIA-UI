@@ -58,7 +58,8 @@ export default function StakeholderInterviewGrid({
         await getEngagementTranscripts(engagementId);
 
       const interviews = data.completed_interviews;
-
+      console.log("Loaded interviews:", interviews);
+      
       // ✅ Handle: no completed interviews
       if (!interviews || interviews.length === 0) {
         setRows([]);

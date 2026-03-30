@@ -367,8 +367,36 @@
   min-height: 0;
   width: 100%;
   border-radius: 0;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 1rem;
   overflow-y: auto; /* scroll only when content overflows */
+}
+
+.voice-ui-toolbar {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  align-self: stretch;
+  width: 100%;
+  flex-shrink: 0;
+  gap: 0.75rem;
+}
+
+.voice-ui-toolbar .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.voice-ui-panel-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.25rem;
+  min-height: 0;
+  width: 100%;
 }
 
 .chat-shell {
@@ -476,6 +504,11 @@
   align-items: center;
   gap: 2.25rem;
   min-height: 700px;
+}
+
+.voice-ui-panel.voice-ui-panel-fullscreen {
+  gap: 1rem;
+  align-items: stretch;
 }
 
 /* Agent transcript: stacked bubbles matching text mode, scrollable */
@@ -641,6 +674,20 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.95);
+  text-align: center;
+}
+
+.voice-ui-stt-error {
+  margin: 0.35rem 0 0;
+  padding: 0.45rem 0.65rem;
+  max-width: min(420px, 94vw);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #fecaca;
+  background: rgba(185, 28, 28, 0.25);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 8px;
   text-align: center;
 }
 

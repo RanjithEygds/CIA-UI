@@ -47,8 +47,8 @@ export default function AllCIAs() {
             </h2>
 
             <p className="engagement-tile-summary">
-              {engagement.summary
-                ? engagement.summary.slice(0, 250) + "..."
+              {engagement.change_brief
+                ? engagement.change_brief.slice(0, 250) + "..."
                 : "No summary available."}
             </p>
 

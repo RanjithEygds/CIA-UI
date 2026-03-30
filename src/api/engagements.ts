@@ -9,6 +9,7 @@ export interface EngagementListItem {
   id: string;
   name: string | null;
   summary: string | null;
+  change_brief: string | null;
   document_count: number;
   created_at: string | null;
 }

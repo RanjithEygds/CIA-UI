@@ -21,7 +21,13 @@ import {
   type InterviewSectionRow,
 } from "../api/interviews";
 import { useNavigate, useParams } from "react-router-dom";
-import { DEFAULT_TTS_VOICE } from "../config";
+import {
+  type AzureContinuousStt,
+  AzureInterviewTts,
+  createInterviewSpeechConfig,
+  isAzureSpeechConfigured,
+  startAzureContinuousStt,
+} from "../services/azureSpeechInterview";
 
 /** Minimal type for Web Speech API SpeechRecognition. */
 interface SpeechRecognitionLike {
@@ -71,84 +77,6 @@ function getSpeechRecognitionConstructor():
     webkitSpeechRecognition?: new () => SpeechRecognitionLike;
   };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
-function getSpeechSynthesis(): SpeechSynthesis | null {
-  if (typeof window === "undefined") return null;
-  return window.speechSynthesis ?? null;
-}
-
-/** Chrome/Safari often return an empty voice list until voiceschanged fires. */
-function waitForSpeechSynthesisVoices(maxWaitMs = 2500): Promise<void> {
-  const synth = getSpeechSynthesis();
-  if (!synth) return Promise.resolve();
-  if (synth.getVoices().length > 0) return Promise.resolve();
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      synth.removeEventListener("voiceschanged", onVoices);
-      resolve();
-    };
-    const onVoices = () => {
-      if (synth.getVoices().length > 0) finish();
-    };
-    synth.addEventListener("voiceschanged", onVoices);
-    void synth.getVoices();
-    setTimeout(finish, maxWaitMs);
-  });
-}
-
-function configureSpeechUtterance(u: SpeechSynthesisUtterance) {
-  u.volume = 1;
-  u.rate = 1;
-  const preferred = DEFAULT_TTS_VOICE.trim();
-  const synth = getSpeechSynthesis();
-  const voices = synth?.getVoices() ?? [];
-  const femaleVoiceHints = [
-    "female",
-    "woman",
-    "zira",
-    "jenny",
-    "aria",
-    "sara",
-    "samantha",
-    "natasha",
-    "hazel",
-    "ava",
-    "karen",
-    "linda",
-  ];
-  if (preferred) {
-    const v =
-      voices.find((x) => x.name === preferred) ??
-      voices.find((x) => x.voiceURI === preferred) ??
-      voices.find((x) => x.lang === preferred);
-    if (v) {
-      u.voice = v;
-      u.lang = v.lang || "en-US";
-      return;
-    }
-  }
-  const femaleVoice = voices.find((x) => {
-    const name = `${x.name} ${x.voiceURI}`.toLowerCase();
-    return femaleVoiceHints.some((hint) => name.includes(hint));
-  });
-  if (femaleVoice) {
-    u.voice = femaleVoice;
-    u.lang = femaleVoice.lang || "en-US";
-    return;
-  }
-  const englishVoice = voices.find((x) =>
-    (x.lang || "").toLowerCase().startsWith("en"),
-  );
-  if (englishVoice) {
-    u.voice = englishVoice;
-    u.lang = englishVoice.lang || "en-US";
-    return;
-  }
-  u.lang = "en-US";
 }
 
 type Message = {
@@ -401,6 +329,9 @@ export default function CimmieSession() {
     useState<VoicePanelMicStatus>("idle");
   const [voicePanelTranscript, setVoicePanelTranscript] = useState("");
   const [voiceVolume, setVoiceVolume] = useState(0);
+  const [voicePanelSttError, setVoicePanelSttError] = useState<string | null>(
+    null,
+  );
   const [composerListening, setComposerListening] = useState(false);
   const [composerMicStatus, setComposerMicStatus] =
     useState<ComposerMicStatus>("idle");
@@ -422,8 +353,9 @@ export default function CimmieSession() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMicToggleTimeRef = useRef(0);
-  /* Voice panel: recognition, stream, transcript, and audio analysis */
-  const voiceRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  /* Voice panel: Azure STT session, stream, transcript, and audio analysis */
+  const azureVoiceSttRef = useRef<AzureContinuousStt | null>(null);
+  const azureInterviewTtsRef = useRef<AzureInterviewTts | null>(null);
   const voiceMediaStreamRef = useRef<MediaStream | null>(null);
   const voiceTranscriptRef = useRef("");
   const voiceSilenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -455,9 +387,10 @@ export default function CimmieSession() {
   const endInterviewViaButtonRef = useRef(false);
   /** Prevents mic `onend` from submitting an answer while ending the interview. */
   const voiceSubmitSuppressedRef = useRef(false);
-  const pendingManualEndNavTimerRef = useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null);
+  /** After a voice answer round-trip, set true to auto-start STT; cleared on stream error. */
+  const voiceResumeSttAfterAnswerRef = useRef(false);
+  /** Browser timer id (numeric); avoids NodeJS.Timeout vs number under mixed typings. */
+  const pendingManualEndNavTimerRef = useRef<number | null>(null);
   const voiceBootRef = useRef({
     feedVoiceTtsDelta: (_c: string) => {},
     flushVoiceTtsRemainder: () => {},
@@ -766,91 +699,86 @@ export default function CimmieSession() {
     }
   }
 
-  function startVoiceRecording() {
-    const Ctor = getSpeechRecognitionConstructor();
-    if (!Ctor) return;
+  /** Stop Azure STT without submitting an answer (restart mic, teardown, errors). */
+  async function stopAzureVoiceSttNoSubmit(): Promise<void> {
+    clearVoiceSilenceTimeout();
+    const stt = azureVoiceSttRef.current;
+    azureVoiceSttRef.current = null;
+    if (stt) await stt.stop().catch(() => {});
+    stopVoicePanelTracks();
     voiceTranscriptRef.current = "";
     setVoicePanelTranscript("");
-    stopVoicePanelTracks();
-    clearVoiceSilenceTimeout();
+    setVoicePanelListening(false);
+    setVoicePanelMicStatus("idle");
+    setVoiceVolume(0);
+  }
 
-    const startRecognition = (stream: MediaStream) => {
-      voiceMediaStreamRef.current = stream;
-      const ctx = new (
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext
-      )();
-      voiceAudioContextRef.current = ctx;
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.8;
-      source.connect(analyser);
-      voiceAnalyserRef.current = analyser;
+  function getOrCreateAzureInterviewTts(): AzureInterviewTts | null {
+    if (!isAzureSpeechConfigured()) return null;
+    if (!azureInterviewTtsRef.current) {
+      azureInterviewTtsRef.current = new AzureInterviewTts(
+        createInterviewSpeechConfig(),
+      );
+    }
+    return azureInterviewTtsRef.current;
+  }
 
-      const recognition = new Ctor();
-      voiceRecognitionRef.current = recognition;
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        let display = "";
-        let hadSpeech = false;
-        for (let i = 0; i < event.results.length; i++) {
-          const result = event.results[i];
-          if (result.length > 0) {
-            const text = result[0].transcript?.trim?.() ?? "";
-            if (text) {
-              hadSpeech = true;
-              if (result.isFinal) {
-                voiceTranscriptRef.current +=
-                  (voiceTranscriptRef.current ? " " : "") + text;
-              }
-              display += (display ? " " : "") + text;
-            }
-          }
-        }
-        if (display) setVoicePanelTranscript(display);
-        if (hadSpeech) {
-          clearVoiceSilenceTimeout();
-          voiceSilenceTimeoutRef.current = setTimeout(() => {
-            voiceSilenceTimeoutRef.current = null;
-            stopVoiceRecording();
-          }, VOICE_PANEL_SILENCE_TIMEOUT_MS);
-        }
-      };
-      recognition.onerror = () => {
-        clearVoiceSilenceTimeout();
-        stopVoicePanelTracks();
-        if (voiceRecognitionRef.current) {
-          try {
-            voiceRecognitionRef.current.stop();
-          } catch {
-            /* ignore */
-          }
-          voiceRecognitionRef.current = null;
-        }
-        setVoicePanelListening(false);
-        setVoicePanelMicStatus("idle");
-        setVoicePanelTranscript("");
-      };
-      recognition.onend = async () => {
-        clearVoiceSilenceTimeout();
-        stopVoicePanelTracks();
-        voiceRecognitionRef.current = null;
-        setVoicePanelListening(false);
-        setVoicePanelMicStatus("idle");
-        setVoiceVolume(0);
-        setVoicePanelTranscript("");
-        const text = voiceTranscriptRef.current.trim();
-        setVoicePanelTranscript("");
-        if (text) setDraft((prev) => (prev ? `${prev} ${text}` : text));
-
-        if (!text) return;
-        await handleVoiceAnswerSubmit(text);
-      };
+  function startVoiceRecording() {
+    if (sessionExpiredRef.current) return;
+    if (!isAzureSpeechConfigured()) {
+      setVoicePanelSttError(
+        "Azure Speech is not configured. Set VITE_SPEECH_API_KEY and VITE_SPEECH_REGION in your environment.",
+      );
+      return;
+    }
+    setVoicePanelSttError(null);
+    voiceTranscriptRef.current = "";
+    setVoicePanelTranscript("");
+    void (async () => {
+      await stopAzureVoiceSttNoSubmit();
+      clearVoiceSilenceTimeout();
       try {
-        recognition.start();
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        voiceMediaStreamRef.current = stream;
+        const ctx = new (
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext })
+            .webkitAudioContext
+        )();
+        voiceAudioContextRef.current = ctx;
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.8;
+        source.connect(analyser);
+        voiceAnalyserRef.current = analyser;
+
+        const speechConfig = createInterviewSpeechConfig();
+        const stt = await startAzureContinuousStt(speechConfig, stream, {
+          onDisplay: (full) => {
+            voiceTranscriptRef.current = full;
+            setVoicePanelTranscript(full);
+            clearVoiceSilenceTimeout();
+            voiceSilenceTimeoutRef.current = setTimeout(() => {
+              voiceSilenceTimeoutRef.current = null;
+              stopVoiceRecording();
+            }, VOICE_PANEL_SILENCE_TIMEOUT_MS);
+          },
+          onFinalPhrase: () => {
+            clearVoiceSilenceTimeout();
+            voiceSilenceTimeoutRef.current = setTimeout(() => {
+              voiceSilenceTimeoutRef.current = null;
+              stopVoiceRecording();
+            }, VOICE_PANEL_SILENCE_TIMEOUT_MS);
+          },
+          onError: (msg) => {
+            setVoicePanelSttError(msg);
+            void stopAzureVoiceSttNoSubmit();
+          },
+        });
+        azureVoiceSttRef.current = stt;
         setVoicePanelListening(true);
         setVoicePanelMicStatus("listening");
         voiceSilenceTimeoutRef.current = setTimeout(() => {
@@ -868,39 +796,50 @@ export default function CimmieSession() {
           setVoiceVolume(avg / 255);
           voiceAnimationFrameRef.current = requestAnimationFrame(tick);
         });
-      } catch {
+      } catch (e: unknown) {
         clearVoiceSilenceTimeout();
-        stopVoicePanelTracks();
-        setVoicePanelListening(false);
-        setVoicePanelMicStatus("idle");
+        await stopAzureVoiceSttNoSubmit();
+        const name = e && typeof e === "object" && "name" in e ? String(
+            (e as { name?: string }).name,
+          ) : "";
+        setVoicePanelSttError(
+          name === "NotAllowedError"
+            ? "Microphone access denied."
+            : "Could not start microphone or speech recognition.",
+        );
       }
-    };
-
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then(startRecognition)
-      .catch(() => {
-        clearVoiceSilenceTimeout();
-        setVoicePanelListening(false);
-        setVoicePanelMicStatus("idle");
-      });
+    })();
   }
 
   function stopVoiceRecording() {
     clearVoiceSilenceTimeout();
-    stopVoicePanelTracks();
-    const recognition = voiceRecognitionRef.current;
-    if (recognition) {
-      try {
-        recognition.stop();
-      } catch {
-        voiceRecognitionRef.current = null;
-        setVoicePanelListening(false);
-        setVoicePanelMicStatus("idle");
-        setVoiceVolume(0);
-      }
+    const stt = azureVoiceSttRef.current;
+    azureVoiceSttRef.current = null;
+    if (stt) {
+      void stt
+        .stop()
+        .then(async () => {
+          stopVoicePanelTracks();
+          setVoicePanelListening(false);
+          setVoicePanelMicStatus("idle");
+          setVoiceVolume(0);
+          const text = voiceTranscriptRef.current.trim();
+          voiceTranscriptRef.current = "";
+          setVoicePanelTranscript("");
+          if (text) await handleVoiceAnswerSubmit(text);
+        })
+        .catch(() => {
+          stopVoicePanelTracks();
+          setVoicePanelListening(false);
+          setVoicePanelMicStatus("idle");
+          setVoiceVolume(0);
+        });
+    } else {
+      stopVoicePanelTracks();
+      setVoicePanelListening(false);
+      setVoicePanelMicStatus("idle");
+      setVoiceVolume(0);
     }
-    /* Transcript is inserted in recognition.onend to avoid duplicate updates */
   }
 
   function toggleVoicePanelMic() {
@@ -936,14 +875,10 @@ export default function CimmieSession() {
       }
       stopVoicePanelTracks();
       clearVoiceSilenceTimeout();
-      if (voiceRecognitionRef.current) {
-        try {
-          voiceRecognitionRef.current.stop();
-        } catch {
-          /* ignore */
-        }
-        voiceRecognitionRef.current = null;
-      }
+      const vstt = azureVoiceSttRef.current;
+      azureVoiceSttRef.current = null;
+      if (vstt) void vstt.stop().catch(() => {});
+      azureInterviewTtsRef.current?.cancel();
     };
   }, []);
 
@@ -1017,23 +952,23 @@ export default function CimmieSession() {
   }, [sessionExpired]);
 
   function prepareVoiceAgentSpeech() {
-    const synth = getSpeechSynthesis();
-    if (synth) synth.cancel();
+    azureInterviewTtsRef.current?.cancel();
     voiceTtsBufferRef.current = "";
     voiceTtsUtteranceCountRef.current = 0;
     voiceAfterTtsRef.current = null;
   }
 
   function speakUtteranceCounted(text: string) {
-    const synth = getSpeechSynthesis();
-    if (!synth) return;
+    const tts = getOrCreateAzureInterviewTts();
+    if (!tts) return;
     const trimmed = text.trim();
     if (!trimmed) return;
-    const u = new SpeechSynthesisUtterance(trimmed);
-    configureSpeechUtterance(u);
     voiceTtsUtteranceCountRef.current += 1;
-    u.onend = () => {
+    void tts.speak(trimmed).finally(() => {
       voiceTtsUtteranceCountRef.current -= 1;
+      if (voiceTtsUtteranceCountRef.current < 0) {
+        voiceTtsUtteranceCountRef.current = 0;
+      }
       if (voiceTtsUtteranceCountRef.current <= 0) {
         voiceTtsUtteranceCountRef.current = 0;
         const fn = voiceAfterTtsRef.current;
@@ -1042,8 +977,7 @@ export default function CimmieSession() {
           fn();
         }
       }
-    };
-    synth.speak(u);
+    });
   }
 
   /** Accumulate streamed text only; one utterance is spoken in flushVoiceTtsRemainder when the stream ends. */
@@ -1058,34 +992,15 @@ export default function CimmieSession() {
   }
 
   async function waitUntilSpeechIdle() {
-    const synth = getSpeechSynthesis();
-    if (!synth) return;
-    for (let i = 0; i < 400; i++) {
-      if (!synth.speaking && !synth.pending) {
-        return;
-      }
-      await new Promise((r) => setTimeout(r, 40));
-    }
+    await azureInterviewTtsRef.current?.waitUntilIdle();
   }
 
   function speakUtteranceSimple(text: string): Promise<void> {
-    return new Promise((resolve) => {
-      const synth = getSpeechSynthesis();
-      if (!synth) {
-        resolve();
-        return;
-      }
-      const trimmed = text.trim();
-      if (!trimmed) {
-        resolve();
-        return;
-      }
-      const u = new SpeechSynthesisUtterance(trimmed);
-      configureSpeechUtterance(u);
-      u.onend = () => resolve();
-      u.onerror = () => resolve();
-      synth.speak(u);
-    });
+    const tts = getOrCreateAzureInterviewTts();
+    if (!tts) return Promise.resolve();
+    const trimmed = text.trim();
+    if (!trimmed) return Promise.resolve();
+    return tts.speak(trimmed);
   }
 
   voiceBootRef.current = {
@@ -1112,7 +1027,10 @@ export default function CimmieSession() {
     ]);
 
     const isVoice = isVoiceUi;
-    if (isVoice) prepareVoiceAgentSpeech();
+    if (isVoice) {
+      voiceResumeSttAfterAnswerRef.current = true;
+      prepareVoiceAgentSpeech();
+    }
 
     const resolveVoiceSubmitCycle = () => {
       const r = voiceSubmitCycleResolveRef.current;
@@ -1130,6 +1048,7 @@ export default function CimmieSession() {
     try {
       if (isVoice) {
         const q: VoiceAnswerQ[] = [];
+        let voiceRoundCompletedInterview = false;
 
         const finalizeOpenVoicePart = async () => {
           const partId = voiceCurrentPartOpenIdRef.current;
@@ -1149,6 +1068,7 @@ export default function CimmieSession() {
           if (result.stay_on_question === true) return;
           if (result.status === "recorded") {
             if (interview_completed || !next_question) {
+              voiceRoundCompletedInterview = true;
               setCompleted(true);
               setCurrentQuestion(null);
             } else {
@@ -1226,6 +1146,7 @@ export default function CimmieSession() {
               void pumpVoiceAnswerQueue();
             },
             onError: (msg) => {
+              voiceResumeSttAfterAnswerRef.current = false;
               q.length = 0;
               flushVoiceTypewriterResolvers();
               voiceCurrentPartOpenIdRef.current = null;
@@ -1248,6 +1169,17 @@ export default function CimmieSession() {
           },
         );
         await voiceSubmitDone;
+        const resumeStt =
+          voiceResumeSttAfterAnswerRef.current &&
+          !voiceRoundCompletedInterview &&
+          isAzureSpeechConfigured() &&
+          interviewModeRef.current === "voice" &&
+          !sessionExpiredRef.current &&
+          !voiceSubmitSuppressedRef.current;
+        voiceResumeSttAfterAnswerRef.current = false;
+        if (resumeStt) {
+          voiceBootRef.current.startVoiceRecording();
+        }
       } else {
         await submitAnswerStream(
           interviewId,
@@ -1292,6 +1224,7 @@ export default function CimmieSession() {
     } catch (err) {
       console.error(err);
       if (isVoice) {
+        voiceResumeSttAfterAnswerRef.current = false;
         prepareVoiceAgentSpeech();
         flushVoiceTypewriterResolvers();
         voiceCurrentPartOpenIdRef.current = null;
@@ -1400,12 +1333,8 @@ export default function CimmieSession() {
           setVoiceDisplayedBotId("m-welcome");
           voiceBootRef.current.prepareVoiceAgentSpeech();
           let introBotId = "";
-          const synthOk =
-            typeof window !== "undefined" && !!window.speechSynthesis;
-          if (synthOk) {
-            const s = getSpeechSynthesis();
-            if (s) void s.getVoices();
-            await waitForSpeechSynthesisVoices();
+          const azureOk = isAzureSpeechConfigured();
+          if (azureOk) {
             if (!mounted) return;
             await Promise.all([
               voiceBootRef.current.speakUtteranceSimple(WELCOME_BOT_TEXT),
@@ -1420,7 +1349,7 @@ export default function CimmieSession() {
               {
                 id: "voice-tts-unsupported",
                 from: "bot",
-                text: "This browser does not support spoken readout. Switch to Text mode or use Chrome or Edge.",
+                text: "Azure Speech is not configured. Add VITE_SPEECH_API_KEY and VITE_SPEECH_REGION to your environment for voice readout.",
               },
             ]);
             setVoiceDisplayedBotId("voice-tts-unsupported");
@@ -1475,24 +1404,29 @@ export default function CimmieSession() {
           ]);
         } else {
           setCurrentQuestion(firstQ);
+          const firstQuestionMsgId = `q-${firstQ.question_id}`;
           setMessages((prev) => [
             ...prev,
-            modeBoot === "text"
-              ? {
-                  id: `q-${firstQ.question_id}`,
-                  from: "bot",
-                  text: "",
-                  streamTotal: firstQ.question_text,
-                  streamComplete: true,
-                }
-              : {
-                  id: `q-${firstQ.question_id}`,
-                  from: "bot",
-                  text: "",
-                  streamTotal: firstQ.question_text,
-                  streamComplete: true,
-                },
+            {
+              id: firstQuestionMsgId,
+              from: "bot",
+              text: "",
+              streamTotal: firstQ.question_text,
+              streamComplete: true,
+            },
           ]);
+          if (modeBoot === "voice" && isAzureSpeechConfigured()) {
+            setVoiceDisplayedBotId(firstQuestionMsgId);
+            await waitVoiceTypewriter(firstQuestionMsgId);
+            if (!mounted) return;
+            await voiceBootRef.current.speakUtteranceSimple(
+              firstQ.question_text.trim(),
+            );
+            if (!mounted) return;
+            await voiceBootRef.current.waitUntilSpeechIdle();
+            if (!mounted) return;
+            voiceBootRef.current.startVoiceRecording();
+          }
         }
 
         // (4) start timer (base 30 mins + accumulated facilitator extensions)
@@ -1733,7 +1667,7 @@ export default function CimmieSession() {
 
       endInterviewViaButtonRef.current = true;
       voiceSubmitSuppressedRef.current = true;
-      stopVoiceRecording();
+      void stopAzureVoiceSttNoSubmit();
       stopComposerListening();
       if (interviewMode === "voice") {
         prepareVoiceAgentSpeech();
@@ -2040,6 +1974,35 @@ export default function CimmieSession() {
             aria-label="Voice input"
           >
             <div
+              className="voice-ui-toolbar"
+              role="group"
+              aria-label="CIMMIE spoken readout"
+            >
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => startVoiceRecording()}
+                disabled={
+                  sessionExpired ||
+                  voicePanelListening ||
+                  !isAzureSpeechConfigured()
+                }
+                aria-label="Start microphone and Azure speech recognition"
+              >
+                Start Voice
+              </button>
+              <button
+                type="button"
+                className="btn btn-extend-session btn-end-interview"
+                onClick={() => void stopAzureVoiceSttNoSubmit()}
+                disabled={!voicePanelListening}
+                aria-label="Stop speech recognition without submitting an answer"
+              >
+                Stop Voice
+              </button>
+            </div>
+            <div className="voice-ui-panel-body">
+            <div
               className={`voice-ui-orb ${voicePanelMicStatus === "speak_now" ? "voice-ui-orb-speak-now" : ""} ${voicePanelMicStatus === "listening" ? "voice-ui-orb-listening" : ""}`}
               style={
                 voicePanelMicStatus === "listening"
@@ -2143,6 +2106,11 @@ export default function CimmieSession() {
               {voicePanelMicStatus === "speak_now" && "Speak now"}
               {voicePanelMicStatus === "listening" && "I am listening"}
             </p>
+            {voicePanelSttError && (
+              <p className="voice-ui-stt-error" role="alert">
+                {voicePanelSttError}
+              </p>
+            )}
             {voicePanelTranscript && (
               <div
                 className="voice-ui-transcript"
@@ -2169,6 +2137,7 @@ export default function CimmieSession() {
             >
               <MicIcon />
             </button>
+            </div>
           </div>
         </section>
       )}
