@@ -84,7 +84,8 @@
 
 .cia-heatmap-card {
   padding: 0;
-  overflow: hidden;
+  /* visible: long row labels must not be clipped at the card edge */
+  overflow: visible;
   box-shadow: var(--shadow-md);
 }
 
@@ -169,6 +170,18 @@
   min-height: 380px;
   padding: 0.5rem 0.75rem 1rem;
   background: var(--color-bg-card);
+  min-width: 0;
+  width: 100%;
+  overflow: visible;
+}
+
+/* Let row labels (multi-line tspans) paint past any default SVG clipping. */
+.cia-heatmap-chart-wrap svg {
+  overflow: visible;
+}
+
+.cia-heatmap-chart-wrap .cia-heatmap-row-label-text {
+  text-rendering: geometricPrecision;
 }
 
 @media (max-width: 640px) {
