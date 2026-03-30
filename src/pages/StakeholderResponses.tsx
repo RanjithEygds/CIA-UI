@@ -2,16 +2,28 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { type InterviewResponsesDetailOut } from "../api/interviews";
 import { getTranscript, type InterviewTranscript } from "../api/interviews";
+import {
+  applyTranscriptSheetStyles,
+  type TranscriptExportSheetRow,
+} from "../utils/transcriptExcelExport";
 import "./StakeholderResponses.css";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 
-function safeFilenamePart(s: string): string {
-  return (
-    s
-      .replace(/[^\w\s-]/g, "")
-      .replace(/\s+/g, "_")
-      .slice(0, 60) || "transcript"
-  );
+/** Keep spaces for readable names; strip characters invalid on Windows/macOS. */
+function sanitizeTranscriptFilenameSegment(value: string, fallback: string): string {
+  const cleaned = Array.from(value.trim())
+    .filter((ch) => {
+      const code = ch.charCodeAt(0);
+      if (code < 32 || code === 127) return false;
+      if ("<>\"/\\|?*".includes(ch)) return false;
+      return true;
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .replace(/[. ]+$/g, "")
+    .trim()
+    .slice(0, 120);
+  return cleaned || fallback;
 }
 
 export default function StakeholderResponses() {
@@ -42,6 +54,7 @@ export default function StakeholderResponses() {
       // ✅ Map transcript → UI response shape
       const mapped: InterviewResponsesDetailOut = {
         interview_id: transcript.interview_id,
+        engagement_name: transcript.engagement_name ?? null,
         stakeholder_name: transcript.stakeholder_name,
         stakeholder_email: transcript.stakeholder_email,
         status: "completed",
@@ -105,32 +118,37 @@ export default function StakeholderResponses() {
   const handleExport = () => {
     if (!detail) return;
 
-    // 1. Build rows for Excel
-    const rows = detail.questions.map((q, index) => ({
-      InterviewID: detail.interview_id,
-      StakeholderName: detail.stakeholder_name,
-      StakeholderEmail: detail.stakeholder_email ?? "",
-      QuestionNumber: index + 1,
+    if (detail.questions.length === 0) {
+      alert("No responses to export.");
+      return;
+    }
+
+    const rows: TranscriptExportSheetRow[] = detail.questions.map((q, index) => ({
+      "Interview ID": detail.interview_id,
+      "Stakeholder Name": detail.stakeholder_name,
+      "Stakeholder Email": detail.stakeholder_email ?? "",
+      "Question Number": String(index + 1),
       Section: q.section ?? "",
       Question: q.question_text,
-      Answer: q.answer_text ?? "",
+      Response: q.answer_text ?? "",
     }));
 
-    // 2. Create workbook + worksheet
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Transcript");
+    applyTranscriptSheetStyles(worksheet, rows);
 
-    // 3. Export filename
-    const datePart = (detail.interview_date || new Date().toISOString()).slice(
-      0,
-      10,
+    const engagementPart = sanitizeTranscriptFilenameSegment(
+      detail.engagement_name ?? "",
+      "Engagement",
     );
-    const name = safeFilenamePart(detail.stakeholder_name);
+    const stakeholderPart = sanitizeTranscriptFilenameSegment(
+      detail.stakeholder_name,
+      "Stakeholder",
+    );
+    const filename = `${engagementPart} Transcript for ${stakeholderPart}.xlsx`;
 
-    const filename = `CIA_Transcript_${name}_${datePart}.xlsx`;
-
-    // 4. Write file
+    // Write file
     XLSX.writeFile(workbook, filename);
   };
 
@@ -179,7 +197,7 @@ export default function StakeholderResponses() {
                 className="btn btn-primary"
                 onClick={handleExport}
               >
-                Export transcript
+                Download Transcript
               </button>
             </div>
 

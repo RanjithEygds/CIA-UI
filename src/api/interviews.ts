@@ -422,6 +422,8 @@ export type InterviewResponseTurn = {
 
 export type InterviewResponsesDetailOut = {
   interview_id: string;
+  /** Present when loaded from `getTranscript` — used for export naming, etc. */
+  engagement_name?: string | null;
   stakeholder_name: string;
   stakeholder_email?: string | null;
   status: string;

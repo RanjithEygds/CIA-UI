@@ -18,17 +18,12 @@ import StakeholderInterviewGrid from "../components/StakeholderInterviewGrid";
 import { getEngagementSummary } from "../api/engagements";
 
 import { isLikelyEngagementUuid } from "../api/interviews";
+import {
+  applyTranscriptSheetStyles,
+  transcriptQuestionNumberFromId,
+  type TranscriptExportSheetRow,
+} from "../utils/transcriptExcelExport";
 import "./EngagementDetail.css";
-
-type TranscriptExportRow = {
-  "Interview ID": string;
-  "Stakeholder Name": string;
-  "Stakeholder Email": string;
-  "Question Number": string;
-  Section: string;
-  Question: string;
-  "Response": string;
-};
 
 function sanitizeFilenamePart(value: string): string {
   const withoutControlChars = Array.from(value)
@@ -43,16 +38,6 @@ function sanitizeFilenamePart(value: string): string {
     .replace(/[<>:"/\\|?*]/g, "")
     .replace(/\s+/g, "_")
     .slice(0, 120);
-}
-
-function getQuestionNumber(questionId: string): string {
-  const clean = (questionId || "").trim();
-  if (!clean) return "";
-  const trailingDigits = clean.match(/(\d+)$/);
-  if (trailingDigits?.[1]) return trailingDigits[1];
-  const anyDigits = clean.match(/\d+/);
-  if (anyDigits?.[0]) return anyDigits[0];
-  return clean;
 }
 
 /** Preview Change Rationale / impacted_groups: show name only; split if a single field contains "Name - Description". */
@@ -463,7 +448,7 @@ export default function EngagementDetail() {
     try {
       const data = await getEngagementTranscripts(engagementId);
 
-      const rows: TranscriptExportRow[] = [];
+      const rows: TranscriptExportSheetRow[] = [];
 
       data.completed_interviews.forEach((iv) => {
         iv.transcript.forEach((t) => {
@@ -471,10 +456,10 @@ export default function EngagementDetail() {
             "Interview ID": iv.interview_id,
             "Stakeholder Name": iv.stakeholder_name,
             "Stakeholder Email": iv.stakeholder_email ?? "",
-            "Question Number": getQuestionNumber(t.question_id),
+            "Question Number": transcriptQuestionNumberFromId(t.question_id),
             Section: t.section,
             Question: t.question_text,
-            "Response": t.answer_text,
+            Response: t.answer_text,
           });
         });
       });
@@ -488,86 +473,7 @@ export default function EngagementDetail() {
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Transcripts");
-      const range = XLSX.utils.decode_range(worksheet["!ref"] ?? "A1");
-      const headerRowIndex = range.s.r;
-
-      const headerStyle: XLSX.CellStyle = {
-        font: { bold: true, name: "Calibri", sz: 11, color: { rgb: "1F2937" } },
-        fill: { patternType: "solid", fgColor: { rgb: "F2F2F2" } },
-        alignment: { horizontal: "left", vertical: "top", wrapText: true },
-        border: {
-          top: { style: "thin", color: { rgb: "D9D9D9" } },
-          bottom: { style: "thin", color: { rgb: "D9D9D9" } },
-          left: { style: "thin", color: { rgb: "D9D9D9" } },
-          right: { style: "thin", color: { rgb: "D9D9D9" } },
-        },
-      };
-
-      const baseBodyStyle: XLSX.CellStyle = {
-        font: { name: "Calibri", sz: 11, color: { rgb: "111827" } },
-        alignment: { horizontal: "left", vertical: "top", wrapText: false },
-        border: {
-          top: { style: "thin", color: { rgb: "E5E7EB" } },
-          bottom: { style: "thin", color: { rgb: "E5E7EB" } },
-          left: { style: "thin", color: { rgb: "E5E7EB" } },
-          right: { style: "thin", color: { rgb: "E5E7EB" } },
-        },
-      };
-
-      const stakeholderHighlightStyle: XLSX.CellStyle = {
-        ...baseBodyStyle,
-        font: { ...(baseBodyStyle.font ?? {}), bold: true },
-        fill: { patternType: "solid", fgColor: { rgb: "F9FAFB" } },
-      };
-
-      const responseBodyStyle: XLSX.CellStyle = {
-        ...baseBodyStyle,
-        alignment: {
-          horizontal: "left",
-          vertical: "top",
-          wrapText: true,
-        },
-      };
-
-      const headerNames = rows.length > 0 ? Object.keys(rows[0]!) : [];
-      const colWidths = headerNames.map((name) => ({ wch: Math.max(name.length + 2, 14) }));
-      const stakeholderColIdx = headerNames.indexOf("Stakeholder Name");
-      const answerColIdx = headerNames.indexOf("Response / Answer");
-      if (answerColIdx >= 0) {
-        colWidths[answerColIdx] = { wch: 80 };
-      }
-
-      rows.forEach((row, idx) => {
-        const prevName = idx > 0 ? rows[idx - 1]?.["Stakeholder Name"] ?? null : null;
-        headerNames.forEach((header, colIdx) => {
-          const cellAddress = XLSX.utils.encode_cell({ r: idx + 1, c: colIdx });
-          const cell = worksheet[cellAddress];
-          if (!cell) return;
-          const isAnswerCell = colIdx === answerColIdx;
-          cell.s = isAnswerCell ? responseBodyStyle : baseBodyStyle;
-          if (
-            colIdx === stakeholderColIdx &&
-            row["Stakeholder Name"] !== prevName
-          ) {
-            cell.s = stakeholderHighlightStyle;
-          }
-          const value = String(row[header as keyof TranscriptExportRow] ?? "");
-          if (colIdx !== answerColIdx) {
-            colWidths[colIdx] = {
-              wch: Math.min(50, Math.max(colWidths[colIdx]?.wch ?? 14, value.length + 2)),
-            };
-          }
-        });
-      });
-
-      for (let c = range.s.c; c <= range.e.c; c += 1) {
-        const headerAddress = XLSX.utils.encode_cell({ r: headerRowIndex, c });
-        const headerCell = worksheet[headerAddress];
-        if (!headerCell) continue;
-        headerCell.s = headerStyle;
-      }
-
-      worksheet["!cols"] = colWidths;
+      applyTranscriptSheetStyles(worksheet, rows);
 
       const safeEngagementName = sanitizeFilenamePart(
         data.engagement_name?.trim() || engagement?.title || "Engagement",
@@ -667,7 +573,7 @@ export default function EngagementDetail() {
               className="btn btn-primary engagement-export-transcript-btn"
               onClick={handleExportTranscripts}
             >
-              Export Transcript
+              Download Full Transcript Report
             </button>
           }
         />
