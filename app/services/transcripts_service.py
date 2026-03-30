@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 from typing import Dict, List
-from ..models import Engagement, Interview, QuestionCatalog, Answer
+from ..models import Engagement, Interview, QuestionCatalog, Answer, Stakeholder
 
 
 def get_transcripts_for_engagement(db: Session, engagement_id: str) -> Dict:
@@ -39,6 +39,21 @@ def get_transcripts_for_engagement(db: Session, engagement_id: str) -> Dict:
     output_rows = []
 
     for iv in completed_interviews:
+        
+        stakeholder = (
+            db.query(Stakeholder)
+            .filter(
+                Stakeholder.engagement_id == engagement_id,
+                Stakeholder.email == iv.stakeholder_email
+            )
+            .first()
+        )
+
+        
+        stakeholder_role = stakeholder.role if stakeholder else None
+        stakeholder_department = stakeholder.department if stakeholder else None
+
+
         answers = (
             db.query(Answer)
             .filter(Answer.interview_id == iv.id)
@@ -61,6 +76,8 @@ def get_transcripts_for_engagement(db: Session, engagement_id: str) -> Dict:
             "interview_id": iv.id,
             "stakeholder_name": iv.stakeholder_name,
             "stakeholder_email": iv.stakeholder_email,
+            "stakeholder_role": stakeholder_role,
+            "stakeholder_department": stakeholder_department,
             "transcript": transcript_rows
         })
 
