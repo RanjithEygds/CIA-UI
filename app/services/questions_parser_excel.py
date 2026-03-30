@@ -1,49 +1,45 @@
 import pandas as pd
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 def parse_questions_excel(path: str) -> Dict[str, Any]:
     df = pd.read_excel(path)
 
-    required_cols = ["Section", "Question"]
-    missing = [c for c in required_cols if c not in df.columns]
-    if missing:
-        raise ValueError(f"Missing required columns in Excel: {missing}")
-
-    # ✅ FIX: Use .str.strip() instead of .strip()
+    # Clean columns
     df["Section"] = df["Section"].astype(str).str.strip()
     df["Question"] = df["Question"].astype(str).str.strip()
 
-    # Drop empty rows
     df = df.dropna(subset=["Section", "Question"])
 
-    # ✅ Group into dict: {section_title: [questions...]}
-    grouped = df.groupby("Section")["Question"].apply(list).to_dict()
-
     sections = []
+    section_map = {}  # section_title -> index in 'sections'
     section_index = 1
 
-    # ✅ Build correct extract structure
-    for section_title, questions in grouped.items():
+    for _, row in df.iterrows():
+        section_title = row["Section"]
+        question_text = row["Question"]
 
-        section_block = {
-            "section_index": section_index,
-            "section_title": section_title,
-            "questions": []
-        }
+        # Create section if first time seeing it
+        if section_title not in section_map:
+            section_map[section_title] = len(sections)
 
-        seq = 1
-        for q in questions:
-            section_block["questions"].append({
-                "sequence_in_section": seq,
-                "question_text": q,
-                "kind": "question",
-                "evidence": {"line_indices": [], "text_snippet": ""},
-                "confidence": "high"
+            sections.append({
+                "section_index": section_index,
+                "section_title": section_title,
+                "questions": []
             })
-            seq += 1
+            section_index += 1
 
-        sections.append(section_block)
-        section_index += 1
+        # Append question to correct section
+        section_block = sections[section_map[section_title]]
+        seq_num = len(section_block["questions"]) + 1
+
+        section_block["questions"].append({
+            "sequence_in_section": seq_num,
+            "question_text": question_text,
+            "kind": "question",
+            "evidence": {"line_indices": [], "text_snippet": ""},
+            "confidence": "high"
+        })
 
     return {
         "engagement_id": None,
