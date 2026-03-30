@@ -52,15 +52,14 @@ change_brief:
 - If insufficient evidence exists, output "Unknown"
 
 change_summary:
-- 4–8 bullet points (array of strings)
+- 3-5 bullet points (array of strings)
 - Each bullet:
   - 8–20 words
   - Based ONLY on explicit statements in the corpus
   - Focus on factual scope, drivers, objectives, phases, dependencies
-- If fewer than 4 valid bullets exist, pad remaining bullets with "Unknown"
 
 impacted_groups:
-- 3–10 items ONLY if explicitly mentioned in the corpus
+- 3-5 items ONLY if explicitly mentioned in the corpus
 - Each item must contain:
   - name: exact or near‑exact wording from corpus
   - description: strictly derived from corpus text
