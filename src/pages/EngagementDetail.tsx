@@ -6,6 +6,7 @@ import {
   getEngagementHeatmap,
   getEngagementContext,
   getEngagementTranscripts,
+  getEngagementInsights,
   type EngagementDoc,
   type HeatmapRow,
   type ImpactGroup,
@@ -103,6 +104,7 @@ export default function EngagementDetail() {
 
   // Export heatmap to PPT with tabular heatmap + key findings.
   const exportHeatmapPPT = (
+    engagementKey: string | undefined,
     matrixData: HeatmapRow[],
     impactKeys: typeof HEATMAP_IMPACT_KEYS,
   ) => {
@@ -248,81 +250,83 @@ export default function EngagementDetail() {
         });
       });
 
-      const findingsFromDom = Array.from(
-        document.querySelectorAll(".cia-heatmap-findings-item .cia-heatmap-findings-text"),
-      )
-        .map((el) => el.textContent?.trim() ?? "")
-        .filter(Boolean);
-      const findings =
-        findingsFromDom.length > 0
-          ? findingsFromDom
-          : contextSummary.length > 0
-            ? contextSummary
-            : [engagement?.change_brief?.trim() || engagement?.summary?.trim() || ""].filter(
-                Boolean,
-              );
+      let findings: string[] = [];
+      let inSummaryText = "";
 
-      const splitLongFinding = (point: string, maxChars = 240): string[] => {
-        const trimmed = point.trim();
-        if (trimmed.length <= maxChars) return [trimmed];
-        const words = trimmed.split(/\s+/);
-        const pieces: string[] = [];
-        let current = "";
-        words.forEach((word) => {
-          const candidate = current ? `${current} ${word}` : word;
-          if (candidate.length <= maxChars) {
-            current = candidate;
-            return;
+      try {
+        if (engagementKey) {
+          const insights = await getEngagementInsights(engagementKey);
+          if (!insights.message) {
+            findings = (insights.key_findings ?? [])
+              .map((k) => k.text.trim())
+              .filter(Boolean);
+            inSummaryText = (insights.summary ?? "").trim();
           }
-          if (current) {
-            pieces.push(current);
-            current = word;
-            return;
-          }
-          // Fallback for exceptionally long single words.
-          pieces.push(word.slice(0, maxChars));
-          current = word.slice(maxChars);
-        });
-        if (current) {
-          pieces.push(current);
         }
-        return pieces.map((piece, idx) =>
-          idx === 0 ? piece : `(cont.) ${piece}`.trim(),
+      } catch {
+        /* use DOM / context fallbacks below */
+      }
+
+      if (findings.length === 0) {
+        findings = Array.from(
+          document.querySelectorAll(
+            ".cia-heatmap-findings-item .cia-heatmap-findings-text",
+          ),
+        )
+          .map((el) => el.textContent?.trim() ?? "")
+          .filter(Boolean);
+      }
+
+      if (findings.length === 0) {
+        const listErr = document.querySelector(
+          ".cia-heatmap-findings-list > .cia-heatmap-findings-summary-text",
         );
+        const errText = listErr?.textContent?.trim();
+        if (errText) findings = [errText];
+      }
+
+      if (findings.length === 0) {
+        findings =
+          contextSummary.length > 0
+            ? [...contextSummary]
+            : [
+                engagement?.change_brief?.trim() ||
+                  engagement?.summary?.trim() ||
+                  "",
+              ].filter(Boolean);
+      }
+
+      if (!inSummaryText) {
+        const summaryEl = document.querySelector(
+          ".cia-heatmap-findings-summary .cia-heatmap-findings-summary-text",
+        );
+        inSummaryText = summaryEl?.textContent?.trim() ?? "";
+      }
+
+      const hasPlaceholderOnly =
+        findings.length === 0 && !inSummaryText;
+      if (hasPlaceholderOnly) {
+        findings = ["No key findings available."];
+      }
+
+      const maxBulletsPerSlide = 7;
+      const packBullets = (bullets: string[]): string[][] => {
+        if (bullets.length === 0) return [];
+        const out: string[][] = [];
+        for (let i = 0; i < bullets.length; i += maxBulletsPerSlide) {
+          out.push(bullets.slice(i, i + maxBulletsPerSlide));
+        }
+        return out;
       };
 
-      const normalizedFindings = findings.flatMap((point) => splitLongFinding(point));
-      const chunks: string[][] = [];
-      let currentChunk: string[] = [];
-      let currentChars = 0;
-      const maxCharsPerSlide = 760;
-      const maxBulletsPerSlide = 8;
+      const bulletChunks = packBullets(findings);
 
-      normalizedFindings.forEach((point) => {
-        const pointChars = point.length + 20;
-        if (
-          currentChunk.length > 0 &&
-          (currentChars + pointChars > maxCharsPerSlide ||
-            currentChunk.length >= maxBulletsPerSlide)
-        ) {
-          chunks.push(currentChunk);
-          currentChunk = [];
-          currentChars = 0;
-        }
-        currentChunk.push(point);
-        currentChars += pointChars;
-      });
-      if (currentChunk.length > 0) {
-        chunks.push(currentChunk);
-      }
-      if (chunks.length === 0) {
-        chunks.push(["No key findings available."]);
-      }
-
-      chunks.forEach((chunk, index) => {
-        const findingsSlide = pptx.addSlide();
-        findingsSlide.background = { color: "FFFFFF" };
-        findingsSlide.addShape(pptx.ShapeType.rect, {
+      const addFindingsSlideHeader = (
+        slide: ReturnType<typeof pptx.addSlide>,
+        title: string,
+      ) => {
+        slide.background = { color: "FFFFFF" };
+        slide.addShape(pptx.ShapeType.rect, {
           x: 0.5,
           y: 0.35,
           w: 12.3,
@@ -330,39 +334,87 @@ export default function EngagementDetail() {
           fill: { color: "0D7377" },
           line: { color: "0D7377" },
         });
-        findingsSlide.addText(
-          index === 0
+        slide.addText(title, {
+          x: 0.75,
+          y: 0.52,
+          w: 11.8,
+          h: 0.5,
+          fontSize: 22,
+          bold: true,
+          color: "0F172A",
+        });
+      };
+
+      let slideOrdinal = 0;
+      bulletChunks.forEach((chunk) => {
+        slideOrdinal += 1;
+        const findingsSlide = pptx.addSlide();
+        const slideTitle =
+          slideOrdinal === 1
             ? "Summary of Key Findings"
-            : `Summary of Key Findings (cont. ${index + 1})`,
-          {
-            x: 0.75,
-            y: 0.55,
-            w: 11.8,
-            h: 0.45,
-            fontSize: 22,
-            bold: true,
-            color: "0F172A",
-          },
-        );
+            : `Summary of Key Findings (cont. ${slideOrdinal})`;
+        addFindingsSlideHeader(findingsSlide, slideTitle);
 
         const bullets = chunk.map((point) => ({
           text: point,
-          options: { bullet: { indent: 14 } },
+          options: { bullet: { indent: 18 } },
         }));
 
         findingsSlide.addText(bullets, {
-          x: 0.9,
-          y: 1.25,
-          w: 11.6,
-          h: 5.8,
+          x: 0.85,
+          y: 1.22,
+          w: 11.65,
+          h: 6.15,
           align: "left",
           valign: "top",
           breakLine: true,
-          paraSpaceAfter: 13,
+          paraSpaceAfter: 11,
+          lineSpacingMultiple: 1.12,
           fontSize: 15,
           color: "1E293B",
         });
       });
+
+      if (inSummaryText) {
+        slideOrdinal += 1;
+        const summarySlide = pptx.addSlide();
+        const summarySlideTitle =
+          slideOrdinal === 1
+            ? "Summary of Key Findings"
+            : `Summary of Key Findings (cont. ${slideOrdinal})`;
+        addFindingsSlideHeader(summarySlide, summarySlideTitle);
+
+        summarySlide.addText(
+          [
+            {
+              text: "IN SUMMARY",
+              options: {
+                bold: true,
+                fontSize: 20,
+                breakLine: true,
+                paraSpaceAfter: 10,
+              },
+            },
+            {
+              text: inSummaryText,
+              options: {
+                fontSize: 15,
+                breakLine: true,
+              },
+            },
+          ],
+          {
+            x: 0.85,
+            y: 1.22,
+            w: 11.65,
+            h: 6.15,
+            align: "left",
+            valign: "top",
+            lineSpacingMultiple: 1.15,
+            color: "1E293B",
+          },
+        );
+      }
 
       const safeEngagementName = sanitizeFilenamePart(
         presentationTitle || "Engagement",
@@ -581,7 +633,9 @@ export default function EngagementDetail() {
 
       {/* ✅ Keep heatmap dummy data unchanged */}
       <ChangeImpactHeatmap
-        onExportPpt={() => exportHeatmapPPT(heatmap!, HEATMAP_IMPACT_KEYS)}
+        onExportPpt={() =>
+          exportHeatmapPPT(engagement.id, heatmap!, HEATMAP_IMPACT_KEYS)
+        }
       />
     </div>
   );

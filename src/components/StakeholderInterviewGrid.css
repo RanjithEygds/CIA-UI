@@ -44,7 +44,7 @@
 
 .stakeholder-interview-row-main {
   display: grid;
-  grid-template-columns: minmax(140px, 1.4fr) minmax(100px, 0.85fr) minmax(88px, 0.65fr) minmax(200px, 1.1fr);
+  grid-template-columns: minmax(140px, 1.4fr) minmax(100px, 0.85fr) minmax(100px, 1fr) minmax(200px, 1.1fr);
   gap: 0.65rem 0.75rem;
   align-items: center;
   padding: 0.75rem 0.85rem;
@@ -78,6 +78,11 @@
 .stakeholder-interview-cell--meta {
   font-size: 0.8rem;
   color: var(--color-text);
+}
+
+.stakeholder-interview-cell--group {
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
 .stakeholder-interview-actions-inner {

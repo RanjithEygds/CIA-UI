@@ -5,7 +5,8 @@ import { type InterviewStakeholderSummaryRow } from "../api/interviews";
 
 import {
   getEngagementTranscripts,
-  type EngagementTranscriptsResponse,
+  getStakeholders,
+  type StakeholderListResponse,
 } from "../api/engagements";
 
 import "./StakeholderInterviewGrid.css";
@@ -23,16 +24,6 @@ function statusPillClass(label: string): string {
   if (label === "In Progress")
     return "stakeholder-pill stakeholder-pill--progress";
   return "stakeholder-pill stakeholder-pill--not-started";
-}
-
-function sentimentPillClass(sentiment: string): string {
-  if (sentiment === "Positive")
-    return "stakeholder-pill stakeholder-pill--positive";
-  if (sentiment === "Negative")
-    return "stakeholder-pill stakeholder-pill--negative";
-  if (sentiment === "Neutral")
-    return "stakeholder-pill stakeholder-pill--neutral";
-  return "stakeholder-pill stakeholder-pill--na";
 }
 
 export default function StakeholderInterviewGrid({
@@ -54,8 +45,22 @@ export default function StakeholderInterviewGrid({
     setError(null);
 
     try {
-      const data: EngagementTranscriptsResponse =
-        await getEngagementTranscripts(engagementId);
+      const [data, stakeholdersResp] = await Promise.all([
+        getEngagementTranscripts(engagementId),
+        getStakeholders(engagementId).catch((): StakeholderListResponse => ({
+          engagement_id: engagementId,
+          count: 0,
+          stakeholders: [],
+        })),
+      ]);
+
+      const groupByInterviewId = new Map<string, string>();
+      for (const s of stakeholdersResp.stakeholders) {
+        const iid = s.interview_id?.trim();
+        if (!iid) continue;
+        const g = (s.role ?? "").trim();
+        groupByInterviewId.set(iid, g || "—");
+      }
 
       const interviews = data.completed_interviews;
       console.log("Loaded interviews:", interviews);
@@ -80,6 +85,13 @@ export default function StakeholderInterviewGrid({
                 .join(" ")
             : null;
 
+        const fromTranscript = (iv.role ?? "").trim();
+        const fromStakeholder = groupByInterviewId.get(iv.interview_id);
+        const group =
+          fromTranscript.length > 0
+            ? fromTranscript
+            : (fromStakeholder ?? "—");
+
         return {
           interview_id: iv.interview_id,
           stakeholder_name: iv.stakeholder_name,
@@ -90,8 +102,7 @@ export default function StakeholderInterviewGrid({
           // ✅ Existing field used by the UI for the pill
           status_label: "Completed",
 
-          // ✅ Backend provides no sentiment → fallback
-          sentiment: "N/A",
+          group,
 
           duration_seconds: null,
 
@@ -131,8 +142,8 @@ export default function StakeholderInterviewGrid({
         {headerAction}
       </div>
       <p className="stakeholder-interview-desc">
-        Track interview progress, sentiment, and responses. Expand a row for a
-        quick summary or open the full transcript.
+        Track interview progress, stakeholder group, and responses. Expand a row
+        for a quick summary or open the full transcript.
       </p>
 
       {loading && (
@@ -165,9 +176,7 @@ export default function StakeholderInterviewGrid({
               <span className="stakeholder-interview-preview-label">
                 Status
               </span>
-              <span className="stakeholder-interview-preview-label">
-                Sentiment
-              </span>
+              <span className="stakeholder-interview-preview-label">Group</span>
               <span
                 className="stakeholder-interview-preview-label"
                 style={{ textAlign: "right" }}
@@ -194,10 +203,8 @@ export default function StakeholderInterviewGrid({
                     </span>
                   </span>
 
-                  <span className="stakeholder-interview-cell--meta">
-                    <span className={sentimentPillClass(row.sentiment)}>
-                      {row.sentiment}
-                    </span>
+                  <span className="stakeholder-interview-cell--meta stakeholder-interview-cell--group">
+                    {row.group}
                   </span>
 
                   <span

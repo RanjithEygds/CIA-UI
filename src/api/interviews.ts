@@ -401,7 +401,8 @@ export type InterviewStakeholderSummaryRow = {
   stakeholder_email?: string | null;
   status: string;
   status_label: string;
-  sentiment: string;
+  /** User group (maps to stakeholder `role` elsewhere in the app). */
+  group: string;
   duration_seconds?: number | null;
   questions_answered: number;
   total_questions: number;
