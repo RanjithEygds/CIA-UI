@@ -156,8 +156,10 @@ export type InterviewTranscript = {
   interview_id: string;
   stakeholder_name: string;
   stakeholder_email: string | null;
-  /** User group when returned by the transcripts API. */
+  /** Legacy group label from transcripts API (prefer `stakeholder_role` when present). */
   role?: string | null;
+  stakeholder_role: string | null;
+  stakeholder_department: string | null;
   transcript: TranscriptRow[];
 };
 

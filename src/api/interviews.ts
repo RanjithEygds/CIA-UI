@@ -399,9 +399,9 @@ export type InterviewStakeholderSummaryRow = {
   interview_id: string;
   stakeholder_name: string;
   stakeholder_email?: string | null;
-  status: string;
-  status_label: string;
-  /** User group (maps to stakeholder `role` elsewhere in the app). */
+  stakeholder_department: string;
+  stakeholder_role: string;
+  /** User group (maps to stakeholder `role` / transcript `role` elsewhere in the app). */
   group: string;
   duration_seconds?: number | null;
   questions_answered: number;

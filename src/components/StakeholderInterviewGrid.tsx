@@ -63,8 +63,7 @@ export default function StakeholderInterviewGrid({
       }
 
       const interviews = data.completed_interviews;
-      console.log("Loaded interviews:", interviews);
-      
+
       // ✅ Handle: no completed interviews
       if (!interviews || interviews.length === 0) {
         setRows([]);
@@ -85,7 +84,11 @@ export default function StakeholderInterviewGrid({
                 .join(" ")
             : null;
 
-        const fromTranscript = (iv.role ?? "").trim();
+        const fromTranscript = (
+          iv.role ??
+          iv.stakeholder_role ??
+          ""
+        ).trim();
         const fromStakeholder = groupByInterviewId.get(iv.interview_id);
         const group =
           fromTranscript.length > 0
@@ -97,10 +100,9 @@ export default function StakeholderInterviewGrid({
           stakeholder_name: iv.stakeholder_name,
 
           // ✅ REQUIRED BY TS INTERFACE
-          status: "completed",
+          stakeholder_department: iv.stakeholder_department ?? "—",
 
-          // ✅ Existing field used by the UI for the pill
-          status_label: "Completed",
+          stakeholder_role: iv.stakeholder_role ?? "—",
 
           group,
 
@@ -173,10 +175,10 @@ export default function StakeholderInterviewGrid({
               <span className="stakeholder-interview-cell--name stakeholder-interview-preview-label">
                 Stakeholder name
               </span>
+              <span className="stakeholder-interview-preview-label">Group</span>
               <span className="stakeholder-interview-preview-label">
                 Status
               </span>
-              <span className="stakeholder-interview-preview-label">Group</span>
               <span
                 className="stakeholder-interview-preview-label"
                 style={{ textAlign: "right" }}
@@ -197,14 +199,14 @@ export default function StakeholderInterviewGrid({
                     {row.stakeholder_name}
                   </span>
 
-                  <span className="stakeholder-interview-cell--meta">
-                    <span className={statusPillClass(row.status_label)}>
-                      {row.status_label}
-                    </span>
-                  </span>
-
                   <span className="stakeholder-interview-cell--meta stakeholder-interview-cell--group">
                     {row.group}
+                  </span>
+
+                  <span className="stakeholder-interview-cell--meta">
+                    <span className={statusPillClass("Completed")}>
+                      Completed
+                    </span>
                   </span>
 
                   <span
