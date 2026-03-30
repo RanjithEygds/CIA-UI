@@ -3,12 +3,14 @@
  * Config from .env: VITE_SPEECH_API_KEY, VITE_SPEECH_REGION, VITE_DEFAULT_STT_LANG, VITE_DEFAULT_TTS_VOICE
  */
 import * as sdk from "microsoft-cognitiveservices-speech-sdk";
-import {
-  DEFAULT_STT_LANG,
-  DEFAULT_TTS_VOICE,
-  SPEECH_API_KEY,
-  SPEECH_REGION,
-} from "../config";
+// import {
+//   DEFAULT_STT_LANG,
+//   DEFAULT_TTS_VOICE,
+//   SPEECH_API_KEY,
+//   SPEECH_REGION,
+// } from "../config";
+
+
 
 export function isAzureSpeechConfigured(): boolean {
   return Boolean(SPEECH_API_KEY?.trim() && SPEECH_REGION?.trim());
