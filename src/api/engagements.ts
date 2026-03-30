@@ -156,6 +156,8 @@ export type InterviewTranscript = {
   interview_id: string;
   stakeholder_name: string;
   stakeholder_email: string | null;
+  stakeholder_role: string | null;
+  stakeholder_department: string | null;
   transcript: TranscriptRow[];
 };
 

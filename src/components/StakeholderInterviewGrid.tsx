@@ -58,8 +58,7 @@ export default function StakeholderInterviewGrid({
         await getEngagementTranscripts(engagementId);
 
       const interviews = data.completed_interviews;
-      console.log("Loaded interviews:", interviews);
-      
+
       // ✅ Handle: no completed interviews
       if (!interviews || interviews.length === 0) {
         setRows([]);
@@ -85,10 +84,10 @@ export default function StakeholderInterviewGrid({
           stakeholder_name: iv.stakeholder_name,
 
           // ✅ REQUIRED BY TS INTERFACE
-          status: "completed",
+          stakeholder_department: iv.stakeholder_department!,
 
           // ✅ Existing field used by the UI for the pill
-          status_label: "Completed",
+          stakeholder_role: iv.stakeholder_role!,
 
           // ✅ Backend provides no sentiment → fallback
           sentiment: "N/A",
@@ -162,11 +161,9 @@ export default function StakeholderInterviewGrid({
               <span className="stakeholder-interview-cell--name stakeholder-interview-preview-label">
                 Stakeholder name
               </span>
+              <span className="stakeholder-interview-preview-label">Group</span>
               <span className="stakeholder-interview-preview-label">
-                Status
-              </span>
-              <span className="stakeholder-interview-preview-label">
-                Sentiment
+                Sub Group
               </span>
               <span
                 className="stakeholder-interview-preview-label"
@@ -189,14 +186,16 @@ export default function StakeholderInterviewGrid({
                   </span>
 
                   <span className="stakeholder-interview-cell--meta">
-                    <span className={statusPillClass(row.status_label)}>
-                      {row.status_label}
+                    <span
+                      className={sentimentPillClass(row.stakeholder_department)}
+                    >
+                      {row.stakeholder_department}
                     </span>
                   </span>
 
                   <span className="stakeholder-interview-cell--meta">
-                    <span className={sentimentPillClass(row.sentiment)}>
-                      {row.sentiment}
+                    <span className={statusPillClass(row.stakeholder_role)}>
+                      {row.stakeholder_role}
                     </span>
                   </span>
 

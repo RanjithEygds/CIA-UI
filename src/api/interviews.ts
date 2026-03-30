@@ -399,8 +399,8 @@ export type InterviewStakeholderSummaryRow = {
   interview_id: string;
   stakeholder_name: string;
   stakeholder_email?: string | null;
-  status: string;
-  status_label: string;
+  stakeholder_department: string;
+  stakeholder_role: string;
   sentiment: string;
   duration_seconds?: number | null;
   questions_answered: number;
