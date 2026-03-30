@@ -499,7 +499,7 @@ export default function EngagementDetail() {
 
     try {
       const data = await getEngagementTranscripts(engagementId);
-
+      // console.log("Transcript data for export:", data);
       const rows: TranscriptExportSheetRow[] = [];
 
       data.completed_interviews.forEach((iv) => {
@@ -508,6 +508,8 @@ export default function EngagementDetail() {
             "Interview ID": iv.interview_id,
             "Stakeholder Name": iv.stakeholder_name,
             "Stakeholder Email": iv.stakeholder_email ?? "",
+            "Group": iv.stakeholder_role ?? "",
+            "Sub-Group": iv.stakeholder_department ?? "",
             "Question Number": transcriptQuestionNumberFromId(t.question_id),
             Section: t.section,
             Question: t.question_text,

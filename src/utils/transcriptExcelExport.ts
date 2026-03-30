@@ -5,11 +5,14 @@ export type TranscriptExportSheetRow = {
   "Interview ID": string;
   "Stakeholder Name": string;
   "Stakeholder Email": string;
+  "Group": string;
+  "Sub-Group": string;
   "Question Number": string;
   Section: string;
   Question: string;
   Response: string;
 };
+
 
 export function transcriptQuestionNumberFromId(questionId: string): string {
   const clean = (questionId || "").trim();

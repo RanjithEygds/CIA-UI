@@ -63,6 +63,9 @@ export interface InterviewTranscript {
   stakeholder_name: string;
   stakeholder_email: string | null;
   status: string; // "completed", "ended", or "in_progress"
+  /** Group / role label when API provides it (used for transcript export). */
+  stakeholder_role?: string | null;
+  stakeholder_department?: string | null;
   transcript: TranscriptRow[];
 }
 
@@ -427,6 +430,10 @@ export type InterviewResponsesDetailOut = {
   engagement_name?: string | null;
   stakeholder_name: string;
   stakeholder_email?: string | null;
+  /** Maps to transcript export column “Group”. */
+  stakeholder_role?: string | null;
+  /** Maps to transcript export column “Sub-Group”. */
+  stakeholder_department?: string | null;
   status: string;
   sentiment: string;
   duration_seconds?: number | null;

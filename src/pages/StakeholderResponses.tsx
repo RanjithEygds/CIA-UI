@@ -57,6 +57,8 @@ export default function StakeholderResponses() {
         engagement_name: transcript.engagement_name ?? null,
         stakeholder_name: transcript.stakeholder_name,
         stakeholder_email: transcript.stakeholder_email,
+        stakeholder_role: transcript.stakeholder_role ?? "",
+        stakeholder_department: (transcript.stakeholder_department ?? "").trim(),
         status: "completed",
 
         sentiment: "N/A", // backend does not provide sentiment yet
@@ -127,6 +129,8 @@ export default function StakeholderResponses() {
       "Interview ID": detail.interview_id,
       "Stakeholder Name": detail.stakeholder_name,
       "Stakeholder Email": detail.stakeholder_email ?? "",
+      "Group": detail.stakeholder_role ?? "",
+      "Sub-Group": detail.stakeholder_department ?? "",
       "Question Number": String(index + 1),
       Section: q.section ?? "",
       Question: q.question_text,
