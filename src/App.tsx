@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
-import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
@@ -14,6 +13,7 @@ import AllCIAs from "./pages/AllCIAs";
 import EngagementDetail from "./pages/EngagementDetail";
 import ChangeImpactHeatmap from "./pages/ChangeImpactHeatmap";
 import StakeholderResponses from "./pages/StakeholderResponses";
+import { AuthProvider, useAuth } from "./components/context/AuthContext";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();

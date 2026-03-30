@@ -328,6 +328,14 @@ function MicIcon() {
 }
 
 const SESSION_MINUTES = 30;
+/** Shown in chat and spoken (voice mode) when the facilitator ends the interview. */
+const MANUAL_END_INTERVIEW_MESSAGE =
+  "This concludes the interview. Thank you for your time.";
+/** Natural completion line used in text-mode chat when all questions are done. */
+const NATURAL_COMPLETE_INTERVIEW_MESSAGE =
+  "Interview completed. Thank you for your responses.";
+const POST_INTERVIEW_TEXT_REDIRECT_MS = 2500;
+const POST_INTERVIEW_VOICE_IDLE_THEN_REDIRECT_MS = 1800;
 const INTERVIEW_MODE_KEY = "cimmie-interview-mode";
 const ACTIVE_STAKEHOLDER_KEY = "ciassist_active_stakeholder_id";
 const COMPLETED_STAKEHOLDERS_KEY = "ciassist_completed_stakeholders";
@@ -443,6 +451,13 @@ export default function CimmieSession() {
   const completedRef = useRef(completed);
   const backendCompletionSyncedRef = useRef(false);
   const sessionExpiredRef = useRef(false);
+  /** When true, skip auto-redirect effect — manual End Interview already navigates. */
+  const endInterviewViaButtonRef = useRef(false);
+  /** Prevents mic `onend` from submitting an answer while ending the interview. */
+  const voiceSubmitSuppressedRef = useRef(false);
+  const pendingManualEndNavTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const voiceBootRef = useRef({
     feedVoiceTtsDelta: (_c: string) => {},
     flushVoiceTtsRemainder: () => {},
@@ -905,6 +920,10 @@ export default function CimmieSession() {
 
   useEffect(() => {
     return () => {
+      if (pendingManualEndNavTimerRef.current) {
+        clearTimeout(pendingManualEndNavTimerRef.current);
+        pendingManualEndNavTimerRef.current = null;
+      }
       clearSilenceTimeout();
       stopMediaTracks();
       if (recognitionRef.current) {
@@ -966,6 +985,32 @@ export default function CimmieSession() {
       // non-fatal: UI completion should still be reflected locally
     });
   }, [completed, interviewId, markStakeholderCompleted]);
+
+  /** After interview completes (natural, session expiry, etc.), return to All CIAs. */
+  useEffect(() => {
+    if (!completed || !interviewId) return;
+    if (endInterviewViaButtonRef.current) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      if (interviewMode === "voice") {
+        await voiceBootRef.current.waitUntilSpeechIdle();
+      }
+      if (cancelled) return;
+      const delayMs =
+        interviewMode === "voice"
+          ? POST_INTERVIEW_VOICE_IDLE_THEN_REDIRECT_MS
+          : POST_INTERVIEW_TEXT_REDIRECT_MS;
+      await new Promise((r) => setTimeout(r, delayMs));
+      if (!cancelled) navigate("/all-cias");
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [completed, interviewId, interviewMode, navigate]);
 
   useEffect(() => {
     sessionExpiredRef.current = sessionExpired;
@@ -1054,6 +1099,7 @@ export default function CimmieSession() {
   };
 
   async function handleVoiceAnswerSubmit(text: string) {
+    if (voiceSubmitSuppressedRef.current) return;
     if (!interviewId || !currentQuestion || completed) return;
     if (voiceAnswerInFlightRef.current) return;
     voiceAnswerInFlightRef.current = true;
@@ -1638,7 +1684,7 @@ export default function CimmieSession() {
               {
                 id: `bot-complete-${Date.now()}`,
                 from: "bot",
-                text: "Interview completed. Thank you for your responses.",
+                text: NATURAL_COMPLETE_INTERVIEW_MESSAGE,
               },
             ]);
           } else {
@@ -1684,18 +1730,42 @@ export default function CimmieSession() {
       backendCompletionSyncedRef.current = true;
       await endInterview(interviewId);
       markStakeholderCompleted();
+
+      endInterviewViaButtonRef.current = true;
+      voiceSubmitSuppressedRef.current = true;
+      stopVoiceRecording();
+      stopComposerListening();
+      if (interviewMode === "voice") {
+        prepareVoiceAgentSpeech();
+      }
+
+      const manualEndId = `bot-ended-manual-${Date.now()}`;
       setCompleted(true);
       setMessages((prev) => [
         ...prev,
         {
-          id: `bot-ended-manual-${Date.now()}`,
+          id: manualEndId,
           from: "bot",
-          text: "Interview ended by facilitator. Thank you for your participation.",
+          text: MANUAL_END_INTERVIEW_MESSAGE,
         },
       ]);
+
+      if (interviewMode === "voice") {
+        setVoiceDisplayedBotId(manualEndId);
+        try {
+          await speakUtteranceSimple(MANUAL_END_INTERVIEW_MESSAGE);
+        } finally {
+          navigate("/all-cias");
+        }
+      } else {
+        pendingManualEndNavTimerRef.current = window.setTimeout(() => {
+          navigate("/all-cias");
+        }, POST_INTERVIEW_TEXT_REDIRECT_MS);
+      }
     } catch (e: any) {
       console.error(e);
       hasEndedRef.current = false;
+      voiceSubmitSuppressedRef.current = false;
       alert(e?.message || "Failed to end the interview. Please try again.");
     } finally {
       setEnding(false);

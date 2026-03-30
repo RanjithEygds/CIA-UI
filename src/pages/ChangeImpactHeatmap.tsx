@@ -268,7 +268,7 @@ export default function ChangeImpactHeatmap({
             colors={cellFill}
             emptyColor="#ffffff"
             borderWidth={1}
-            borderColor={{ from: "color", modifiers: [["darker", 0.15]] }}
+            borderColor="#ffffff"
             borderRadius={0}
             labelTextColor={(cell) =>
               cell.value === 3 ? "#ffffff" : "#1a2332"
