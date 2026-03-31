@@ -1997,6 +1997,9 @@ export default function CimmieSession() {
                 disabled={sessionExpired || !isAzureSpeechConfigured()}
                 aria-label="Start microphone and Azure speech recognition"
               >
+                <span className="voice-ui-toolbar-btn-icon" aria-hidden="true">
+                  ▶
+                </span>
                 Start Voice
               </button>
               <button
@@ -2006,6 +2009,9 @@ export default function CimmieSession() {
                 disabled={!voicePanelListening}
                 aria-label="Stop speech recognition without submitting an answer"
               >
+                <span className="voice-ui-toolbar-btn-icon" aria-hidden="true">
+                  ⏹
+                </span>
                 Stop Voice
               </button>
             </div>
