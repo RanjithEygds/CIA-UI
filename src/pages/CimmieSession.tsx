@@ -269,7 +269,7 @@ const ACTIVE_STAKEHOLDER_KEY = "ciassist_active_stakeholder_id";
 const COMPLETED_STAKEHOLDERS_KEY = "ciassist_completed_stakeholders";
 const INTERVIEW_EXTENSIONS_KEY = "ciassist_interview_extensions";
 const SILENCE_TIMEOUT_MS = 7000;
-const VOICE_PANEL_SILENCE_TIMEOUT_MS = 2500;
+const VOICE_PANEL_SILENCE_TIMEOUT_MS = 8000;
 const MIC_TOGGLE_DEBOUNCE_MS = 400;
 
 type InterviewMode = "text" | "voice";
@@ -762,15 +762,27 @@ export default function CimmieSession() {
             setVoicePanelTranscript(full);
             clearVoiceSilenceTimeout();
             voiceSilenceTimeoutRef.current = setTimeout(() => {
-              voiceSilenceTimeoutRef.current = null;
-              stopVoiceRecording();
+              if (voiceVolume < 0.02) {
+                // only stop if silence is REAL silence
+                stopVoiceRecording();
+              } else {
+                // user is speaking — restart timer
+                clearVoiceSilenceTimeout();
+                clearSilenceTimeout();
+              }
             }, VOICE_PANEL_SILENCE_TIMEOUT_MS);
           },
           onFinalPhrase: () => {
             clearVoiceSilenceTimeout();
             voiceSilenceTimeoutRef.current = setTimeout(() => {
-              voiceSilenceTimeoutRef.current = null;
-              stopVoiceRecording();
+              if (voiceVolume < 0.02) {
+                // only stop if silence is REAL silence
+                stopVoiceRecording();
+              } else {
+                // user is speaking — restart timer
+                clearVoiceSilenceTimeout();
+                clearSilenceTimeout();
+              }
             }, VOICE_PANEL_SILENCE_TIMEOUT_MS);
           },
           onError: (msg) => {
@@ -782,8 +794,14 @@ export default function CimmieSession() {
         setVoicePanelListening(true);
         setVoicePanelMicStatus("listening");
         voiceSilenceTimeoutRef.current = setTimeout(() => {
-          voiceSilenceTimeoutRef.current = null;
-          stopVoiceRecording();
+          if (voiceVolume < 0.02) {
+            // only stop if silence is REAL silence
+            stopVoiceRecording();
+          } else {
+            // user is speaking — restart timer
+            clearVoiceSilenceTimeout();
+            clearSilenceTimeout();
+          }
         }, VOICE_PANEL_SILENCE_TIMEOUT_MS);
         voiceAnimationFrameRef.current = requestAnimationFrame(function tick() {
           const analyserNode = voiceAnalyserRef.current;
@@ -799,9 +817,10 @@ export default function CimmieSession() {
       } catch (e: unknown) {
         clearVoiceSilenceTimeout();
         await stopAzureVoiceSttNoSubmit();
-        const name = e && typeof e === "object" && "name" in e ? String(
-            (e as { name?: string }).name,
-          ) : "";
+        const name =
+          e && typeof e === "object" && "name" in e
+            ? String((e as { name?: string }).name)
+            : "";
         setVoicePanelSttError(
           name === "NotAllowedError"
             ? "Microphone access denied."
@@ -1304,7 +1323,7 @@ export default function CimmieSession() {
               streamComplete: true,
             },
           ]);
-
+          await new Promise((r) => setTimeout(r, 5000));
           await firstIntroStream(interviewId, briefText, {
             onBeginPart: appendStreamBeginPart,
             onDelta: appendStreamDelta,
@@ -1354,6 +1373,7 @@ export default function CimmieSession() {
             ]);
             setVoiceDisplayedBotId("voice-tts-unsupported");
           }
+          await new Promise((r) => setTimeout(r, 5000));
           await firstIntroStream(interviewId, briefText, {
             onBeginPart: (_part: string) => {
               appendStreamBeginPart(_part);
@@ -1388,6 +1408,7 @@ export default function CimmieSession() {
         if (!mounted) return;
 
         // ✅ Load the first question (existing interview)
+        await new Promise((r) => setTimeout(r, 10000));
         const firstQ = await getNextQuestion(interviewId);
 
         if (!mounted) return;
@@ -1819,8 +1840,8 @@ export default function CimmieSession() {
       {!timeBannerDismissed && (
         <section className="session-time-banner card" role="status">
           <p className="session-time-banner-text">
-            This session is time-bound. The link will expire in{" "}
-            {sessionMinutes} minutes.
+            This session is time-bound. The link will expire in {sessionMinutes}{" "}
+            minutes.
           </p>
           <button
             type="button"
@@ -1982,11 +2003,7 @@ export default function CimmieSession() {
                 type="button"
                 className="btn btn-primary"
                 onClick={() => startVoiceRecording()}
-                disabled={
-                  sessionExpired ||
-                  voicePanelListening ||
-                  !isAzureSpeechConfigured()
-                }
+                disabled={sessionExpired || !isAzureSpeechConfigured()}
                 aria-label="Start microphone and Azure speech recognition"
               >
                 Start Voice
@@ -2002,141 +2019,142 @@ export default function CimmieSession() {
               </button>
             </div>
             <div className="voice-ui-panel-body">
-            <div
-              className={`voice-ui-orb ${voicePanelMicStatus === "speak_now" ? "voice-ui-orb-speak-now" : ""} ${voicePanelMicStatus === "listening" ? "voice-ui-orb-listening" : ""}`}
-              style={
-                voicePanelMicStatus === "listening"
-                  ? { ["--voice-level" as string]: voiceVolume }
-                  : undefined
-              }
-            >
               <div
-                className={`voice-ui-orb-wave ${voicePanelMicStatus === "listening" ? "voice-ui-orb-wave-listening" : ""}`}
-                aria-hidden="true"
+                className={`voice-ui-orb ${voicePanelMicStatus === "speak_now" ? "voice-ui-orb-speak-now" : ""} ${voicePanelMicStatus === "listening" ? "voice-ui-orb-listening" : ""}`}
                 style={
                   voicePanelMicStatus === "listening"
                     ? { ["--voice-level" as string]: voiceVolume }
                     : undefined
                 }
               >
-                <img
-                  src="/voice-wave_2.png"
-                  alt=""
-                  className="voice-ui-orb-wave-img"
-                />
-              </div>
-              <div className="voice-ui-orb-icon" aria-hidden="true">
-                <img
-                  src="/cimmie-robot.jpg"
-                  alt=""
-                  className="voice-ui-orb-icon-img"
-                />
-              </div>
-            </div>
-            <div
-              className="voice-agent-transcript"
-              ref={voiceAgentLogRef}
-              aria-label="CIMMIE agent transcript"
-            >
-              {loading &&
-              messages.filter((m) => m.from === "bot").length === 0 ? (
-                <div className="voice-agent-bubble chat-bubble bot">
-                  <div className="chat-bubble-inner">
-                    <img
-                      src="/cimmie-robot.jpg"
-                      alt=""
-                      className="chat-bubble-avatar"
-                      aria-hidden="true"
-                    />
-                    <span className="chat-bubble-text">
-                      Preparing your interview…
-                    </span>
-                  </div>
+                <div
+                  className={`voice-ui-orb-wave ${voicePanelMicStatus === "listening" ? "voice-ui-orb-wave-listening" : ""}`}
+                  aria-hidden="true"
+                  style={
+                    voicePanelMicStatus === "listening"
+                      ? { ["--voice-level" as string]: voiceVolume }
+                      : undefined
+                  }
+                >
+                  <img
+                    src="/voice-wave_2.png"
+                    alt=""
+                    className="voice-ui-orb-wave-img"
+                  />
                 </div>
-              ) : (
-                (() => {
-                  const voiceBots = messages.filter((m) => m.from === "bot");
-                  const vm =
-                    (voiceDisplayedBotId != null
-                      ? voiceBots.find((m) => m.id === voiceDisplayedBotId)
-                      : null) ?? voiceBots.at(-1);
-                  if (!vm) return null;
-                  const streaming =
-                    vm.streamTotal !== undefined && vm.streamComplete === false;
-                  return (
-                    <div
-                      key={vm.id}
-                      className={`voice-agent-bubble chat-bubble bot${streaming ? " voice-agent-bubble-streaming" : ""}`}
-                    >
-                      <div className="chat-bubble-inner">
-                        <img
-                          src="/cimmie-robot.jpg"
-                          alt=""
-                          className="chat-bubble-avatar"
-                          aria-hidden="true"
-                        />
-                        {vm.streamTotal !== undefined ? (
-                          <BotTypewriterBlock
-                            messageId={vm.id}
-                            streamTotal={vm.streamTotal ?? ""}
-                            streamComplete={vm.streamComplete ?? true}
-                            onTick={() => {
-                              requestAnimationFrame(() => {
-                                const el = voiceAgentLogRef.current;
-                                if (!el) return;
-                                el.scrollTo({
-                                  top: el.scrollHeight,
-                                  behavior: "smooth",
-                                });
-                              });
-                            }}
-                            onSettled={handleBotStreamSettled}
-                          />
-                        ) : (
-                          <span className="chat-bubble-text">{vm.text}</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()
-              )}
-            </div>
-            <p className="voice-ui-status" role="status" aria-live="polite">
-              {voicePanelMicStatus === "idle" && "Speak now"}
-              {voicePanelMicStatus === "speak_now" && "Speak now"}
-              {voicePanelMicStatus === "listening" && "I am listening"}
-            </p>
-            {voicePanelSttError && (
-              <p className="voice-ui-stt-error" role="alert">
-                {voicePanelSttError}
-              </p>
-            )}
-            {voicePanelTranscript && (
-              <div
-                className="voice-ui-transcript"
-                role="log"
-                aria-live="polite"
-              >
-                {voicePanelTranscript}
+                <div className="voice-ui-orb-icon" aria-hidden="true">
+                  <img
+                    src="/cimmie-robot.jpg"
+                    alt=""
+                    className="voice-ui-orb-icon-img"
+                  />
+                </div>
               </div>
-            )}
-            <button
-              type="button"
-              className={`voice-ui-mic ${voicePanelListening ? "voice-ui-mic-active" : ""} ${voicePanelMicStatus === "listening" ? "voice-ui-mic-listening" : ""}`}
-              style={
-                voicePanelMicStatus === "listening"
-                  ? { ["--voice-level" as string]: voiceVolume }
-                  : undefined
-              }
-              onClick={toggleVoicePanelMic}
-              disabled={sessionExpired}
-              aria-label={
-                voicePanelListening ? "Stop listening" : "Start listening"
-              }
-              aria-pressed={voicePanelListening}
-            >
-              <MicIcon />
-            </button>
+              <div
+                className="voice-agent-transcript"
+                ref={voiceAgentLogRef}
+                aria-label="CIMMIE agent transcript"
+              >
+                {loading &&
+                messages.filter((m) => m.from === "bot").length === 0 ? (
+                  <div className="voice-agent-bubble chat-bubble bot">
+                    <div className="chat-bubble-inner">
+                      <img
+                        src="/cimmie-robot.jpg"
+                        alt=""
+                        className="chat-bubble-avatar"
+                        aria-hidden="true"
+                      />
+                      <span className="chat-bubble-text">
+                        Preparing your interview…
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  (() => {
+                    const voiceBots = messages.filter((m) => m.from === "bot");
+                    const vm =
+                      (voiceDisplayedBotId != null
+                        ? voiceBots.find((m) => m.id === voiceDisplayedBotId)
+                        : null) ?? voiceBots.at(-1);
+                    if (!vm) return null;
+                    const streaming =
+                      vm.streamTotal !== undefined &&
+                      vm.streamComplete === false;
+                    return (
+                      <div
+                        key={vm.id}
+                        className={`voice-agent-bubble chat-bubble bot${streaming ? " voice-agent-bubble-streaming" : ""}`}
+                      >
+                        <div className="chat-bubble-inner">
+                          <img
+                            src="/cimmie-robot.jpg"
+                            alt=""
+                            className="chat-bubble-avatar"
+                            aria-hidden="true"
+                          />
+                          {vm.streamTotal !== undefined ? (
+                            <BotTypewriterBlock
+                              messageId={vm.id}
+                              streamTotal={vm.streamTotal ?? ""}
+                              streamComplete={vm.streamComplete ?? true}
+                              onTick={() => {
+                                requestAnimationFrame(() => {
+                                  const el = voiceAgentLogRef.current;
+                                  if (!el) return;
+                                  el.scrollTo({
+                                    top: el.scrollHeight,
+                                    behavior: "smooth",
+                                  });
+                                });
+                              }}
+                              onSettled={handleBotStreamSettled}
+                            />
+                          ) : (
+                            <span className="chat-bubble-text">{vm.text}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+              <p className="voice-ui-status" role="status" aria-live="polite">
+                {voicePanelMicStatus === "idle" && "Speak now"}
+                {voicePanelMicStatus === "speak_now" && "Speak now"}
+                {voicePanelMicStatus === "listening" && "I am listening"}
+              </p>
+              {voicePanelSttError && (
+                <p className="voice-ui-stt-error" role="alert">
+                  {voicePanelSttError}
+                </p>
+              )}
+              {voicePanelTranscript && (
+                <div
+                  className="voice-ui-transcript"
+                  role="log"
+                  aria-live="polite"
+                >
+                  {voicePanelTranscript}
+                </div>
+              )}
+              <button
+                type="button"
+                className={`voice-ui-mic ${voicePanelListening ? "voice-ui-mic-active" : ""} ${voicePanelMicStatus === "listening" ? "voice-ui-mic-listening" : ""}`}
+                style={
+                  voicePanelMicStatus === "listening"
+                    ? { ["--voice-level" as string]: voiceVolume }
+                    : undefined
+                }
+                onClick={toggleVoicePanelMic}
+                disabled={sessionExpired}
+                aria-label={
+                  voicePanelListening ? "Stop listening" : "Start listening"
+                }
+                aria-pressed={voicePanelListening}
+              >
+                <MicIcon />
+              </button>
             </div>
           </div>
         </section>
