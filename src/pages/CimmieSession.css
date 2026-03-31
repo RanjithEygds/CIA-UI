@@ -313,6 +313,22 @@
   margin: 0;
 }
 
+/* Start Voice Interview: bottom of page while in text mode (same control chrome as mode toggle) */
+.cimmie-voice-start-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: auto;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.75rem;
+}
+
+.cimmie-voice-start-footer .interview-mode-toggle {
+  margin: 0;
+}
+
 /* Full-screen voice layout: fills viewport below the toggle */
 /* Voice container: fill viewport below toggle; no global layout change */
 .voice-fullscreen {

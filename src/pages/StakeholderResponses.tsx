@@ -4,7 +4,10 @@ import { type InterviewResponsesDetailOut } from "../api/interviews";
 import { getTranscript, type InterviewTranscript } from "../api/interviews";
 import {
   applyTranscriptSheetStyles,
+  shouldOmitGroupSubGroupColumnsForTranscriptExport,
+  type TranscriptExportRowForStyles,
   type TranscriptExportSheetRow,
+  type TranscriptExportSheetRowWithoutGroupColumns,
 } from "../utils/transcriptExcelExport";
 import "./StakeholderResponses.css";
 import * as XLSX from "xlsx-js-style";
@@ -57,6 +60,7 @@ export default function StakeholderResponses() {
         engagement_name: transcript.engagement_name ?? null,
         stakeholder_name: transcript.stakeholder_name,
         stakeholder_email: transcript.stakeholder_email,
+        stakeholder_type: transcript.stakeholder_type ?? null,
         stakeholder_role: transcript.stakeholder_role ?? "",
         stakeholder_department: (transcript.stakeholder_department ?? "").trim(),
         status: "completed",
@@ -125,17 +129,33 @@ export default function StakeholderResponses() {
       return;
     }
 
-    const rows: TranscriptExportSheetRow[] = detail.questions.map((q, index) => ({
-      "Interview ID": detail.interview_id,
-      "Stakeholder Name": detail.stakeholder_name,
-      "Stakeholder Email": detail.stakeholder_email ?? "",
-      "Group": detail.stakeholder_role ?? "",
-      "Sub-Group": detail.stakeholder_department ?? "",
-      "Question Number": String(index + 1),
-      Section: q.section ?? "",
-      Question: q.question_text,
-      Response: q.answer_text ?? "",
-    }));
+    const omitGroupColumns = shouldOmitGroupSubGroupColumnsForTranscriptExport(
+      location.pathname,
+      detail.stakeholder_type,
+    );
+
+    const rows: TranscriptExportRowForStyles[] = detail.questions.map(
+      (q, index) => {
+        const base = {
+          "Interview ID": detail.interview_id,
+          "Stakeholder Name": detail.stakeholder_name,
+          "Stakeholder Email": detail.stakeholder_email ?? "",
+          "Question Number": String(index + 1),
+          Section: q.section ?? "",
+          Question: q.question_text,
+          Response: q.answer_text ?? "",
+        };
+        if (omitGroupColumns) {
+          return base satisfies TranscriptExportSheetRowWithoutGroupColumns;
+        }
+        const full: TranscriptExportSheetRow = {
+          ...base,
+          "Group": detail.stakeholder_role ?? "",
+          "Sub-Group": detail.stakeholder_department ?? "",
+        };
+        return full;
+      },
+    );
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();

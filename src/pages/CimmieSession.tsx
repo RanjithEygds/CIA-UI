@@ -1408,7 +1408,7 @@ export default function CimmieSession() {
         if (!mounted) return;
 
         // ✅ Load the first question (existing interview)
-        await new Promise((r) => setTimeout(r, 10000));
+        await new Promise((r) => setTimeout(r, 12000));
         const firstQ = await getNextQuestion(interviewId);
 
         if (!mounted) return;
@@ -1875,15 +1875,6 @@ export default function CimmieSession() {
             <TextMessageIcon />
             <span>Text</span>
           </button>
-          <button
-            type="button"
-            className={`interview-mode-btn ${interviewMode === "voice" ? "interview-mode-btn-active" : ""}`}
-            onClick={() => setInterviewModeAndPersist("voice")}
-            aria-pressed={interviewMode === "voice"}
-          >
-            <MicIcon />
-            <span>Voice</span>
-          </button>
         </div>
       </section>
 
@@ -2156,6 +2147,25 @@ export default function CimmieSession() {
                 <MicIcon />
               </button>
             </div>
+          </div>
+        </section>
+      )}
+
+      {interviewMode === "text" && (
+        <section
+          className="cimmie-voice-start-footer"
+          aria-label="Voice interview entry"
+        >
+          <div className="interview-mode-toggle" role="group">
+            <button
+              type="button"
+              className="interview-mode-btn"
+              onClick={() => setInterviewModeAndPersist("voice")}
+              aria-label="Start voice interview"
+            >
+              <MicIcon />
+              <span>Start Voice Interview</span>
+            </button>
           </div>
         </section>
       )}

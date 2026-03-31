@@ -63,6 +63,8 @@ export interface InterviewTranscript {
   stakeholder_name: string;
   stakeholder_email: string | null;
   status: string; // "completed", "ended", or "in_progress"
+  /** When "INDIVIDUAL", transcript export may omit group columns (see UI export rules). */
+  stakeholder_type?: string | null;
   /** Group / role label when API provides it (used for transcript export). */
   stakeholder_role?: string | null;
   stakeholder_department?: string | null;
@@ -430,6 +432,8 @@ export type InterviewResponsesDetailOut = {
   engagement_name?: string | null;
   stakeholder_name: string;
   stakeholder_email?: string | null;
+  /** From transcript API; drives individual vs global export column rules when set. */
+  stakeholder_type?: string | null;
   /** Maps to transcript export column “Group”. */
   stakeholder_role?: string | null;
   /** Maps to transcript export column “Sub-Group”. */
