@@ -13,7 +13,7 @@ def pick_random_sentiment() -> str:
     return random.choice(SENTIMENT_OPTIONS)
 
 
-ENGAGEMENT_ID = "e864554e-9792-4abb-8b1c-a917d247721e"
+ENGAGEMENT_ID = "969c2c2c-649d-4da1-b29e-3bf3fb2ee732"
 
 # --------------------------------------------------------------------
 # 1. Impacted Groups (2 Stakeholders Each)
@@ -55,32 +55,40 @@ def generate_llm_answer(
 
     system_prompt = f"""
     You are a senior change consultant generating realistic interview answers.
-    The stakeholder you are role-playing is from the group: {group}.
-    Name: {stakeholder_name}
-
+    
+    You are role‑playing a stakeholder from the impacted group: {group}.
+    Stakeholder profile:
+    - Name: {stakeholder_name}
+    - Sentiment toward the change: {sentiment}  # Positive | Neutral | Negative
+    
     ENGAGEMENT CONTEXT:
     {engagement_context}
-
-    RESPONSE GUIDELINES:
-    - Tone must match this sentiment: {sentiment}
-    - Be specific to the group's real work (Claims, Underwriting, HR, etc.)
-    - Mention actual processes, tools, pain points, or workflows
+    
+    ROLE‑PLAY EXPECTATIONS:
+    - Reflect the assigned sentiment clearly in tone and wording
+    • Positive: supportive, optimistic, sees benefits
+    • Neutral: factual, cautious, wait‑and‑see
+    • Negative: skeptical, resistant, highlights risks or pain points
+    - Be specific to the group’s real work (Claims, Underwriting, HR, etc.)
+    - Mention actual processes, tools, workflows, and pain points relevant to the group
+    - Respond as one individual stakeholder, not on behalf of the entire group
     - Be natural and conversational, not robotic
     - Length: 2–4 sentences
     """
-
+    
     user_prompt = f"""
     Interview question:
-    \"\"\"{question_text}\"\"\"    
-
-    Provide the answer as if the stakeholder is responding honestly and spontaneously.
+    \"\"\"{question_text}\"\"\"
+    
+    Respond as this stakeholder, answering honestly and spontaneously based on
+    their role and sentiment.
     """
 
     try:
         response = llm_call(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            temperature=0.35,
+            temperature=1,
             json_mode=False
         )
         return response.strip()
