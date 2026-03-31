@@ -40,7 +40,7 @@ const EDITABLE_CARDS: {
   },
   {
     id: "rationale",
-    title: "Change Rationale",
+    title: "Groups Impacted",
     initialContent: "Rationale and drivers for the change initiative.",
   },
 ];

@@ -141,8 +141,10 @@ function BotTypewriterBlock({
       posRef.current = i + 1;
       setDisplayed(target.slice(0, i + 1));
       onTick();
-      const ms = c === " " ? 0 : Math.round(30 + Math.random() * 20);
-      window.setTimeout(step, ms);
+      const base = 10 + Math.random() * 20;
+      const ms = c === " " ? 0 : Math.round(base * TYPEWRITER_SPEED);
+
+window.setTimeout(step, ms);
     };
     step();
     return () => {
@@ -271,6 +273,8 @@ const INTERVIEW_EXTENSIONS_KEY = "ciassist_interview_extensions";
 const SILENCE_TIMEOUT_MS = 7000;
 const VOICE_PANEL_SILENCE_TIMEOUT_MS = 8000;
 const MIC_TOGGLE_DEBOUNCE_MS = 400;
+// Somewhere global/config
+export const TYPEWRITER_SPEED = 3; // 0.5 = twice as fast, 2 = twice as slow
 
 type InterviewMode = "text" | "voice";
 
