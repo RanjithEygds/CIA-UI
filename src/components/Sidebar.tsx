@@ -37,12 +37,10 @@ export default function Sidebar({ isOpen, isCollapsed, onToggleCollapse, onClose
       >
         <div className="sidebar-inner">
           <div className="sidebar-brand">
-            <p className="sidebar-brand-pill">CIA Control Room</p>
+            <p className="sidebar-brand-pill">AI for Change Impact Assessment</p>
             <h1 className="sidebar-brand-title">
-            <span className="sidebar-brand-ci">CI</span>
-            <span className="sidebar-brand-a">A</span>
-            <span className="sidebar-brand-ssist">ssist</span>
-          </h1>
+              <span className="sidebar-brand-ci">CIMMIE</span>
+            </h1>
           </div>
 
           <nav className="sidebar-nav">

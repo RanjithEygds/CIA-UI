@@ -39,14 +39,19 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
+        {/*
+          CIA setup flow (sequential UX; paths unchanged for stable bookmarks/API).
+          Order: Home → Upload → Preview → Add stakeholders → Preview questions → Launch.
+          Remaining routes are independent of this sequence.
+        */}
         <Route index element={<Home />} />
         <Route path="upload" element={<UploadDocument />} />
         <Route path="preview" element={<Preview />} />
+        <Route path="add-stakeholders" element={<AddStakeholders />} />
         <Route
           path="preview-questions"
           element={<PreviewInterviewQuestions />}
         />
-        <Route path="add-stakeholders" element={<AddStakeholders />} />
         <Route path="launch" element={<LaunchInterview />} />
         <Route path="all-cias" element={<AllCIAs />} />
         <Route path="all-cias/:engagementId" element={<EngagementDetail />} />

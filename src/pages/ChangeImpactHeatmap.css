@@ -104,6 +104,46 @@
   margin: 0;
 }
 
+.cia-heatmap-card-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.cia-heatmap-info-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(13, 115, 119, 0.26);
+  background: rgba(13, 115, 119, 0.08);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.12s ease,
+    box-shadow 0.2s ease;
+}
+
+.cia-heatmap-info-trigger:hover {
+  background: rgba(13, 115, 119, 0.14);
+  border-color: rgba(13, 115, 119, 0.4);
+  box-shadow: 0 3px 8px rgba(13, 115, 119, 0.14);
+}
+
+.cia-heatmap-info-trigger:active {
+  transform: translateY(1px);
+}
+
+.cia-heatmap-info-trigger:focus-visible,
+.cia-heatmap-info-close-btn:focus-visible {
+  outline: 2px solid rgba(13, 115, 119, 0.5);
+  outline-offset: 2px;
+}
+
 .cia-heatmap-card-sub {
   margin: 0.2rem 0 0;
   font-size: 0.75rem;
@@ -209,6 +249,34 @@
   .cia-heatmap-card-head-right .cia-heatmap-legend {
     margin-top: 12px;
   }
+
+  .cia-heatmap-info-popover {
+    width: calc(100vw - 1rem);
+    max-height: none;
+    overflow: visible;
+  }
+
+  .cia-heatmap-info-modal-content {
+    padding: 0.5rem 0.35rem 0.5rem;
+  }
+
+  .cia-heatmap-info-table {
+    font-size: 0.6rem;
+    min-width: 0;
+  }
+
+  .cia-heatmap-info-section-title {
+    font-size: 0.65rem;
+    padding: 0.4rem 0.45rem;
+  }
+
+  .cia-heatmap-info-nav-left {
+    margin-left: 0.3rem;
+  }
+
+  .cia-heatmap-info-nav-right {
+    margin-right: 0.3rem;
+  }
 }
 
 /* Nivo portal tooltip */
@@ -275,9 +343,282 @@
   color: var(--color-text-muted);
 }
 
+/* Anchored popover under the info trigger button. */
+.cia-heatmap-info-popover {
+  position: fixed;
+  width: min(760px, calc(100vw - 2rem));
+  max-height: none;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
+  overflow-y: hidden;
+  box-sizing: border-box;
+  z-index: 1500;
+}
+
+.cia-heatmap-info-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(180deg, rgba(13, 115, 119, 0.05), transparent);
+}
+
+.cia-heatmap-info-modal-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.cia-heatmap-info-close-btn {
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cia-heatmap-info-close-btn:hover {
+  color: var(--color-text);
+  border-color: rgba(13, 115, 119, 0.35);
+}
+
+.cia-heatmap-info-modal-content {
+  overflow: visible;
+  padding: 0.65rem 0.55rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+/* Carousel shell keeps nav arrows centered vertically. */
+.cia-heatmap-info-carousel-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.cia-heatmap-info-carousel-track {
+  animation: cia-heatmap-info-slide-in 220ms ease;
+}
+
+@keyframes cia-heatmap-info-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.cia-heatmap-info-nav {
+  align-self: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(13, 115, 119, 0.3);
+  border-radius: 999px;
+  color: var(--color-primary);
+  background: rgba(13, 115, 119, 0.08);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cia-heatmap-info-nav:hover:not(:disabled) {
+  background: rgba(13, 115, 119, 0.15);
+}
+
+.cia-heatmap-info-nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cia-heatmap-info-nav-left {
+  margin-left: 0.45rem;
+}
+
+.cia-heatmap-info-nav-right {
+  margin-right: 0.45rem;
+}
+
+.cia-heatmap-info-step-indicator {
+  margin: 0;
+  text-align: right;
+  font-size: 0.62rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.cia-heatmap-info-section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #fff;
+  min-width: 0;
+}
+
+.cia-heatmap-info-section-title {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(13, 115, 119, 0.06);
+}
+
+.cia-heatmap-info-table-wrap {
+  overflow-x: clip;
+  overflow-y: visible;
+  min-width: 0;
+}
+
+.cia-heatmap-info-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.6rem;
+  color: var(--color-text);
+  min-width: 0;
+  table-layout: fixed;
+  margin: 0;
+}
+
+.cia-heatmap-info-table thead th {
+  text-align: center;
+  font-weight: 700;
+  color: var(--color-text);
+  background: #f6f9fb;
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  padding: 0.28rem 0.3rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  vertical-align: middle;
+}
+
+.cia-heatmap-info-table tbody th,
+.cia-heatmap-info-table tbody td {
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  padding: 0.3rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.cia-heatmap-info-table thead th:last-child,
+.cia-heatmap-info-table tbody td:last-child {
+  border-right: none;
+}
+
+.cia-heatmap-info-table tbody tr:last-child th,
+.cia-heatmap-info-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.cia-heatmap-info-table tbody th {
+  font-weight: 500;
+  white-space: normal;
+  background: rgba(13, 115, 119, 0.03);
+}
+
+.cia-heatmap-info-table thead th:nth-child(1),
+.cia-heatmap-info-table tbody th {
+  white-space: nowrap;
+}
+
+.cia-heatmap-info-rating {
+  width: 2.2rem;
+  text-align: center;
+  font-weight: 300;
+  white-space: nowrap;
+}
+
+/* People scale: four columns; balance width so text wraps cleanly. */
+.cia-heatmap-info-table--four-col {
+}
+
+.cia-heatmap-info-table--five-col {
+}
+
+.cia-heatmap-info-table--four-col thead th:nth-child(1),
+.cia-heatmap-info-table--four-col tbody th:nth-child(1) {
+  width: 24%;
+}
+
+.cia-heatmap-info-table--four-col thead th:nth-child(2),
+.cia-heatmap-info-table--four-col tbody td:nth-child(2) {
+  width: 31%;
+}
+
+.cia-heatmap-info-table--four-col thead th:nth-child(3),
+.cia-heatmap-info-table--four-col tbody td:nth-child(3) {
+  width: 8%;
+}
+
+.cia-heatmap-info-table--four-col thead th:nth-child(4),
+.cia-heatmap-info-table--four-col tbody td:nth-child(4) {
+  width: 37%;
+}
+
+.cia-heatmap-info-table--five-col thead th:nth-child(1),
+.cia-heatmap-info-table--five-col tbody th:nth-child(1) {
+  width: 21%;
+}
+
+.cia-heatmap-info-table--five-col thead th:nth-child(2),
+.cia-heatmap-info-table--five-col tbody td:nth-child(2) {
+  width: 27%;
+}
+
+.cia-heatmap-info-table--five-col thead th:nth-child(3),
+.cia-heatmap-info-table--five-col tbody td:nth-child(3) {
+  width: 8%;
+}
+
+.cia-heatmap-info-table--five-col thead th:nth-child(4),
+.cia-heatmap-info-table--five-col tbody td:nth-child(4) {
+  width: 27%;
+}
+
+.cia-heatmap-info-table--five-col thead th:nth-child(5),
+.cia-heatmap-info-table--five-col tbody td:nth-child(5) {
+  width: 8%;
+}
+
+/* Process / Technology: five columns; fixed widths so no horizontal overflow. */
+
 /* Key findings — full-width insight card below impact matrix */
 .cia-heatmap-findings.card {
-  width: 100%;
+  width: 80%;
   margin: 0;
   padding: 1.35rem 1.5rem 1.45rem;
   background: linear-gradient(165deg, #f6f9fb 0%, #ffffff 48%, #fafcfd 100%);

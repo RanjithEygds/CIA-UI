@@ -23,10 +23,12 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import {
   type AzureContinuousStt,
-  AzureInterviewTts,
+  cancelInterviewSpeechQueue,
+  queueInterviewSpeech,
   createInterviewSpeechConfig,
   isAzureSpeechConfigured,
   startAzureContinuousStt,
+  waitForInterviewSpeechIdle,
 } from "../services/azureSpeechInterview";
 
 /** Minimal type for Web Speech API SpeechRecognition. */
@@ -359,7 +361,6 @@ export default function CimmieSession() {
   const lastMicToggleTimeRef = useRef(0);
   /* Voice panel: Azure STT session, stream, transcript, and audio analysis */
   const azureVoiceSttRef = useRef<AzureContinuousStt | null>(null);
-  const azureInterviewTtsRef = useRef<AzureInterviewTts | null>(null);
   const voiceMediaStreamRef = useRef<MediaStream | null>(null);
   const voiceTranscriptRef = useRef("");
   const voiceSilenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -717,16 +718,6 @@ export default function CimmieSession() {
     setVoiceVolume(0);
   }
 
-  function getOrCreateAzureInterviewTts(): AzureInterviewTts | null {
-    if (!isAzureSpeechConfigured()) return null;
-    if (!azureInterviewTtsRef.current) {
-      azureInterviewTtsRef.current = new AzureInterviewTts(
-        createInterviewSpeechConfig(),
-      );
-    }
-    return azureInterviewTtsRef.current;
-  }
-
   function startVoiceRecording() {
     if (sessionExpiredRef.current) return;
     if (!isAzureSpeechConfigured()) {
@@ -901,7 +892,7 @@ export default function CimmieSession() {
       const vstt = azureVoiceSttRef.current;
       azureVoiceSttRef.current = null;
       if (vstt) void vstt.stop().catch(() => {});
-      azureInterviewTtsRef.current?.cancel();
+      cancelInterviewSpeechQueue();
     };
   }, []);
 
@@ -975,19 +966,17 @@ export default function CimmieSession() {
   }, [sessionExpired]);
 
   function prepareVoiceAgentSpeech() {
-    azureInterviewTtsRef.current?.cancel();
+    cancelInterviewSpeechQueue();
     voiceTtsBufferRef.current = "";
     voiceTtsUtteranceCountRef.current = 0;
     voiceAfterTtsRef.current = null;
   }
 
   function speakUtteranceCounted(text: string) {
-    const tts = getOrCreateAzureInterviewTts();
-    if (!tts) return;
     const trimmed = text.trim();
     if (!trimmed) return;
     voiceTtsUtteranceCountRef.current += 1;
-    void tts.speak(trimmed).finally(() => {
+    void queueInterviewSpeech(trimmed).finally(() => {
       voiceTtsUtteranceCountRef.current -= 1;
       if (voiceTtsUtteranceCountRef.current < 0) {
         voiceTtsUtteranceCountRef.current = 0;
@@ -1015,15 +1004,11 @@ export default function CimmieSession() {
   }
 
   async function waitUntilSpeechIdle() {
-    await azureInterviewTtsRef.current?.waitUntilIdle();
+    await waitForInterviewSpeechIdle();
   }
 
   function speakUtteranceSimple(text: string): Promise<void> {
-    const tts = getOrCreateAzureInterviewTts();
-    if (!tts) return Promise.resolve();
-    const trimmed = text.trim();
-    if (!trimmed) return Promise.resolve();
-    return tts.speak(trimmed);
+    return queueInterviewSpeech(text);
   }
 
   voiceBootRef.current = {
@@ -1610,15 +1595,6 @@ export default function CimmieSession() {
             } catch (err) {
               console.error("Failed to refresh sections:", err);
             }
-
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: `readback-${Date.now()}`,
-                from: "bot",
-                text: result.readback!,
-              },
-            ]);
           }
 
           if (result?.reason === "max_followups_reached") {

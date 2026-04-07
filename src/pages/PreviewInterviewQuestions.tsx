@@ -256,6 +256,20 @@ export default function PreviewInterviewQuestions() {
             <p className="preview-kicker">Stakeholder interview</p>
             <h1>Preview of Interview Questions</h1>
             <p>Loading questions…</p>
+            <div className="preview-questions-header-meta">
+              <span
+                className="badge preview-questions-header-badge"
+                aria-busy="true"
+              >
+                Loading…
+              </span>
+              <Link
+                className="btn btn-outline preview-questions-back-stakeholders-btn"
+                to="/add-stakeholders"
+              >
+                Back to Stakeholders
+              </Link>
+            </div>
           </div>
         </header>
         <section className="card preview-block preview-questions-section">
@@ -277,9 +291,17 @@ export default function PreviewInterviewQuestions() {
             stakeholder interview. You can add, edit, or remove questions before
             launching sessions.
           </p>
-          <span className="badge preview-questions-header-badge">
-            {questions.length} question{questions.length !== 1 ? "s" : ""}
-          </span>
+          <div className="preview-questions-header-meta">
+            <span className="badge preview-questions-header-badge">
+              {questions.length} Question{questions.length !== 1 ? "s" : ""}
+            </span>
+            <Link
+              className="btn btn-outline preview-questions-back-stakeholders-btn"
+              to="/add-stakeholders"
+            >
+              Back to Stakeholders
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -520,14 +542,14 @@ export default function PreviewInterviewQuestions() {
       ) : null}
 
       <footer className="preview-actions">
-        <Link className="btn btn-outline" to="/preview">
-          Back to extracted context
+        <Link className="btn btn-outline" to="/add-stakeholders">
+          Back to Stakeholders
         </Link>
         <button
           className="btn btn-primary"
-          onClick={() => navigate("/add-stakeholders")}
+          onClick={() => navigate("/launch")}
         >
-          Next
+          Continue to Launch
         </button>
       </footer>
     </div>

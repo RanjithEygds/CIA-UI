@@ -96,6 +96,148 @@ const legendItems: { level: number; label: string }[] = [
   { level: 3, label: "High" },
 ];
 
+type SeverityRow = {
+  degree: string;
+  dimensionA: string;
+  ratingA: string;
+  dimensionB: string;
+  ratingB: string;
+};
+
+type SeveritySection = {
+  title: string;
+  columnA: string;
+  columnB: string;
+  rows: SeverityRow[];
+  /** One rating column between the two dimension columns (People scale). */
+  singleRatingColumn?: boolean;
+};
+
+const CHANGE_SEVERITY_SECTIONS: SeveritySection[] = [
+  {
+    title: "People - Change Severity Rating Scale",
+    columnA: "Org Structure and Roles",
+    columnB: "Skills, Capabilities & New Ways of Working",
+    singleRatingColumn: true,
+    rows: [
+      {
+        degree: "No Change = 0",
+        dimensionA: "No changes to roles or team structure.",
+        ratingA: "0",
+        dimensionB: "No changes to skills or ways of working.",
+        ratingB: "0",
+      },
+      {
+        degree: "Low = 1",
+        dimensionA: "Less than 30% change to roles or team structure.",
+        ratingA: "1",
+        dimensionB: "Less than 30% change to skills or ways of working.",
+        ratingB: "1",
+      },
+      {
+        degree: "Medium = 2",
+        dimensionA:
+          "30–50% change to roles or team structure; impacts a noticeable group.",
+        ratingA: "2",
+        dimensionB:
+          "30–50% change to skills or ways of working; impacts a noticeable group.",
+        ratingB: "2",
+      },
+      {
+        degree: "High = 3",
+        dimensionA:
+          "More than 50% change to roles or team structure; impacts a large population.",
+        ratingA: "3",
+        dimensionB:
+          "More than 50% change to skills or ways of working; impacts a large population.",
+        ratingB: "3",
+      },
+    ],
+  },
+  {
+    title: "Process - Change Severity Rating Scale",
+    columnA: "New or Interim Processes",
+    columnB: "Policies and Procedures",
+    rows: [
+      {
+        degree: "No Change = 0",
+        dimensionA: "No process changes; no interim working required.",
+        ratingA: "0",
+        dimensionB: "No changes to policies or procedures.",
+        ratingB: "0",
+      },
+      {
+        degree: "Low = 1",
+        dimensionA:
+          "Less than 30% change to processes; minimal interim working.",
+        ratingA: "1",
+        dimensionB:
+          "Less than 30% change to policies or procedures.",
+        ratingB: "1",
+      },
+      {
+        degree: "Medium = 2",
+        dimensionA:
+          "30–50% process changes; impacts a noticeable population.",
+        ratingA: "2",
+        dimensionB:
+          "30–50% change to policies or procedural steps; impacts a noticeable population.",
+        ratingB: "2",
+      },
+      {
+        degree: "High = 3",
+        dimensionA:
+          "More than 50% change; new or interim processes introduced; impacts a large population.",
+        ratingA: "3",
+        dimensionB:
+          "More than 50% change to policies or procedural steps; impacts a large population.",
+        ratingB: "3",
+      },
+    ],
+  },
+  {
+    title: "Technology - Change Severity Rating Scale",
+    columnA: "Technology",
+    columnB: "Data & Reporting",
+    rows: [
+      {
+        degree: "No Change = 0",
+        dimensionA: "No changes to the systems or tools that users work with.",
+        ratingA: "0",
+        dimensionB: "No changes to data or reporting.",
+        ratingB: "0",
+      },
+      {
+        degree: "Low = 1",
+        dimensionA:
+          "Less than 30% change in technology or system features (e.g., small field/option additions).",
+        ratingA: "1",
+        dimensionB:
+          "Less than 30% change in reporting (e.g., a few new columns or small modifications).",
+        ratingB: "1",
+      },
+      {
+        degree: "Medium = 2",
+        dimensionA:
+          "30–50% change to technology or systems (e.g., new applications, major updates).",
+        ratingA: "2",
+        dimensionB:
+          "30–50% change to reporting (e.g., new reports, major updates, stakeholder changes).",
+        ratingB: "2",
+      },
+      {
+        degree: "High = 3",
+        dimensionA:
+          "More than 50% change to technology or systems (e.g., new systems, replacing manual steps).",
+        ratingA: "3",
+        dimensionB:
+          "More than 50% change to reporting (e.g., major redesigns, new reporting needs, stakeholder changes).",
+        ratingB: "3",
+      },
+    ],
+  },
+];
+
 /** Line height (px) for wrapped row labels — matches ~12px semibold axis text. */
 const HEATMAP_ROW_LABEL_LINE_HEIGHT_PX = 16;
 const HEATMAP_ROW_LABEL_VERTICAL_ROW_PAD_PX = 12;
@@ -504,6 +646,162 @@ function KeyFindingCheckIcon() {
   );
 }
 
+function InfoIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width={18} height={18} aria-hidden>
+      <circle
+        cx="10"
+        cy="10"
+        r="8.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <circle cx="10" cy="6.1" r="1.1" fill="currentColor" />
+      <path
+        d="M10 8.8v5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function SeverityScaleTable({ section }: { section: SeveritySection }) {
+  const fourCol = section.singleRatingColumn === true;
+  const tableMod = fourCol
+    ? " cia-heatmap-info-table--four-col"
+    : " cia-heatmap-info-table--five-col";
+  return (
+    <section className="cia-heatmap-info-section" aria-label={section.title}>
+      <h4 className="cia-heatmap-info-section-title">{section.title}</h4>
+      <div className="cia-heatmap-info-table-wrap">
+        <table className={`cia-heatmap-info-table${tableMod}`}>
+          <thead>
+            <tr>
+              <th>Degree of Impact</th>
+              <th>{section.columnA}</th>
+              <th>Rating</th>
+              <th>{section.columnB}</th>
+              {!fourCol && <th>Rating</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {section.rows.map((row) => (
+              <tr key={`${section.title}-${row.degree}`}>
+                <th scope="row">{row.degree}</th>
+                <td>{row.dimensionA}</td>
+                <td className="cia-heatmap-info-rating">{row.ratingA}</td>
+                <td>{row.dimensionB}</td>
+                {!fourCol && (
+                  <td className="cia-heatmap-info-rating">{row.ratingB}</td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function SeverityInfoModal({
+  isOpen,
+  onClose,
+  currentIndex,
+  onPrev,
+  onNext,
+  popoverRef,
+  popoverPosition,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  currentIndex: number;
+  onPrev: () => void;
+  onNext: () => void;
+  popoverRef: { current: HTMLDivElement | null };
+  popoverPosition: { top: number; left: number };
+}) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft") onPrev();
+      if (event.key === "ArrowRight") onNext();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onClose, onPrev, onNext]);
+
+  if (!isOpen) return null;
+
+  const stopBubbling = (event: MouseEvent<HTMLDivElement>) => event.stopPropagation();
+  const section = CHANGE_SEVERITY_SECTIONS[currentIndex];
+  const isAtStart = currentIndex === 0;
+  const isAtEnd = currentIndex === CHANGE_SEVERITY_SECTIONS.length - 1;
+
+  return (
+    <div
+      ref={popoverRef}
+      className="cia-heatmap-info-popover"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="heatmap-info-title"
+      style={{ top: popoverPosition.top, left: popoverPosition.left }}
+      onClick={stopBubbling}
+    >
+      <div className="cia-heatmap-info-modal-head">
+        <h3 id="heatmap-info-title" className="cia-heatmap-info-modal-title">
+          Change Severity Rating Definitions
+        </h3>
+        <button
+          type="button"
+          className="cia-heatmap-info-close-btn"
+          onClick={onClose}
+          aria-label="Close change severity information"
+        >
+          <span aria-hidden>&times;</span>
+        </button>
+      </div>
+      <div className="cia-heatmap-info-carousel-shell">
+        {/* Keep arrows vertically centered to mimic carousel controls. */}
+        <button
+          type="button"
+          className="cia-heatmap-info-nav cia-heatmap-info-nav-left"
+          onClick={onPrev}
+          disabled={isAtStart}
+          aria-label="Show previous severity table"
+        >
+          <span aria-hidden>◀</span>
+        </button>
+        <div className="cia-heatmap-info-modal-content">
+          <div
+            className="cia-heatmap-info-carousel-track"
+            key={section.title}
+            aria-live="polite"
+          >
+            <SeverityScaleTable section={section} />
+          </div>
+          <p className="cia-heatmap-info-step-indicator">
+            {currentIndex + 1} / {CHANGE_SEVERITY_SECTIONS.length}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="cia-heatmap-info-nav cia-heatmap-info-nav-right"
+          onClick={onNext}
+          disabled={isAtEnd}
+          aria-label="Show next severity table"
+        >
+          <span aria-hidden>▶</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 type ChangeImpactHeatmapProps = {
   onExportPpt?: () => void;
 };
@@ -518,6 +816,14 @@ export default function ChangeImpactHeatmap({
   const [insightsError, setInsightsError] = useState<string | null>(null);
 
   const [heatmap, setHeatmap] = useState<HeatmapRow[] | null>(null);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [infoSectionIndex, setInfoSectionIndex] = useState(0);
+  const [infoPopoverPosition, setInfoPopoverPosition] = useState({
+    top: 0,
+    left: 0,
+  });
+  const infoTriggerRef = useRef<HTMLButtonElement>(null);
+  const infoPopoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!engagementId) return;
@@ -630,6 +936,66 @@ export default function ChangeImpactHeatmap({
     [labelLayout],
   );
 
+  useEffect(() => {
+    if (!isInfoModalOpen) return;
+
+    const onPointerDown = (event: globalThis.MouseEvent) => {
+      const targetNode = event.target as Node;
+      const clickedTrigger = infoTriggerRef.current?.contains(targetNode);
+      const clickedPopover = infoPopoverRef.current?.contains(targetNode);
+      if (!clickedTrigger && !clickedPopover) setIsInfoModalOpen(false);
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [isInfoModalOpen]);
+
+  useEffect(() => {
+    if (!isInfoModalOpen) return;
+
+    const updatePosition = () => {
+      const triggerRect = infoTriggerRef.current?.getBoundingClientRect();
+      if (!triggerRect) return;
+      const popoverWidth = 980;
+      const viewportPadding = 16;
+      const left = Math.max(
+        viewportPadding,
+        Math.min(
+          triggerRect.left - popoverWidth / 2 + triggerRect.width / 2,
+          window.innerWidth - popoverWidth - viewportPadding,
+        ),
+      );
+      setInfoPopoverPosition({
+        top: Math.round(triggerRect.bottom + 8),
+        left: Math.round(left),
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isInfoModalOpen]);
+
+  const openInfoPopover = () => {
+    // Always start at People when the info popup opens.
+    setInfoSectionIndex(0);
+    setIsInfoModalOpen(true);
+  };
+
+  const showPrevInfoSection = useCallback(() => {
+    setInfoSectionIndex((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  const showNextInfoSection = useCallback(() => {
+    setInfoSectionIndex((prev) =>
+      Math.min(CHANGE_SEVERITY_SECTIONS.length - 1, prev + 1),
+    );
+  }, []);
+
   return (
     <div className="cia-heatmap-page">
       {/* ✅ HEATMAP CARD — unchanged */}
@@ -639,9 +1005,21 @@ export default function ChangeImpactHeatmap({
       >
         <div className="cia-heatmap-card-head">
           <div>
-            <h2 className="engagement-section-title cia-heatmap-card-title">
-              Engagement Impact Heatmap
-            </h2>
+            <div className="cia-heatmap-card-title-row">
+              <h2 className="engagement-section-title cia-heatmap-card-title">
+                Engagement Impact Heatmap
+              </h2>
+              <button
+                ref={infoTriggerRef}
+                type="button"
+                className="cia-heatmap-info-trigger"
+                onClick={openInfoPopover}
+                aria-label="Open change severity rating definitions"
+                title="Change severity rating definitions"
+              >
+                <InfoIcon />
+              </button>
+            </div>
             <p className="cia-heatmap-card-sub">
               Cross-functional snapshot across People, Process, Technology, and
               Organization. Hover a cell for function, dimension, and severity.
@@ -739,6 +1117,15 @@ export default function ChangeImpactHeatmap({
           />
         </div>
       </section>
+      <SeverityInfoModal
+        isOpen={isInfoModalOpen}
+        onClose={() => setIsInfoModalOpen(false)}
+        currentIndex={infoSectionIndex}
+        onPrev={showPrevInfoSection}
+        onNext={showNextInfoSection}
+        popoverRef={infoPopoverRef}
+        popoverPosition={infoPopoverPosition}
+      />
 
       {/* ✅ KEY FINDINGS SECTION — NOW USING BACKEND INSIGHTS */}
       <section

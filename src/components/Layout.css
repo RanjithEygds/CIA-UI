@@ -8,12 +8,12 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  margin-left: 200px;
+  margin-left: var(--sidebar-width);
   transition: margin-left 0.25s ease;
 }
 
 .app-body[data-sidebar-collapsed="true"] {
-  margin-left: 64px;
+  margin-left: var(--sidebar-width-collapsed);
 }
 
 .app-header {

@@ -20,8 +20,6 @@
 }
 
 .sidebar {
-  --sidebar-width: 200px;
-  --sidebar-width-collapsed: 64px;
   position: fixed;
   top: 0;
   left: 0;
@@ -210,8 +208,9 @@
 }
 
 .sidebar-collapsed .sidebar-brand::after {
-  content: 'CIA';
-  font-size: 0.9rem;
+  content: 'CIMMIE';
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
   font-weight: 700;
   visibility: visible;
   display: block;

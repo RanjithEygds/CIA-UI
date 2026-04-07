@@ -494,7 +494,7 @@ export default function Preview() {
           </p>
           {summary ? (
             <span className="badge preview-header-files-badge">
-              Files uploaded: {summary.document_count}
+              Files Uploaded: {summary.document_count}
             </span>
           ) : null}
         </div>
@@ -600,12 +600,13 @@ export default function Preview() {
 
       <footer className="preview-actions">
         <Link className="btn btn-outline" to="/upload">
-          Back to uploads
+          Back to Uploads
         </Link>
+        {/* CIA flow: after preview comes add-stakeholders, then preview-questions, then launch */}
         <button
           className="btn btn-primary"
           type="button"
-          onClick={() => navigate("/preview-questions")}
+          onClick={() => navigate("/add-stakeholders")}
         >
           Next
         </button>
