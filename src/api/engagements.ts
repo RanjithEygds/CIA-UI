@@ -3,7 +3,9 @@ export type CreateEngagementResp = {
   name?: string | null;
 };
 
-const BASE_URL = import.meta.env.VITE_CIMMIE_API_URL ?? "http://localhost:8000";
+const BASE_URL =
+  import.meta.env.VITE_CIMMIE_API_URL ??
+  "https://cia-backendservice-azd3hjadbghyc5dg.canadacentral-01.azurewebsites.net";
 
 export interface EngagementListItem {
   id: string;

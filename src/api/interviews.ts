@@ -115,7 +115,9 @@ export type ExtendInterviewSessionResponse = {
   total_extended_minutes: number;
 };
 
-const API_BASE = import.meta.env.VITE_CIMMIE_API_URL ?? "http://localhost:8000";
+const API_BASE =
+  import.meta.env.VITE_CIMMIE_API_URL ??
+  "https://cia-backendservice-azd3hjadbghyc5dg.canadacentral-01.azurewebsites.net";
 
 async function okJson<T>(res: Response): Promise<T> {
   const text = await res.text();
