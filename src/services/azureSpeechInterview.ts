@@ -11,7 +11,6 @@ import * as sdk from "microsoft-cognitiveservices-speech-sdk";
 // } from "../config";
 
 
-
 export function isAzureSpeechConfigured(): boolean {
   return Boolean(SPEECH_API_KEY?.trim() && SPEECH_REGION?.trim());
 }
@@ -210,4 +209,34 @@ export class AzureInterviewTts {
       await new Promise((r) => setTimeout(r, 40));
     }
   }
+}
+
+let sharedInterviewTts: AzureInterviewTts | null = null;
+
+function getSharedInterviewTts(): AzureInterviewTts | null {
+  if (!isAzureSpeechConfigured()) return null;
+  if (!sharedInterviewTts) {
+    sharedInterviewTts = new AzureInterviewTts(createInterviewSpeechConfig());
+  }
+  return sharedInterviewTts;
+}
+
+/**
+ * Centralized entry point for CIMMIE TTS.
+ * Every caller is serialized through a single shared queue.
+ */
+export function queueInterviewSpeech(text: string): Promise<void> {
+  const tts = getSharedInterviewTts();
+  if (!tts) return Promise.resolve();
+  const trimmed = text.trim();
+  if (!trimmed) return Promise.resolve();
+  return tts.speak(trimmed);
+}
+
+export async function waitForInterviewSpeechIdle(): Promise<void> {
+  await sharedInterviewTts?.waitUntilIdle();
+}
+
+export function cancelInterviewSpeechQueue(): void {
+  sharedInterviewTts?.cancel();
 }
