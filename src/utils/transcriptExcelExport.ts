@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx-js-style";
 
-/** Column headers — keep identical for global and per-stakeholder exports. */
+/** Full row shape for global (engagement-wide) transcript export. */
 export type TranscriptExportSheetRow = {
   "Interview ID": string;
   "Stakeholder Name": string;
@@ -12,6 +12,39 @@ export type TranscriptExportSheetRow = {
   Question: string;
   Response: string;
 };
+
+/** Individual stakeholder export omits group / sub-group columns. */
+export type TranscriptExportSheetRowWithoutGroupColumns = Omit<
+  TranscriptExportSheetRow,
+  "Group" | "Sub-Group"
+>;
+
+export type TranscriptExportRowForStyles =
+  | TranscriptExportSheetRow
+  | TranscriptExportSheetRowWithoutGroupColumns;
+
+/**
+ * Individual transcript export drops "Group" and "Sub-Group"; global export does not.
+ * True when API marks the interview as INDIVIDUAL, on nested
+ * `/all-cias/:engagementId/individual` (or `/all-cia/...`), or on the per-interview
+ * transcript route `/stakeholder/:interviewId` used by this app today.
+ */
+export function shouldOmitGroupSubGroupColumnsForTranscriptExport(
+  pathname: string,
+  stakeholderType?: string | null,
+): boolean {
+  if ((stakeholderType ?? "").trim().toUpperCase() === "INDIVIDUAL") {
+    return true;
+  }
+  const p = pathname.trim();
+  if (/^\/all-cias?\/[^/]+\/individual\/?$/i.test(p)) {
+    return true;
+  }
+  if (/^\/stakeholder\/[^/]+\/?$/i.test(p)) {
+    return true;
+  }
+  return false;
+}
 
 
 export function transcriptQuestionNumberFromId(questionId: string): string {
@@ -89,13 +122,13 @@ const LONG_TEXT_HEADERS = new Set(["Question", "Response"]);
  */
 export function applyTranscriptSheetStyles(
   worksheet: XLSX.WorkSheet,
-  rows: TranscriptExportSheetRow[],
+  rows: TranscriptExportRowForStyles[],
 ): void {
   if (rows.length === 0) return;
 
   const range = XLSX.utils.decode_range(worksheet["!ref"] ?? "A1");
   const headerRowIndex = range.s.r;
-  const headerNames = Object.keys(rows[0]!) as (keyof TranscriptExportSheetRow)[];
+  const headerNames = Object.keys(rows[0]!) as string[];
 
   const colWidths = headerNames.map((name) => ({
     wch: Math.max(String(name).length + 2, 14),
@@ -145,7 +178,9 @@ export function applyTranscriptSheetStyles(
         cell.s = BASE_BODY_STYLE;
       }
 
-      const value = String(row[header] ?? "");
+      const value = String(
+        (row as Record<string, string | undefined>)[header] ?? "",
+      );
       if (colIdx !== questionColIdx && colIdx !== answerColIdx) {
         colWidths[colIdx] = {
           wch: Math.min(

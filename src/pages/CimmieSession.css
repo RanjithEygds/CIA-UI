@@ -313,6 +313,22 @@
   margin: 0;
 }
 
+/* Start Voice Interview: bottom of page while in text mode (same control chrome as mode toggle) */
+.cimmie-voice-start-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: auto;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.75rem;
+}
+
+.cimmie-voice-start-footer .interview-mode-toggle {
+  margin: 0;
+}
+
 /* Full-screen voice layout: fills viewport below the toggle */
 /* Voice container: fill viewport below toggle; no global layout change */
 .voice-fullscreen {
@@ -373,14 +389,31 @@
 }
 
 .voice-ui-toolbar {
+  position: absolute;
+  top: 1.5rem;
+  right: 1rem;
+  z-index: 2;
   display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  align-self: stretch;
-  width: 100%;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: clamp(0.75rem, 2.5vw, 1rem); /* ~12–16px vertical spacing */
+  width: auto;
+  max-width: calc(100% - 2rem);
   flex-shrink: 0;
-  gap: 0.75rem;
+  box-sizing: border-box;
+}
+
+.voice-ui-toolbar .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.voice-ui-toolbar-btn-icon {
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .voice-ui-toolbar .btn:disabled {
@@ -507,6 +540,7 @@
 }
 
 .voice-ui-panel.voice-ui-panel-fullscreen {
+  position: relative;
   gap: 1rem;
   align-items: stretch;
 }

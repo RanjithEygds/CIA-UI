@@ -3,19 +3,6 @@
   gap: 0.6rem;
 }
 
-.launch-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  justify-content: flex-end;
-}
-
-.launch-actions-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.4rem;
-}
-
 .launch-header {
   display: flex;
   justify-content: space-between;
@@ -48,6 +35,47 @@
   color: var(--ink-500);
   font-size: 0.75rem;
   line-height: 1.35;
+}
+
+/* Title + lead + back: column in normal flow (sidebar width does not affect alignment) */
+.launch-header-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Button #1: left-aligned under header lead copy */
+.launch-header-back-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  margin-top: 0.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Shared: both Back to Interview Questions links */
+.launch-back-to-questions-btn.btn.btn-outline {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  flex-shrink: 0;
+}
+
+/* Button #2: right-aligned below Scheduled Stakeholder Interviews card */
+.launch-after-stakeholders-card-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .launch-header-actions {
@@ -278,13 +306,5 @@
 
   .launch-header-actions .btn {
     flex: 1;
-  }
-
-  .launch-actions-row {
-    flex-direction: column;
-  }
-
-  .launch-actions-row .btn {
-    width: 100%;
   }
 }

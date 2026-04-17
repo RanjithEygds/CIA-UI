@@ -63,6 +63,8 @@ export interface InterviewTranscript {
   stakeholder_name: string;
   stakeholder_email: string | null;
   status: string; // "completed", "ended", or "in_progress"
+  /** When "INDIVIDUAL", transcript export may omit group columns (see UI export rules). */
+  stakeholder_type?: string | null;
   /** Group / role label when API provides it (used for transcript export). */
   stakeholder_role?: string | null;
   stakeholder_department?: string | null;
@@ -113,7 +115,9 @@ export type ExtendInterviewSessionResponse = {
   total_extended_minutes: number;
 };
 
-const API_BASE = import.meta.env.VITE_CIMMIE_API_URL ?? "http://localhost:8000";
+const API_BASE =
+  import.meta.env.VITE_CIMMIE_API_URL ??
+  "https://cia-backendservice-azd3hjadbghyc5dg.canadacentral-01.azurewebsites.net";
 
 async function okJson<T>(res: Response): Promise<T> {
   const text = await res.text();
@@ -430,6 +434,8 @@ export type InterviewResponsesDetailOut = {
   engagement_name?: string | null;
   stakeholder_name: string;
   stakeholder_email?: string | null;
+  /** From transcript API; drives individual vs global export column rules when set. */
+  stakeholder_type?: string | null;
   /** Maps to transcript export column “Group”. */
   stakeholder_role?: string | null;
   /** Maps to transcript export column “Sub-Group”. */

@@ -120,20 +120,28 @@ export default function LaunchInterview() {
   return (
     <div className="launch-page">
       <header className="launch-header card">
-        <div>
+        <div className="launch-header-main">
           <p className="launch-kicker">Interview Control Centre</p>
           <h1>Launch and Track Stakeholder Interviews</h1>
           <p>
             Manage interview access, track progress, and initiate sessions with
             stakeholders.
           </p>
+          <div className="launch-header-back-row">
+            <Link
+              className="btn btn-outline launch-back-to-questions-btn"
+              to="/preview-questions"
+            >
+              Back to Interview Questions
+            </Link>
+          </div>
         </div>
       </header>
 
       <section className="card">
         <div className="stakeholder-header-row">
           <h2>Scheduled Stakeholder Interviews</h2>
-          <span className="badge">{stakeholders.length} stakeholders</span>
+          <span className="badge">{stakeholders.length} Stakeholders</span>
         </div>
 
         {loading ? (
@@ -219,13 +227,14 @@ export default function LaunchInterview() {
         )}
       </section>
 
-      <footer className="launch-actions">
-        <div className="launch-actions-row">
-          <Link className="btn btn-outline" to="/add-stakeholders">
-            Back to Add Stakeholders
-          </Link>
-        </div>
-      </footer>
+      <div className="launch-after-stakeholders-card-actions">
+        <Link
+          className="btn btn-outline launch-back-to-questions-btn"
+          to="/preview-questions"
+        >
+          Back to Interview Questions
+        </Link>
+      </div>
 
       {showCopyToast && (
         <div className="copy-toast" role="status" aria-live="polite">

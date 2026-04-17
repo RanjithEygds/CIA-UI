@@ -33,6 +33,10 @@
   --brand-500: #0a9396;
   --brand-700: var(--color-primary);
   --ey-yellow: #FFE600;
+
+  /* Must match fixed sidebar — used by Layout main offset */
+  --sidebar-width: 180px;
+  --sidebar-width-collapsed: 64px;
 }
 
 * {

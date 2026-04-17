@@ -23,10 +23,12 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import {
   type AzureContinuousStt,
-  AzureInterviewTts,
+  cancelInterviewSpeechQueue,
+  queueInterviewSpeech,
   createInterviewSpeechConfig,
   isAzureSpeechConfigured,
   startAzureContinuousStt,
+  waitForInterviewSpeechIdle,
 } from "../services/azureSpeechInterview";
 
 /** Minimal type for Web Speech API SpeechRecognition. */
@@ -141,8 +143,10 @@ function BotTypewriterBlock({
       posRef.current = i + 1;
       setDisplayed(target.slice(0, i + 1));
       onTick();
-      const ms = c === " " ? 0 : Math.round(30 + Math.random() * 20);
-      window.setTimeout(step, ms);
+      const base = 10 + Math.random() * 20;
+      const ms = c === " " ? 0 : Math.round(base * TYPEWRITER_SPEED);
+
+window.setTimeout(step, ms);
     };
     step();
     return () => {
@@ -271,6 +275,8 @@ const INTERVIEW_EXTENSIONS_KEY = "ciassist_interview_extensions";
 const SILENCE_TIMEOUT_MS = 7000;
 const VOICE_PANEL_SILENCE_TIMEOUT_MS = 8000;
 const MIC_TOGGLE_DEBOUNCE_MS = 400;
+// Somewhere global/config
+export const TYPEWRITER_SPEED = 3; // 0.5 = twice as fast, 2 = twice as slow
 
 type InterviewMode = "text" | "voice";
 
@@ -355,7 +361,6 @@ export default function CimmieSession() {
   const lastMicToggleTimeRef = useRef(0);
   /* Voice panel: Azure STT session, stream, transcript, and audio analysis */
   const azureVoiceSttRef = useRef<AzureContinuousStt | null>(null);
-  const azureInterviewTtsRef = useRef<AzureInterviewTts | null>(null);
   const voiceMediaStreamRef = useRef<MediaStream | null>(null);
   const voiceTranscriptRef = useRef("");
   const voiceSilenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -713,16 +718,6 @@ export default function CimmieSession() {
     setVoiceVolume(0);
   }
 
-  function getOrCreateAzureInterviewTts(): AzureInterviewTts | null {
-    if (!isAzureSpeechConfigured()) return null;
-    if (!azureInterviewTtsRef.current) {
-      azureInterviewTtsRef.current = new AzureInterviewTts(
-        createInterviewSpeechConfig(),
-      );
-    }
-    return azureInterviewTtsRef.current;
-  }
-
   function startVoiceRecording() {
     if (sessionExpiredRef.current) return;
     if (!isAzureSpeechConfigured()) {
@@ -897,7 +892,7 @@ export default function CimmieSession() {
       const vstt = azureVoiceSttRef.current;
       azureVoiceSttRef.current = null;
       if (vstt) void vstt.stop().catch(() => {});
-      azureInterviewTtsRef.current?.cancel();
+      cancelInterviewSpeechQueue();
     };
   }, []);
 
@@ -971,19 +966,17 @@ export default function CimmieSession() {
   }, [sessionExpired]);
 
   function prepareVoiceAgentSpeech() {
-    azureInterviewTtsRef.current?.cancel();
+    cancelInterviewSpeechQueue();
     voiceTtsBufferRef.current = "";
     voiceTtsUtteranceCountRef.current = 0;
     voiceAfterTtsRef.current = null;
   }
 
   function speakUtteranceCounted(text: string) {
-    const tts = getOrCreateAzureInterviewTts();
-    if (!tts) return;
     const trimmed = text.trim();
     if (!trimmed) return;
     voiceTtsUtteranceCountRef.current += 1;
-    void tts.speak(trimmed).finally(() => {
+    void queueInterviewSpeech(trimmed).finally(() => {
       voiceTtsUtteranceCountRef.current -= 1;
       if (voiceTtsUtteranceCountRef.current < 0) {
         voiceTtsUtteranceCountRef.current = 0;
@@ -1011,15 +1004,11 @@ export default function CimmieSession() {
   }
 
   async function waitUntilSpeechIdle() {
-    await azureInterviewTtsRef.current?.waitUntilIdle();
+    await waitForInterviewSpeechIdle();
   }
 
   function speakUtteranceSimple(text: string): Promise<void> {
-    const tts = getOrCreateAzureInterviewTts();
-    if (!tts) return Promise.resolve();
-    const trimmed = text.trim();
-    if (!trimmed) return Promise.resolve();
-    return tts.speak(trimmed);
+    return queueInterviewSpeech(text);
   }
 
   voiceBootRef.current = {
@@ -1408,7 +1397,7 @@ export default function CimmieSession() {
         if (!mounted) return;
 
         // ✅ Load the first question (existing interview)
-        await new Promise((r) => setTimeout(r, 10000));
+        await new Promise((r) => setTimeout(r, 12000));
         const firstQ = await getNextQuestion(interviewId);
 
         if (!mounted) return;
@@ -1606,15 +1595,6 @@ export default function CimmieSession() {
             } catch (err) {
               console.error("Failed to refresh sections:", err);
             }
-
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: `readback-${Date.now()}`,
-                from: "bot",
-                text: result.readback!,
-              },
-            ]);
           }
 
           if (result?.reason === "max_followups_reached") {
@@ -1875,15 +1855,6 @@ export default function CimmieSession() {
             <TextMessageIcon />
             <span>Text</span>
           </button>
-          <button
-            type="button"
-            className={`interview-mode-btn ${interviewMode === "voice" ? "interview-mode-btn-active" : ""}`}
-            onClick={() => setInterviewModeAndPersist("voice")}
-            aria-pressed={interviewMode === "voice"}
-          >
-            <MicIcon />
-            <span>Voice</span>
-          </button>
         </div>
       </section>
 
@@ -2006,6 +1977,9 @@ export default function CimmieSession() {
                 disabled={sessionExpired || !isAzureSpeechConfigured()}
                 aria-label="Start microphone and Azure speech recognition"
               >
+                <span className="voice-ui-toolbar-btn-icon" aria-hidden="true">
+                  ▶
+                </span>
                 Start Voice
               </button>
               <button
@@ -2015,6 +1989,9 @@ export default function CimmieSession() {
                 disabled={!voicePanelListening}
                 aria-label="Stop speech recognition without submitting an answer"
               >
+                <span className="voice-ui-toolbar-btn-icon" aria-hidden="true">
+                  ⏹
+                </span>
                 Stop Voice
               </button>
             </div>
@@ -2156,6 +2133,25 @@ export default function CimmieSession() {
                 <MicIcon />
               </button>
             </div>
+          </div>
+        </section>
+      )}
+
+      {interviewMode === "text" && (
+        <section
+          className="cimmie-voice-start-footer"
+          aria-label="Voice interview entry"
+        >
+          <div className="interview-mode-toggle" role="group">
+            <button
+              type="button"
+              className="interview-mode-btn"
+              onClick={() => setInterviewModeAndPersist("voice")}
+              aria-label="Start voice interview"
+            >
+              <MicIcon />
+              <span>Start Voice Interview</span>
+            </button>
           </div>
         </section>
       )}

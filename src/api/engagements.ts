@@ -3,7 +3,9 @@ export type CreateEngagementResp = {
   name?: string | null;
 };
 
-const BASE_URL = import.meta.env.VITE_CIMMIE_API_URL ?? "http://localhost:8000";
+const BASE_URL =
+  import.meta.env.VITE_CIMMIE_API_URL ??
+  "https://cia-backendservice-azd3hjadbghyc5dg.canadacentral-01.azurewebsites.net";
 
 export interface EngagementListItem {
   id: string;
@@ -97,6 +99,8 @@ export type StakeholderWithInterview = {
   role?: string | null;
   department?: string | null;
   engagement_level?: string | null;
+  /** Minutes when returned by API (e.g. 30, 45). */
+  interview_duration_minutes?: number | string | null;
   created_at?: string | null;
 
   interview_id?: string | null;
@@ -130,6 +134,7 @@ export type UpdateStakeholderPayload = Partial<{
   role: string;
   department: string;
   engagement_level: string;
+  interview_duration_minutes: number;
 }>;
 
 export type UpdateStakeholderResponse = {
@@ -503,6 +508,7 @@ export async function createStakeholderAndInterview(
     role?: string;
     department?: string;
     engagement_level?: string;
+    interview_duration_minutes?: string | number;
   },
 ): Promise<CreateStakeholderResp> {
   const fd = new FormData();
@@ -512,6 +518,15 @@ export async function createStakeholderAndInterview(
   if (payload.department) fd.append("department", payload.department);
   if (payload.engagement_level)
     fd.append("engagement_level", payload.engagement_level);
+  if (
+    payload.interview_duration_minutes != null &&
+    String(payload.interview_duration_minutes) !== ""
+  ) {
+    fd.append(
+      "interview_duration_minutes",
+      String(payload.interview_duration_minutes),
+    );
+  }
 
   const res = await okOrThrow(
     await fetch(

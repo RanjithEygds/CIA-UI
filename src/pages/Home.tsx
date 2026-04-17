@@ -58,12 +58,13 @@ export default function Home() {
       <section className="home-hero">
         <p className="hero-kicker">Enterprise Change Enablement Platform</p>
         <h1 className="hero-title-logo">
-          <span className="ci-logo-ci">CI</span>
-          <span className="ci-logo-a">A</span>
-          <span className="ci-logo-ssist">ssist</span>
+          <span className="ci-logo-ci">CIMMIE</span>
         </h1>
         <p className="home-hero-p">
-          Turns stakeholder interviews into delivery-ready CIA outputs. Built for Change Management teams, CIAssist accelerates the Change Impact Assessment process from document intake to structured findings, narrative drafting, and template population.
+          CIMMIE is an acronym for Change Impact Mapping Insights and Execution. It is a platform
+          that turns stakeholder interviews into structured findings. Built for the Change
+          Management team, CIMMIE accelerates the Change Impact Assessment process from document
+          intake to structured findings, narrative drafting, and template population.
         </p>
         <div className="home-cta">
           <Link to="/upload" className="btn btn-primary">
@@ -75,7 +76,7 @@ export default function Home() {
       <section className="home-cimmie">
         <h2 className="home-section-title">
           <CimmieIcon className="cimmie-title-icon" size={32} />
-          CIMMIE – Your interview assistant
+          Your Interview Assistant
         </h2>
         <div className="cimmie-card card">
           <div className="cimmie-card-inner">
@@ -84,11 +85,9 @@ export default function Home() {
             </div>
             <div className="cimmie-card-text">
               <p>
-                <strong>CIMMIE</strong> is a conversational chatbot that supports 
-                both text and voice interactions within scheduled, 
-                time‑boxed interview sessions. Stakeholders join using one‑time access 
-                links, complete their interview, and receive a real‑time conversational 
-                read‑back of the captured evidence organized by topic.
+                We have a conversational chatbot that supports both text and voice interactions
+                within scheduled, time‑boxed interview sessions. Stakeholders join using one‑time
+                access links, complete their interview, and submit their responses.
               </p>
             </div>
           </div>
