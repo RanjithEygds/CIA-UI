@@ -1,16 +1,9 @@
-/**
- * Azure Cognitive Services Speech — STT/TTS for the CIMMIE voice interview only.
- * Config from .env: VITE_SPEECH_API_KEY, VITE_SPEECH_REGION, VITE_DEFAULT_STT_LANG, VITE_DEFAULT_TTS_VOICE
- */
 import * as sdk from "microsoft-cognitiveservices-speech-sdk";
-// import {
-//   DEFAULT_STT_LANG,
-//   DEFAULT_TTS_VOICE,
-//   SPEECH_API_KEY,
-//   SPEECH_REGION,
-// } from "../config";
 
-
+const DEFAULT_STT_LANG = "en-US";
+const DEFAULT_TTS_VOICE = "en-US-JennyNeural"; // e.g. "en-US-JennyNeural"
+const SPEECH_API_KEY = import.meta.env.VITE_SPEECH_API_KEY as string | "";
+const SPEECH_REGION = "swedencentral";
 
 export function isAzureSpeechConfigured(): boolean {
   return Boolean(SPEECH_API_KEY?.trim() && SPEECH_REGION?.trim());
